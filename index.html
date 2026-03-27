@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的网页标签收藏夹 - 增强版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            color: #1e293b;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部 */
+        .header {
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #0f172a;
+        }
+
+        /* 搜索栏 */
+        .search-section {
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 15px;
+            padding: 8px 0;
+        }
+
+        .search-box .search-icon {
+            color: #94a3b8;
+            font-size: 18px;
+        }
+
+        .search-box button {
+            background: none;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+
+        .search-box button:hover {
+            background: #f1f5f9;
+            color: #3b82f6;
+        }
+
+        /* 添加链接表单 */
+        .add-form {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .add-form input, .add-form select, .add-form textarea {
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .add-form textarea {
+            min-width: 200px;
+            resize: vertical;
+        }
+
+        .add-form input:focus, .add-form select:focus, .add-form textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+
+        .add-form button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .add-form button:hover {
+            background: #2563eb;
+        }
+
+        /* 分类标签导航 */
+        .categories {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 15px;
+        }
+
+        .category-tab {
+            padding: 8px 20px;
+            background: #f1f5f9;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+            position: relative;
+        }
+
+        .category-tab:hover {
+            background: #e2e8f0;
+        }
+
+        .category-tab.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* 排序和筛选工具栏 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .sort-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sort-btn {
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .sort-btn.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .filter-btn.active {
+            background: #f59e0b;
+            color: white;
+        }
+
+        /* 操作按钮组 */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            background: #f1f5f9;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* 链接卡片网格 */
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 16px;
+        }
+
+        .link-card {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            border: 1px solid #e2e8f0;
+        }
+
+        .link-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .link-card.pinned {
+            background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+            border-left: 4px solid #f59e0b;
+        }
+
+        .link-card.favorite {
+            border-right: 4px solid #ef4444;
+        }
+
+        .link-card.pinned.favorite {
+            border-left: 4px solid #f59e0b;
+            border-right: 4px solid #ef4444;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .link-title {
+            font-size: 16px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .link-title a {
+            color: #0f172a;
+            text-decoration: none;
+        }
+
+        .link-title a:hover {
+            color: #3b82f6;
+            text-decoration: underline;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .favorite-btn.active {
+            color: #ef4444;
+        }
+
+        .pinned-btn.active {
+            color: #f59e0b;
+        }
+
+        .link-url {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .link-desc {
+            font-size: 13px;
+            color: #475569;
+            margin-bottom: 12px;
+            line-height: 1.4;
+        }
+
+        .link-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .category-badge {
+            background: #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .delete-btn, .edit-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .edit-btn:hover {
+            color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .delete-btn:hover {
+            color: #ef4444;
+            background: #fef2f2;
+        }
+
+        /* 编辑模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #0f172a;
+        }
+
+        .modal-content input,
+        .modal-content select,
+        .modal-content textarea {
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .modal-buttons button {
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .modal-buttons .save-btn {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .modal-buttons .cancel-btn {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+
+        /* 统计信息 */
+        .stats {
+            margin-top: 25px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📑 我的网页标签收藏夹</h1>
+        </div>
+
+        <!-- 搜索栏 -->
+        <div class="search-section">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="搜索网站名称、网址或描述..." autocomplete="off">
+                <button id="clearSearchBtn" style="display: none;">✕ 清除</button>
+            </div>
+        </div>
+
+        <!-- 添加链接表单 -->
+        <div class="add-form">
+            <input type="text" id="linkName" placeholder="网站名称 *" autocomplete="off">
+            <input type="url" id="linkUrl" placeholder="网址 (https://...) *" autocomplete="off">
+            <textarea id="linkDesc" placeholder="描述 (可选)" rows="1"></textarea>
+            <select id="linkCategory">
+                <option value="工作">💼 工作</option>
+                <option value="学习">📚 学习</option>
+                <option value="娱乐">🎮 娱乐</option>
+                <option value="工具">🛠️ 工具</option>
+                <option value="阅读">📖 阅读</option>
+                <option value="其他">📁 其他</option>
+            </select>
+            <button id="addBtn">➕ 添加链接</button>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            <button class="action-btn" id="exportBtn">📤 导出数据</button>
+            <button class="action-btn" id="importBtn">📥 导入数据</button>
+            <input type="file" id="importFile" style="display: none;" accept=".json">
+        </div>
+
+        <!-- 分类标签 -->
+        <div class="categories" id="categories"></div>
+
+        <!-- 工具栏 -->
+        <div class="toolbar">
+            <div class="sort-buttons">
+                <button class="sort-btn" data-sort="default">📅 默认</button>
+                <button class="sort-btn" data-sort="name">📝 按名称</button>
+                <button class="sort-btn" data-sort="date">🕐 按时间</button>
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" data-filter="all">全部</button>
+                <button class="filter-btn" data-filter="favorite">⭐ 收藏</button>
+                <button class="filter-btn" data-filter="pinned">📌 置顶</button>
+            </div>
+        </div>
+
+        <!-- 链接列表 -->
+        <div id="linksContainer"></div>
+
+        <!-- 统计信息 -->
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h3>✏️ 编辑链接</h3>
+            <input type="text" id="editId" style="display: none;">
+            <input type="text" id="editName" placeholder="网站名称">
+            <input type="url" id="editUrl" placeholder="网址">
+            <textarea id="editDesc" placeholder="描述" rows="3"></textarea>
+            <select id="editCategory">
+                <option value="工作">💼 工作</option>
+                <option value="学习">📚 学习</option>
+                <option value="娱乐">🎮 娱乐</option>
+                <option value="工具">🛠️ 工具</option>
+                <option value="阅读">📖 阅读</option>
+                <option value="其他">📁 其他</option>
+            </select>
+            <div class="modal-buttons">
+                <button class="cancel-btn" onclick="closeModal()">取消</button>
+                <button class="save-btn" onclick="saveEdit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 数据存储
+        let links = [];
+        let currentCategory = '全部';
+        let currentSort = 'default';
+        let currentFilter = 'all';
+        let searchKeyword = '';
+        let editingId = null;
+
+        // 默认分类列表
+        const categories = ['全部', '工作', '学习', '娱乐', '工具', '阅读', '其他'];
+
+        // 加载本地数据
+        function loadData() {
+            const saved = localStorage.getItem('webLinksEnhanced');
+            if (saved) {
+                links = JSON.parse(saved);
+            } else {
+                // 示例数据
+                links = [
+                    { id: Date.now() + 1, name: 'GitHub', url: 'https://github.com', desc: '开源代码托管平台，全球最大的开发者社区', category: '工作', date: new Date().toISOString(), favorite: true, pinned: true },
+                    { id: Date.now() + 2, name: 'MDN Web Docs', url: 'https://developer.mozilla.org', desc: 'Web 技术权威文档，学习前端必备', category: '学习', date: new Date().toISOString(), favorite: false, pinned: false },
+                    { id: Date.now() + 3, name: 'Bilibili', url: 'https://bilibili.com', desc: '视频弹幕网站，学习娱乐两不误', category: '娱乐', date: new Date().toISOString(), favorite: true, pinned: false }
+                ];
+            }
+            render();
+        }
+
+        // 保存数据
+        function saveData() {
+            localStorage.setItem('webLinksEnhanced', JSON.stringify(links));
+        }
+
+        // 添加链接
+        function addLink() {
+            const name = document.getElementById('linkName').value.trim();
+            const url = document.getElementById('linkUrl').value.trim();
+            const desc = document.getElementById('linkDesc').value.trim();
+            const category = document.getElementById('linkCategory').value;
+
+            if (!name || !url) {
+                alert('请填写网站名称和网址');
+                return;
+            }
+
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('请输入完整的网址（以 http:// 或 https:// 开头）');
+                return;
+            }
+
+            const newLink = {
+                id: Date.now(),
+                name: name,
+                url: url,
+                desc: desc || '暂无描述',
+                category: category,
+                date: new Date().toISOString(),
+                favorite: false,
+                pinned: false
+            };
+
+            links.unshift(newLink);
+            saveData();
+            
+            document.getElementById('linkName').value = '';
+            document.getElementById('linkUrl').value = '';
+            document.getElementById('linkDesc').value = '';
+            
+            render();
+        }
+
+        // 删除链接
+        function deleteLink(id) {
+            if (confirm('确定要删除这个链接吗？')) {
+                links = links.filter(link => link.id !== id);
+                saveData();
+                render();
+            }
+        }
+
+        // 切换收藏
+        function toggleFavorite(id) {
+            const link = links.find(l => l.id === id);
+            if (link) {
+                link.favorite = !link.favorite;
+                saveData();
+                render();
+            }
+        }
+
+        // 切换置顶
+        function togglePinned(id) {
+            const link = links.find(l => l.id === id);
+            if (link) {
+                link.pinned = !link.pinned;
+                saveData();
+                render();
+            }
+        }
+
+        // 打开编辑模态框
+        function openEditModal(id) {
+            const link = links.find(l => l.id === id);
+            if (link) {
+                editingId = id;
+                document.getElementById('editId').value = id;
+                document.getElementById('editName').value = link.name;
+                document.getElementById('editUrl').value = link.url;
+                document.getElementById('editDesc').value = link.desc;
+                document.getElementById('editCategory').value = link.category;
+                document.getElementById('editModal').classList.add('active');
+            }
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingId = null;
+        }
+
+        // 保存编辑
+        function saveEdit() {
+            const id = parseInt(document.getElementById('editId').value);
+            const link = links.find(l => l.id === id);
+            if (link) {
+                link.name = document.getElementById('editName').value.trim();
+                link.url = document.getElementById('editUrl').value.trim();
+                link.desc = document.getElementById('editDesc').value.trim() || '暂无描述';
+                link.category = document.getElementById('editCategory').value;
+                
+                if (!link.name || !link.url) {
+                    alert('网站名称和网址不能为空');
+                    return;
+                }
+                
+                if (!link.url.startsWith('http://') && !link.url.startsWith('https://')) {
+                    alert('请输入完整的网址（以 http:// 或 https:// 开头）');
+                    return;
+                }
+                
+                saveData();
+                closeModal();
+                render();
+            }
+        }
+
+        // 获取过滤和排序后的链接
+        function getProcessedLinks() {
+            let result = [...links];
+            
+            // 搜索过滤
+            if (searchKeyword) {
+                const keyword = searchKeyword.toLowerCase();
+                result = result.filter(link => 
+                    link.name.toLowerCase().includes(keyword) ||
+                    link.url.toLowerCase().includes(keyword) ||
+                    link.desc.toLowerCase().includes(keyword)
+                );
+            }
+            
+            // 分类过滤
+            if (currentCategory !== '全部') {
+                result = result.filter(link => link.category === currentCategory);
+            }
+            
+            // 特殊筛选（收藏/置顶）
+            if (currentFilter === 'favorite') {
+                result = result.filter(link => link.favorite);
+            } else if (currentFilter === 'pinned') {
+                result = result.filter(link => link.pinned);
+            }
+            
+            // 排序
+            switch(currentSort) {
+                case 'name':
+                    result.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+                    break;
+                case 'date':
+                    result.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    break;
+                default: // default - 置顶优先，然后按时间
+                    result.sort((a, b) => {
+                        if (a.pinned !== b.pinned) return b.pinned - a.pinned;
+                        return new Date(b.date) - new Date(a.date);
+                    });
+            }
+            
+            return result;
+        }
+
+        // 渲染分类标签
+        function renderCategories() {
+            const container = document.getElementById('categories');
+            container.innerHTML = categories.map(cat => `
+                <div class="category-tab ${currentCategory === cat ? 'active' : ''}" 
+                     data-category="${cat}">
+                    ${cat === '全部' ? '📌 全部' : cat}
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    currentCategory = tab.dataset.category;
+                    render();
+                });
+            });
+        }
+
+        // 渲染链接列表
+        function renderLinks() {
+            const container = document.getElementById('linksContainer');
+            const processedLinks = getProcessedLinks();
+
+            if (processedLinks.length === 0) {
+                container.innerHTML = `<div class="empty-state">📭 暂无链接，点击上方添加吧</div>`;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="links-grid">
+                    ${processedLinks.map(link => `
+                        <div class="link-card ${link.pinned ? 'pinned' : ''} ${link.favorite ? 'favorite' : ''}">
+                            <div class="card-header">
+                                <div class="link-title">
+                                    <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">
+                                        ${escapeHtml(link.name)}
+                                    </a>
+                                </div>
+                                <div class="card-actions">
+                                    <button class="icon-btn pinned-btn ${link.pinned ? 'active' : ''}" onclick="togglePinned(${link.id})" title="${link.pinned ? '取消置顶' : '置顶'}">
+                                        📌
+                                    </button>
+                                    <button class="icon-btn favorite-btn ${link.favorite ? 'active' : ''}" onclick="toggleFavorite(${link.id})" title="${link.favorite ? '取消收藏' : '收藏'}">
+                                        ${link.favorite ? '❤️' : '🤍'}
+                                    </button>
+                                    <button class="icon-btn edit-btn" onclick="openEditModal(${link.id})" title="编辑">
+                                        ✏️
+                                    </button>
+                                    <button class="icon-btn delete-btn" onclick="deleteLink(${link.id})" title="删除">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="link-url">${escapeHtml(link.url)}</div>
+                            <div class="link-desc">${escapeHtml(link.desc)}</div>
+                            <div class="link-meta">
+                                <span class="category-badge">${escapeHtml(link.category)}</span>
+                                <span>${formatDate(link.date)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // 格式化日期
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return '今天';
+            if (days === 1) return '昨天';
+            if (days < 7) return `${days}天前`;
+            return date.toLocaleDateString('zh-CN');
+        }
+
+        // 渲染统计信息
+        function renderStats() {
+            const total = links.length;
+            const favoriteCount = links.filter(l => l.favorite).length;
+            const pinnedCount = links.filter(l => l.pinned).length;
+            const processedCount = getProcessedLinks().length;
+            
+            let statsHtml = `📊 总计 ${total} 个链接 | ⭐ 收藏 ${favoriteCount} 个 | 📌 置顶 ${pinnedCount} 个`;
+            if (searchKeyword || currentCategory !== '全部' || currentFilter !== 'all') {
+                statsHtml += ` | 🔍 当前显示 ${processedCount} 个`;
+            }
+            document.getElementById('stats').innerHTML = statsHtml;
+        }
+
+        // 渲染整个页面
+        function render() {
+            renderCategories();
+            renderLinks();
+            renderStats();
+            updateSortButtons();
+            updateFilterButtons();
+            updateSearchUI();
+        }
+
+        // 更新排序按钮状态
+        function updateSortButtons() {
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                if (btn.dataset.sort === currentSort) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // 更新筛选按钮状态
+        function updateFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === currentFilter) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // 更新搜索UI
+        function updateSearchUI() {
+            const clearBtn = document.getElementById('clearSearchBtn');
+            if (searchKeyword) {
+                clearBtn.style.display = 'block';
+            } else {
+                clearBtn.style.display = 'none';
+            }
+        }
+
+        // 防抖搜索
+        let searchTimeout;
+        function handleSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchKeyword = document.getElementById('searchInput').value.trim();
+                render();
+            }, 300);
+        }
+
+        // 清除搜索
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            searchKeyword = '';
+            render();
+        }
+
+        // 导出数据
+        function exportData() {
+            const dataStr = JSON.stringify(links, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `web-links-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 导入数据
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        links = imported;
+                        saveData();
+                        render();
+                        alert('导入成功！');
+                    } else {
+                        alert('文件格式错误，请确保是有效的 JSON 数组');
+                    }
+                } catch (err) {
+                    alert('解析失败：' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 防XSS
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // 初始化事件绑定
+        function initEvents() {
+            document.getElementById('addBtn').addEventListener('click', addLink);
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('importBtn').addEventListener('click', () => {
+                document.getElementById('importFile').click();
+            });
+            document.getElementById('importFile').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    importData(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+            document.getElementById('searchInput').addEventListener('input', handleSearch);
+            document.getElementById('clearSearchBtn').addEventListener('click', clearSearch);
+            
+            // 排序按钮
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentSort = btn.dataset.sort;
+                    render();
+                });
+            });
+            
+            // 筛选按钮
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentFilter = btn.dataset.filter;
+                    render();
+                });
+            });
+            
+            // 回车添加
+            const inputs = ['linkName', 'linkUrl', 'linkDesc'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') addLink();
+                });
+            });
+            
+            // 点击模态框背景关闭
+            document.getElementById('editModal').addEventListener('click', (e) => {
+                if (e.target === document.getElementById('editModal')) {
+                    closeModal();
+                }
+            });
+        }
+
+        // 初始化
+        loadData();
+        initEvents();
+    </script>
+</body>
+</html>
