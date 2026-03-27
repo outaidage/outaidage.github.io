@@ -1,82 +1,58 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Dashboard</title>
-<style>
-body{font-family:Arial;margin:0;background:#f5f5f5}
-header{padding:15px;background:#222;color:#fff;text-align:center}
-.container{padding:15px}
-.section{background:#fff;margin-bottom:15px;padding:15px;border-radius:8px}
-.section h2{margin-top:0}
-input,button{padding:8px;margin:5px 0;width:100%}
-.item{border-top:1px solid #eee;padding:8px 0}
-img{max-width:100%;height:auto}
-a{color:blue}
-</style>
-</head>
-<body>
-<header>
-<h1>Personal Dashboard</h1>
-</header>
-<div class="container" id="app"></div>
-<script>
-const sections=["学习","工作","上岸","书签","信仰","梦想"];
-function loadData(key){return JSON.parse(localStorage.getItem(key)||"[]")}
-function saveData(key,data){localStorage.setItem(key,JSON.stringify(data))}
-function createSection(name){
-const key="sec_"+name;
-const section=document.createElement("div");
-section.className="section";
-section.innerHTML=`<h2>${name}</h2>
-<input placeholder="文字内容" id="${key}_text">
-<input placeholder="链接 (https://)" id="${key}_link">
-<input type="file" id="${key}_file" accept="image/*">
-<button onclick="addItem('${key}')">添加</button>
-<div id="${key}_list"></div>`;
-document.getElementById("app").appendChild(section);
-renderList(key);
+{
+  "homepage": "https://developerfolio.js.org/",
+  "name": "developerfolio",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "colorthief": "^2.3.0",
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.6",
+    "gh-pages": "^2.1.1",
+    "jest-canvas-mock": "^2.3.1",
+    "lottie-react": "^2.4.0",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "react-easy-emoji": "^1.8.1",
+    "react-headroom": "^3.0.0",
+    "react-reveal": "^1.2.2",
+    "react-scripts": "^5.0.1",
+    "react-test-renderer": "^16.10.2",
+    "react-twitter-embed": "3.0.3",
+    "sass": "^1.32.8"
+  },
+  "scripts": {
+    "predeploy": "npm run build",
+    "start": "node fetch.js && react-scripts start",
+    "build": "node fetch.js && react-scripts build",
+    "deploy": "gh-pages -b master -d build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "format": "prettier --write \"./**/*.{js,css,json,scss}\"",
+    "check-format": "prettier -c \"./**/*.{js,css,json,scss}\""
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.3%",
+      "not ie 11",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      ">0.3%",
+      "not ie 11",
+      "not dead",
+      "not op_mini all",
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "dotenv": "^8.2.0",
+    "prettier": "^2.3.1"
+  }
 }
-function addItem(key){
-const text=document.getElementById(key+"_text").value;
-const link=document.getElementById(key+"_link").value;
-const fileInput=document.getElementById(key+"_file");
-const file=fileInput.files[0];
-let data=loadData(key);
-if(file){
-const reader=new FileReader();
-reader.onload=function(e){
-data.push({text,link,image:e.target.result});
-saveData(key,data);
-renderList(key);
-};
-reader.readAsDataURL(file);
-}else{
-data.push({text,link,image:null});
-saveData(key,data);
-renderList(key);
-}
-document.getElementById(key+"_text").value="";
-document.getElementById(key+"_link").value="";
-fileInput.value="";
-}
-function renderList(key){
-const list=document.getElementById(key+"_list");
-list.innerHTML="";
-let data=loadData(key);
-data.forEach(item=>{
-const div=document.createElement("div");
-div.className="item";
-div.innerHTML=`
-<div>${item.text||""}</div>
-<div>${item.link?`<a href=" " target="_blank">${item.link}</a >`:""}</div>
-${item.image?`< img src="${item.image}">`:""}
-`;
-list.appendChild(div);
-});
-}
-sections.forEach(createSection);
-</script>
-</body>
-</html>
