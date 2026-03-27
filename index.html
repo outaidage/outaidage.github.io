@@ -1,14 +1,11 @@
-
 <!DOCTYPE html>
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Outai - Personal Site</title>
-
   <!-- 字体 -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
-
   <style>
     :root {
       --bg: #ffffff;
@@ -16,58 +13,48 @@
       --accent: #0070F3;
       --gray: #666666;
     }
-
     body.dark {
       --bg: #000000;
       --text: #ffffff;
     }
-
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       font-family: 'Inter', sans-serif;
     }
-
     body {
       background: var(--bg);
       color: var(--text);
       transition: 0.3s;
     }
-
     header {
       display: flex;
       justify-content: space-between;
       padding: 20px 40px;
       border-bottom: 1px solid #ddd;
     }
-
     nav a {
       margin-left: 20px;
       text-decoration: none;
       color: var(--text);
       font-weight: 500;
     }
-
     nav a:hover {
       color: var(--accent);
     }
-
     .hero {
       text-align: center;
       padding: 100px 20px;
     }
-
     .hero h1 {
       font-size: 48px;
       margin-bottom: 20px;
     }
-
     .hero p {
       color: var(--gray);
       font-size: 18px;
     }
-
     .btn {
       margin-top: 30px;
       padding: 10px 20px;
@@ -75,45 +62,37 @@
       background: none;
       cursor: pointer;
     }
-
     .btn:hover {
       background: var(--text);
       color: var(--bg);
     }
-
     .section {
       padding: 60px 40px;
       max-width: 900px;
       margin: auto;
     }
-
     .projects {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
-
     .card {
       border: 1px solid #ddd;
       padding: 20px;
       transition: 0.2s;
     }
-
     .card:hover {
       border-color: var(--accent);
     }
-
     footer {
       text-align: center;
       padding: 30px;
       color: var(--gray);
       font-size: 14px;
     }
-
     .toggle {
       cursor: pointer;
     }
-
     @media (max-width: 768px) {
       .projects {
         grid-template-columns: 1fr;
@@ -121,9 +100,7 @@
     }
   </style>
 </head>
-
 <body>
-
 <header>
   <div><b>Outai</b></div>
   <nav>
@@ -133,13 +110,11 @@
     <span class="toggle" onclick="toggleTheme()">🌙</span>
   </nav>
 </header>
-
 <section class="hero">
   <h1>我是 Outai</h1>
   <p>一个不想上班但想赚钱的工程狗</p>
   <button class="btn" onclick="scrollToSection('projects')">看我的项目</button>
 </section>
-
 <section class="section" id="about">
   <h2>关于我</h2>
   <p style="margin-top:10px;color:#666;">
@@ -147,7 +122,6 @@
     目标：自由职业 + 存款100万。
   </p>
 </section>
-
 <section class="section" id="projects">
   <h2>项目</h2>
   <div class="projects">
@@ -161,27 +135,22 @@
     </div>
   </div>
 </section>
-
 <section class="section" id="contact">
   <h2>联系</h2>
   <p style="margin-top:10px;color:#666;">
     Email: outaidage@email.com
   </p>
 </section>
-
 <footer>
   © 2026 Outai
 </footer>
-
 <script>
   function toggleTheme() {
     document.body.classList.toggle("dark");
   }
-
   function scrollToSection(id) {
     document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
   }
 </script>
-
 </body>
 </html>
