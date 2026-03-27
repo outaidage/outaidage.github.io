@@ -1,118 +1,82 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outai 知识库</title>
-  <style>
-    body { font-family: Arial; margin:0; background:#f5f5f5; }
-    .login, .app { display:none; }
-    .center { display:flex; justify-content:center; align-items:center; height:100vh; }
-    .box { background:white; padding:20px; border-radius:12px; box-shadow:0 5px 20px rgba(0,0,0,0.1); width:300px; }
-    input, button, select, textarea { padding:10px; margin:6px 0; width:100%; border-radius:6px; border:1px solid #ddd; }
-    button { background:#222; color:#fff; cursor:pointer; }
-    .nav { background:#111; color:#fff; padding:12px; font-size:18px; }
-    .container { padding:15px; max-width:800px; margin:auto; }
-    .item { background:#fff; margin:10px 0; padding:12px; border-radius:10px; }
-    .tag { font-size:12px; color:#666; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard</title>
+<style>
+body{font-family:Arial;margin:0;background:#f5f5f5}
+header{padding:15px;background:#222;color:#fff;text-align:center}
+.container{padding:15px}
+.section{background:#fff;margin-bottom:15px;padding:15px;border-radius:8px}
+.section h2{margin-top:0}
+input,button{padding:8px;margin:5px 0;width:100%}
+.item{border-top:1px solid #eee;padding:8px 0}
+img{max-width:100%;height:auto}
+a{color:blue}
+</style>
 </head>
 <body>
-
-<div class="login center">
-  <div class="box">
-    <h3>输入密码</h3>
-    <input type="password" id="pwd">
-    <button onclick="login()">进入</button>
-  </div>
-</div>
-
-<div class="app">
-  <div class="nav">Outai 个人知识库</div>
-  <div class="container">
-
-    <input type="text" id="search" placeholder="搜索标题/内容/标签" oninput="render()">
-
-    <select id="categoryFilter" onchange="render()"></select>
-
-    <h3>新增内容</h3>
-    <input id="title" placeholder="标题">
-    <textarea id="content" placeholder="内容（支持多行）"></textarea>
-    <input id="category" placeholder="分类（如：技术/生活）">
-    <input id="tags" placeholder="标签（逗号分隔，如：mac,编程）">
-    <button onclick="addItem()">添加</button>
-
-    <h3>内容列表</h3>
-    <div id="list"></div>
-  </div>
-</div>
-
+<header>
+<h1>Personal Dashboard</h1>
+</header>
+<div class="container" id="app"></div>
 <script>
-const PASSWORD = "123456";
-let data = JSON.parse(localStorage.getItem("data") || "[]");
-
-function login(){
-  if(document.getElementById('pwd').value === PASSWORD){
-    document.querySelector('.login').style.display='none';
-    document.querySelector('.app').style.display='block';
-    init();
-  } else alert('密码错误');
+const sections=["学习","工作","上岸","书签","信仰","梦想"];
+function loadData(key){return JSON.parse(localStorage.getItem(key)||"[]")}
+function saveData(key,data){localStorage.setItem(key,JSON.stringify(data))}
+function createSection(name){
+const key="sec_"+name;
+const section=document.createElement("div");
+section.className="section";
+section.innerHTML=`<h2>${name}</h2>
+<input placeholder="文字内容" id="${key}_text">
+<input placeholder="链接 (https://)" id="${key}_link">
+<input type="file" id="${key}_file" accept="image/*">
+<button onclick="addItem('${key}')">添加</button>
+<div id="${key}_list"></div>`;
+document.getElementById("app").appendChild(section);
+renderList(key);
 }
-
-function init(){
-  updateCategories();
-  render();
+function addItem(key){
+const text=document.getElementById(key+"_text").value;
+const link=document.getElementById(key+"_link").value;
+const fileInput=document.getElementById(key+"_file");
+const file=fileInput.files[0];
+let data=loadData(key);
+if(file){
+const reader=new FileReader();
+reader.onload=function(e){
+data.push({text,link,image:e.target.result});
+saveData(key,data);
+renderList(key);
+};
+reader.readAsDataURL(file);
+}else{
+data.push({text,link,image:null});
+saveData(key,data);
+renderList(key);
 }
-
-function updateCategories(){
-  const select = document.getElementById('categoryFilter');
-  const cats = [...new Set(data.map(i=>i.category).filter(Boolean))];
-  select.innerHTML = '<option value="">全部分类</option>' + cats.map(c=>`<option>${c}</option>`).join('');
+document.getElementById(key+"_text").value="";
+document.getElementById(key+"_link").value="";
+fileInput.value="";
 }
-
-function addItem(){
-  const item = {
-    title: title.value,
-    content: content.value,
-    category: category.value,
-    tags: tags.value.split(',').map(t=>t.trim())
-  };
-  data.unshift(item);
-  localStorage.setItem("data", JSON.stringify(data));
-  updateCategories();
-  render();
+function renderList(key){
+const list=document.getElementById(key+"_list");
+list.innerHTML="";
+let data=loadData(key);
+data.forEach(item=>{
+const div=document.createElement("div");
+div.className="item";
+div.innerHTML=`
+<div>${item.text||""}</div>
+<div>${item.link?`<a href=" " target="_blank">${item.link}</a >`:""}</div>
+${item.image?`< img src="${item.image}">`:""}
+`;
+list.appendChild(div);
+});
 }
-
-function render(){
-  const kw = search.value.toLowerCase();
-  const cat = categoryFilter.value;
-
-  const list = data.filter(i=>{
-    const tagStr = (i.tags||[]).join(',');
-    return (!kw || i.title.toLowerCase().includes(kw) || i.content.toLowerCase().includes(kw) || tagStr.includes(kw))
-      && (!cat || i.category === cat);
-  });
-
-  document.getElementById('list').innerHTML = list.map((i,idx)=>
-    `<div class="item">
-      <b>${i.title}</b>
-      <p>${i.content}</p>
-      <div class="tag">分类：${i.category} | 标签：${(i.tags||[]).join(', ')}</div>
-      <button onclick="del(${idx})">删除</button>
-    </div>`
-  ).join('');
-}
-
-function del(i){
-  data.splice(i,1);
-  localStorage.setItem("data", JSON.stringify(data));
-  render();
-}
-
-// 初始化
-
-document.querySelector('.login').style.display='flex';
+sections.forEach(createSection);
 </script>
-
 </body>
 </html>
