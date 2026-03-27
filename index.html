@@ -484,7 +484,15 @@
             <button class="action-btn" id="importBtn">📥 导入数据</button>
             <input type="file" id="importFile" style="display: none;" accept=".json">
         </div>
-
+<div class="action-buttons">
+    <button class="action-btn" id="exportBtn">📤 导出数据</button>
+    <button class="action-btn" id="importBtn">📥 导入JSON</button>
+    <!-- 👇 添加这个新按钮 -->
+    <button class="action-btn" id="importHtmlBtn">🌐 导入HTML书签</button>
+    <input type="file" id="importFile" style="display: none;" accept=".json">
+    <!-- 👇 添加这个新的 file input -->
+    <input type="file" id="importHtmlFile" style="display: none;" accept=".html,.htm">
+</div>
         <!-- 分类标签 -->
         <div class="categories" id="categories"></div>
 
@@ -916,7 +924,109 @@
                 return m;
             });
         }
+// 解析 HTML 书签文件（支持 Chrome/Firefox/Edge 导出的书签）
+function parseHtmlBookmarks(htmlContent) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const links = [];
+    
+    // 查找所有 <a> 标签
+    const anchors = doc.querySelectorAll('a');
+    
+    anchors.forEach(a => {
+        const url = a.getAttribute('href');
+        const name = a.textContent.trim();
+        const desc = a.getAttribute('title') || '';
+        
+        // 过滤无效链接
+        if (url && name && (url.startsWith('http://') || url.startsWith('https://'))) {
+            // 尝试从 URL 或标题推断分类
+            let category = '其他';
+            const lowerUrl = url.toLowerCase();
+            const lowerName = name.toLowerCase();
+            
+            if (lowerUrl.includes('github') || lowerUrl.includes('gitlab') || lowerName.includes('代码')) category = '工作';
+            else if (lowerUrl.includes('bilibili') || lowerUrl.includes('youtube') || lowerName.includes('视频')) category = '娱乐';
+            else if (lowerUrl.includes('mdn') || lowerUrl.includes('w3school') || lowerName.includes('教程') || lowerName.includes('学习')) category = '学习';
+            else if (lowerUrl.includes('tool') || lowerUrl.includes('在线') || lowerName.includes('工具')) category = '工具';
+            else if (lowerUrl.includes('book') || lowerUrl.includes('read') || lowerName.includes('阅读')) category = '阅读';
+            
+            links.push({
+                id: Date.now() + Math.random() * 10000 + links.length,
+                name: name.substring(0, 50), // 限制长度
+                url: url,
+                desc: desc || `来自书签导入: ${name}`,
+                category: category,
+                date: new Date().toISOString(),
+                favorite: false,
+                pinned: false
+            });
+        }
+    });
+    
+    return links;
+}
 
+// 导入 HTML 书签文件
+function importHtmlBookmarks(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const htmlContent = e.target.result;
+            const newLinks = parseHtmlBookmarks(htmlContent);
+            
+            if (newLinks.length === 0) {
+                alert('未找到有效的书签链接，请确保导入的是浏览器导出的书签HTML文件');
+                return;
+            }
+            
+            // 去重：避免导入重复的链接（基于 URL）
+            const existingUrls = new Set(links.map(l => l.url));
+            const uniqueNewLinks = newLinks.filter(l => !existingUrls.has(l.url));
+            
+            if (uniqueNewLinks.length === 0) {
+                alert('所有书签都已存在，没有新增链接');
+                return;
+            }
+            function initEvents() {
+    // ... 原有的代码保持不变 ...
+    
+    // 原有的 JSON 导入
+    document.getElementById('importFile').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importData(e.target.files[0]);
+            e.target.value = '';
+        }
+    });
+    
+    // 👇 添加这个新的事件（HTML书签导入）
+    document.getElementById('importHtmlBtn').addEventListener('click', () => {
+        document.getElementById('importHtmlFile').click();
+    });
+    
+    document.getElementById('importHtmlFile').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importHtmlBookmarks(e.target.files[0]);
+            e.target.value = '';
+        }
+    });
+    
+    // ... 其余代码保持不变 ...
+}
+            // 确认导入
+            const confirmMsg = `找到 ${newLinks.length} 个书签\n其中 ${uniqueNewLinks.length} 个是新的\n是否导入？`;
+            if (confirm(confirmMsg)) {
+                links = [...uniqueNewLinks, ...links];
+                saveData();
+                render();
+                alert(`成功导入 ${uniqueNewLinks.length} 个书签！`);
+            }
+        } catch (err) {
+            alert('解析失败：' + err.message);
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+}
         // 初始化事件绑定
         function initEvents() {
             document.getElementById('addBtn').addEventListener('click', addLink);
