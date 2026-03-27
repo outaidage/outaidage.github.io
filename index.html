@@ -1,1 +1,187 @@
 
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Outai - Personal Site</title>
+
+  <!-- 字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --accent: #0070F3;
+      --gray: #666666;
+    }
+
+    body.dark {
+      --bg: #000000;
+      --text: #ffffff;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    nav a {
+      margin-left: 20px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    nav a:hover {
+      color: var(--accent);
+    }
+
+    .hero {
+      text-align: center;
+      padding: 100px 20px;
+    }
+
+    .hero h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    .hero p {
+      color: var(--gray);
+      font-size: 18px;
+    }
+
+    .btn {
+      margin-top: 30px;
+      padding: 10px 20px;
+      border: 1px solid var(--text);
+      background: none;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    .section {
+      padding: 60px 40px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    .projects {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      padding: 20px;
+      transition: 0.2s;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+    }
+
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    .toggle {
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .projects {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div><b>Outai</b></div>
+  <nav>
+    <a href="#about">关于</a>
+    <a href="#projects">项目</a>
+    <a href="#contact">联系</a>
+    <span class="toggle" onclick="toggleTheme()">🌙</span>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>我是 Outai</h1>
+  <p>一个不想上班但想赚钱的工程狗</p>
+  <button class="btn" onclick="scrollToSection('projects')">看我的项目</button>
+</section>
+
+<section class="section" id="about">
+  <h2>关于我</h2>
+  <p style="margin-top:10px;color:#666;">
+    机械专业，喜欢拆东西、写代码、折腾网站。
+    目标：自由职业 + 存款100万。
+  </p>
+</section>
+
+<section class="section" id="projects">
+  <h2>项目</h2>
+  <div class="projects">
+    <div class="card">
+      <h3>个人网站</h3>
+      <p>我的第一个 GitHub Pages 项目</p>
+    </div>
+    <div class="card">
+      <h3>快捷指令工具</h3>
+      <p>iPhone 视频下载自动化</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="contact">
+  <h2>联系</h2>
+  <p style="margin-top:10px;color:#666;">
+    Email: your@email.com
+  </p>
+</section>
+
+<footer>
+  © 2026 Outai
+</footer>
+
+<script>
+  function toggleTheme() {
+    document.body.classList.toggle("dark");
+  }
+
+  function scrollToSection(id) {
+    document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>
