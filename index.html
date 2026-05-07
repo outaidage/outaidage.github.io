@@ -3,168 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outai - 自由工程狗</title>
+    <title>Outai 书签管理器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', system-ui, sans-serif; }
-        .hero-bg {
-            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        .bookmark-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bookmark-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
         }
     </style>
 </head>
-<body class="bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
-    <!-- Navigation -->
-    <nav class="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold tracking-tight">Outai</div>
-            <div class="flex items-center gap-8">
-                <a href="#about" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">关于</a>
-                <a href="#projects" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">项目</a>
-                <a href="#contact" class="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">联系</a>
-                <button onclick="toggleDarkMode()" class="text-xl w-9 h-9 flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                    <span id="theme-icon">🌙</span>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+    <!-- Login Screen -->
+    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div class="bg-zinc-900 p-8 rounded-3xl w-full max-w-md border border-zinc-700">
+            <div class="text-center mb-8">
+                <div class="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-4">🔖</div>
+                <h1 class="text-3xl font-bold">Outai 书签管理器</h1>
+                <p class="text-zinc-400 mt-2">Raindrop 风格书签工具</p>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-1.5">账号</label>
+                    <input id="username" type="text" value="outai" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-1.5">密码</label>
+                    <input id="password" type="password" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95">登录</button>
+                <p id="login-error" class="text-red-400 text-center hidden">账号或密码错误</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="hidden min-h-screen">
+        <!-- Top Nav -->
+        <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="text-2xl">🔖</div>
+                    <div>
+                        <div class="font-semibold">Outai 书签</div>
+                        <div class="text-xs text-zinc-500">Raindrop 风格</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="logout()" class="text-sm px-4 py-2 text-zinc-400 hover:text-white transition-colors">退出登录</button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto px-6 py-8">
+            <!-- Header -->
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h1 class="text-4xl font-bold">我的书签</h1>
+                    <p class="text-zinc-400">高效管理你的收藏</p>
+                </div>
+                <button onclick="showAddModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-2xl font-medium transition-all">
+                    <i class="fa-solid fa-plus"></i> 新建书签
                 </button>
             </div>
-        </div>
-    </nav>
 
-    <!-- Hero -->
-    <header class="hero-bg text-white py-24 md:py-32">
-        <div class="max-w-4xl mx-auto px-6 text-center">
-            <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full text-sm mb-6">
-                👋 欢迎来到我的小站
+            <!-- Search and Filters -->
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <div class="flex-1 relative">
+                    <input id="search-input" type="text" placeholder="搜索书签..." onkeyup="filterBookmarks()" class="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 pl-12 focus:outline-none focus:border-blue-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-5 top-4.5 text-zinc-500"></i>
+                </div>
+                <select id="category-filter" onchange="filterBookmarks()" class="bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500">
+                    <option value="">全部分类</option>
+                </select>
             </div>
-            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-6">我是 Outai</h1>
-            <p class="text-xl md:text-2xl text-blue-100 max-w-md mx-auto">不想上班、想赚钱的工程狗</p>
-            <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-                <a href="#projects" class="inline-flex items-center justify-center bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8 py-4 rounded-2xl transition-all active:scale-95">查看我的项目</a>
-                <a href="#contact" class="inline-flex items-center justify-center border border-white/70 hover:bg-white/10 font-semibold px-8 py-4 rounded-2xl transition-all">联系我</a>
+
+            <!-- Bookmarks Grid -->
+            <div id="bookmarks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Populated by JS -->
             </div>
         </div>
-    </header>
+    </div>
 
-    <!-- About -->
-    <section id="about" class="py-20 bg-white dark:bg-zinc-900">
-        <div class="max-w-4xl mx-auto px-6">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl font-semibold mb-4">关于我</h2>
-                <p class="text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">机械转代码，喜欢折腾各种工具和自动化</p>
-            </div>
-            <div class="grid md:grid-cols-2 gap-10 items-center">
+    <!-- Add/Edit Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+        <div class="bg-zinc-900 rounded-3xl w-full max-w-lg mx-4 p-8">
+            <h2 id="modal-title" class="text-2xl font-semibold mb-6">新建书签</h2>
+            
+            <div class="space-y-6">
                 <div>
-                    <p class="text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
-                        目前专注个人项目、副业开发和自由职业。<br><br>
-                        目标：在 30 岁前实现财务自由 + 持续创造有趣的东西。
-                    </p>
+                    <label class="block text-sm text-zinc-400 mb-2">标题</label>
+                    <input id="bookmark-title" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
                 </div>
-                <div class="space-y-6">
-                    <div class="flex gap-4">
-                        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center text-2xl">🔧</div>
-                        <div>
-                            <div class="font-semibold">爱折腾</div>
-                            <div class="text-sm text-zinc-500">机械、代码、硬件</div>
-                        </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">URL</label>
+                    <input id="bookmark-url" type="url" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-2">描述</label>
+                    <textarea id="bookmark-desc" rows="2" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">分类</label>
+                        <input id="bookmark-category" type="text" placeholder="如: 技术、设计" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
                     </div>
-                    <div class="flex gap-4">
-                        <div class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center text-2xl">💰</div>
-                        <div>
-                            <div class="font-semibold">副业狂热</div>
-                            <div class="text-sm text-zinc-500">探索各种赚钱方式</div>
-                        </div>
+                    <div>
+                        <label class="block text-sm text-zinc-400 mb-2">标签 (逗号分隔)</label>
+                        <input id="bookmark-tags" type="text" placeholder="AI, 工具, 阅读" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <!-- Projects -->
-    <section id="projects" class="py-20 bg-zinc-100 dark:bg-zinc-950">
-        <div class="max-w-6xl mx-auto px-6">
-            <div class="text-center mb-12">
-                <h2 class="text-4xl font-semibold mb-3">代表项目</h2>
-                <p class="text-zinc-600 dark:text-zinc-400">一些我在做的有趣事情</p>
-            </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Project 1 -->
-                <div class="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 transition-all group">
-                    <div class="h-48 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-6xl">🌐</div>
-                    <div class="p-6">
-                        <h3 class="font-semibold text-xl mb-2">这个个人网站</h3>
-                        <p class="text-zinc-600 dark:text-zinc-400 text-sm line-clamp-3">使用 Tailwind CSS 打造的现代响应式个人主页</p>
-                        <div class="mt-4 flex gap-2">
-                            <span class="text-xs px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">HTML</span>
-                            <span class="text-xs px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">Tailwind</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Project 2 -->
-                <div class="bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-200 dark:border-zinc-800 hover:border-blue-500 transition-all group">
-                    <div class="h-48 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-6xl">📱</div>
-                    <div class="p-6">
-                        <h3 class="font-semibold text-xl mb-2">iOS 快捷指令工具</h3>
-                        <p class="text-zinc-600 dark:text-zinc-400 text-sm line-clamp-3">视频下载、自动化工作流等实用工具</p>
-                        <div class="mt-4 flex gap-2">
-                            <span class="text-xs px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">Shortcuts</span>
-                            <span class="text-xs px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded-full">iOS</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Add more projects here -->
+            <div class="flex gap-3 mt-8">
+                <button onclick="hideModal()" class="flex-1 py-4 border border-zinc-700 hover:bg-zinc-800 rounded-2xl transition-colors">取消</button>
+                <button onclick="saveBookmark()" id="save-btn" class="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-all">保存书签</button>
             </div>
         </div>
-    </section>
-
-    <!-- Skills -->
-    <section class="py-20 bg-white dark:bg-zinc-900">
-        <div class="max-w-4xl mx-auto px-6">
-            <h2 class="text-4xl font-semibold text-center mb-12">技能 & 工具</h2>
-            <div class="flex flex-wrap gap-3 justify-center">
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">Python</span>
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">JavaScript</span>
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">GitHub</span>
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">iOS Shortcuts</span>
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">Automation</span>
-                <span class="px-5 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-2xl text-sm transition-colors">Web Development</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- Contact -->
-    <section id="contact" class="py-20 bg-zinc-900 text-white">
-        <div class="max-w-4xl mx-auto px-6 text-center">
-            <h2 class="text-4xl font-semibold mb-6">保持联系</h2>
-            <p class="text-xl text-zinc-400 mb-8">随时欢迎交流想法或合作</p>
-            <a href="mailto:outaidage@email.com" class="inline-flex items-center gap-3 bg-white text-zinc-900 px-8 py-4 rounded-2xl font-semibold hover:bg-zinc-100 transition-colors">
-                <i class="fa-solid fa-envelope"></i>
-                发送邮件给我
-            </a>
-        </div>
-    </section>
-
-    <footer class="bg-zinc-950 text-zinc-500 py-12 text-center text-sm">
-        © 2026 Outai • Built with ❤️ and Tailwind CSS
-    </footer>
+    </div>
 
     <script>
-        function toggleDarkMode() {
-            document.documentElement.classList.toggle('dark');
-            const icon = document.getElementById('theme-icon');
-            if (document.documentElement.classList.contains('dark')) {
-                icon.textContent = '☀️';
+        let bookmarks = JSON.parse(localStorage.getItem('outai_bookmarks')) || [];
+        let currentEditId = null;
+
+        const correctUsername = 'outai';
+        const correctPassword = 'zxcvb@asdf@123A';
+
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            if (username === correctUsername && password === correctPassword) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                renderBookmarks();
             } else {
-                icon.textContent = '🌙';
+                const error = document.getElementById('login-error');
+                error.classList.remove('hidden');
+                setTimeout(() => error.classList.add('hidden'), 3000);
             }
         }
 
-        // Check system preference
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-            document.getElementById('theme-icon').textContent = '☀️';
+        function logout() {
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('password').value = '';
         }
+
+        function renderBookmarks(filteredBookmarks = null) {
+            const container = document.getElementById('bookmarks-grid');
+            container.innerHTML = '';
+            
+            const toRender = filteredBookmarks || bookmarks;
+            
+            if (toRender.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-20 text-zinc-500">还没有书签，点击右上角「新建书签」添加</div>`;
+                return;
+            }
+            
+            toRender.forEach(bookmark => {
+                const card = document.createElement('div');
+                card.className = 'bookmark-card bg-zinc-900 border border-zinc-800 rounded-3xl p-6 hover:border-blue-500/50 group';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1 min-w-0">
+                            <a href="${bookmark.url}" target="_blank" class="block font-medium text-lg hover:text-blue-400 transition-colors line-clamp-2">${bookmark.title}</a>
+                            <p class="text-zinc-500 text-sm mt-1 line-clamp-2">${bookmark.description || ''}</p>
+                            <div class="flex flex-wrap gap-2 mt-4">
+                                ${bookmark.category ? `<span class="inline-flex items-center px-3 py-1 bg-zinc-800 text-xs rounded-full">${bookmark.category}</span>` : ''}
+                                ${(bookmark.tags || []).map(tag => `<span class="inline-flex items-center px-2.5 py-0.5 bg-zinc-800 text-[10px] rounded-full">#${tag}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button onclick="editBookmark('${bookmark.id}')" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white"><i class="fa-solid fa-edit"></i></button>
+                            <button onclick="deleteBookmark('${bookmark.id}')" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-red-400"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function showAddModal() {
+            currentEditId = null;
+            document.getElementById('modal-title').textContent = '新建书签';
+            document.getElementById('bookmark-title').value = '';
+            document.getElementById('bookmark-url').value = '';
+            document.getElementById('bookmark-desc').value = '';
+            document.getElementById('bookmark-category').value = '';
+            document.getElementById('bookmark-tags').value = '';
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function hideModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function saveBookmark() {
+            const title = document.getElementById('bookmark-title').value.trim();
+            const url = document.getElementById('bookmark-url').value.trim();
+            
+            if (!title || !url) {
+                alert('标题和 URL 不能为空');
+                return;
+            }
+
+            const tagsStr = document.getElementById('bookmark-tags').value;
+            const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : [];
+
+            if (currentEditId) {
+                // Edit
+                const bookmark = bookmarks.find(b => b.id === currentEditId);
+                if (bookmark) {
+                    bookmark.title = title;
+                    bookmark.url = url;
+                    bookmark.description = document.getElementById('bookmark-desc').value.trim();
+                    bookmark.category = document.getElementById('bookmark-category').value.trim();
+                    bookmark.tags = tags;
+                }
+            } else {
+                // New
+                bookmarks.unshift({
+                    id: 'bk_' + Date.now(),
+                    title,
+                    url,
+                    description: document.getElementById('bookmark-desc').value.trim(),
+                    category: document.getElementById('bookmark-category').value.trim(),
+                    tags,
+                    date: new Date().toISOString()
+                });
+            }
+
+            localStorage.setItem('outai_bookmarks', JSON.stringify(bookmarks));
+            hideModal();
+            renderBookmarks();
+        }
+
+        function editBookmark(id) {
+            const bookmark = bookmarks.find(b => b.id === id);
+            if (!bookmark) return;
+
+            currentEditId = id;
+            document.getElementById('modal-title').textContent = '编辑书签';
+            document.getElementById('bookmark-title').value = bookmark.title;
+            document.getElementById('bookmark-url').value = bookmark.url;
+            document.getElementById('bookmark-desc').value = bookmark.description || '';
+            document.getElementById('bookmark-category').value = bookmark.category || '';
+            document.getElementById('bookmark-tags').value = (bookmark.tags || []).join(', ');
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function deleteBookmark(id) {
+            if (!confirm('确定删除这个书签吗？')) return;
+            bookmarks = bookmarks.filter(b => b.id !== id);
+            localStorage.setItem('outai_bookmarks', JSON.stringify(bookmarks));
+            renderBookmarks();
+        }
+
+        function filterBookmarks() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+            const categoryFilter = document.getElementById('category-filter').value;
+            
+            let filtered = bookmarks;
+            
+            if (searchTerm) {
+                filtered = filtered.filter(b => 
+                    b.title.toLowerCase().includes(searchTerm) || 
+                    (b.description && b.description.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            if (categoryFilter) {
+                filtered = filtered.filter(b => b.category === categoryFilter);
+            }
+            
+            renderBookmarks(filtered);
+        }
+
+        // Allow Enter key in password field
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+
+        // Tailwind script already loaded
     </script>
 </body>
 </html>
