@@ -3,19 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outai 书签管理器</title>
+    <title>Outai 文件管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', system-ui, sans-serif; }
-        .bookmark-card {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .bookmark-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-        }
     </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
@@ -23,21 +16,21 @@
     <div id="login-screen" class="min-h-screen flex items-center justify-center bg-zinc-950">
         <div class="bg-zinc-900 p-8 rounded-3xl w-full max-w-md border border-zinc-700">
             <div class="text-center mb-8">
-                <div class="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-4">🔖</div>
-                <h1 class="text-3xl font-bold">Outai 书签管理器</h1>
-                <p class="text-zinc-400 mt-2">Raindrop 风格书签工具</p>
+                <div class="mx-auto w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl mb-4">📁</div>
+                <h1 class="text-3xl font-bold">Outai 文件库</h1>
+                <p class="text-zinc-400 mt-2">上传 & 浏览文件</p>
             </div>
             
             <div class="space-y-6">
                 <div>
                     <label class="block text-sm text-zinc-400 mb-1.5">账号</label>
-                    <input id="username" type="text" value="outai" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-blue-500 transition-colors">
+                    <input id="username" type="text" value="outai" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-emerald-500 transition-colors">
                 </div>
                 <div>
                     <label class="block text-sm text-zinc-400 mb-1.5">密码</label>
-                    <input id="password" type="password" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-blue-500 transition-colors">
+                    <input id="password" type="password" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-emerald-500 transition-colors">
                 </div>
-                <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95">登录</button>
+                <button onclick="login()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95">登录</button>
                 <p id="login-error" class="text-red-400 text-center hidden">账号或密码错误</p>
             </div>
         </div>
@@ -45,14 +38,13 @@
 
     <!-- Main App -->
     <div id="main-app" class="hidden min-h-screen">
-        <!-- Top Nav -->
         <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <div class="text-2xl">🔖</div>
+                    <div class="text-2xl">📁</div>
                     <div>
-                        <div class="font-semibold">Outai 书签</div>
-                        <div class="text-xs text-zinc-500">Raindrop 风格</div>
+                        <div class="font-semibold">Outai 文件管理</div>
+                        <div class="text-xs text-zinc-500">浏览器本地存储</div>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
@@ -62,78 +54,24 @@
         </nav>
 
         <div class="max-w-7xl mx-auto px-6 py-8">
-            <!-- Header -->
-            <div class="flex justify-between items-end mb-8">
-                <div>
-                    <h1 class="text-4xl font-bold">我的书签</h1>
-                    <p class="text-zinc-400">高效管理你的收藏</p>
-                </div>
-                <button onclick="showAddModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-2xl font-medium transition-all">
-                    <i class="fa-solid fa-plus"></i> 新建书签
-                </button>
+            <div class="flex justify-between items-center mb-8">
+                <h1 class="text-4xl font-bold">我的文件</h1>
+                <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-2xl font-medium flex items-center gap-2">
+                    <i class="fa-solid fa-upload"></i> 上传文件
+                    <input type="file" id="file-upload" multiple class="hidden" onchange="uploadFiles(event)">
+                </label>
             </div>
 
-            <!-- Search and Filters -->
-            <div class="flex flex-col md:flex-row gap-4 mb-8">
-                <div class="flex-1 relative">
-                    <input id="search-input" type="text" placeholder="搜索书签..." onkeyup="filterBookmarks()" class="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 pl-12 focus:outline-none focus:border-blue-500">
-                    <i class="fa-solid fa-magnifying-glass absolute left-5 top-4.5 text-zinc-500"></i>
-                </div>
-                <select id="category-filter" onchange="filterBookmarks()" class="bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500">
-                    <option value="">全部分类</option>
-                </select>
-            </div>
-
-            <!-- Bookmarks Grid -->
-            <div id="bookmarks-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Populated by JS -->
             </div>
         </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-        <div class="bg-zinc-900 rounded-3xl w-full max-w-lg mx-4 p-8">
-            <h2 id="modal-title" class="text-2xl font-semibold mb-6">新建书签</h2>
-            
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-sm text-zinc-400 mb-2">标题</label>
-                    <input id="bookmark-title" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm text-zinc-400 mb-2">URL</label>
-                    <input id="bookmark-url" type="url" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm text-zinc-400 mb-2">描述</label>
-                    <textarea id="bookmark-desc" rows="2" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none"></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm text-zinc-400 mb-2">分类</label>
-                        <input id="bookmark-category" type="text" placeholder="如: 技术、设计" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-zinc-400 mb-2">标签 (逗号分隔)</label>
-                        <input id="bookmark-tags" type="text" placeholder="AI, 工具, 阅读" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none">
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex gap-3 mt-8">
-                <button onclick="hideModal()" class="flex-1 py-4 border border-zinc-700 hover:bg-zinc-800 rounded-2xl transition-colors">取消</button>
-                <button onclick="saveBookmark()" id="save-btn" class="flex-1 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-semibold transition-all">保存书签</button>
-            </div>
-        </div>
-    </div>
-
     <script>
-        let bookmarks = JSON.parse(localStorage.getItem('outai_bookmarks')) || [];
-        let currentEditId = null;
-
         const correctUsername = 'outai';
         const correctPassword = 'zxcvb@asdf@123A';
+        let files = JSON.parse(localStorage.getItem('outai_files')) || [];
 
         function login() {
             const username = document.getElementById('username').value.trim();
@@ -142,7 +80,7 @@
             if (username === correctUsername && password === correctPassword) {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-app').classList.remove('hidden');
-                renderBookmarks();
+                renderFiles();
             } else {
                 const error = document.getElementById('login-error');
                 error.classList.remove('hidden');
@@ -156,142 +94,66 @@
             document.getElementById('password').value = '';
         }
 
-        function renderBookmarks(filteredBookmarks = null) {
-            const container = document.getElementById('bookmarks-grid');
+        function renderFiles() {
+            const container = document.getElementById('files-list');
             container.innerHTML = '';
-            
-            const toRender = filteredBookmarks || bookmarks;
-            
-            if (toRender.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-20 text-zinc-500">还没有书签，点击右上角「新建书签」添加</div>`;
+
+            if (files.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-20 text-zinc-500">还没有上传文件，点击上方按钮上传</div>`;
                 return;
             }
-            
-            toRender.forEach(bookmark => {
+
+            files.forEach((file, index) => {
                 const card = document.createElement('div');
-                card.className = 'bookmark-card bg-zinc-900 border border-zinc-800 rounded-3xl p-6 hover:border-blue-500/50 group';
+                card.className = 'bg-zinc-900 border border-zinc-800 rounded-3xl p-6';
                 card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1 min-w-0">
-                            <a href="${bookmark.url}" target="_blank" class="block font-medium text-lg hover:text-blue-400 transition-colors line-clamp-2">${bookmark.title}</a>
-                            <p class="text-zinc-500 text-sm mt-1 line-clamp-2">${bookmark.description || ''}</p>
-                            <div class="flex flex-wrap gap-2 mt-4">
-                                ${bookmark.category ? `<span class="inline-flex items-center px-3 py-1 bg-zinc-800 text-xs rounded-full">${bookmark.category}</span>` : ''}
-                                ${(bookmark.tags || []).map(tag => `<span class="inline-flex items-center px-2.5 py-0.5 bg-zinc-800 text-[10px] rounded-full">#${tag}</span>`).join('')}
-                            </div>
+                    <div class="flex justify-between">
+                        <div class="flex-1">
+                            <div class="font-medium">${file.name}</div>
+                            <div class="text-xs text-zinc-500 mt-1">${(file.size / 1024).toFixed(1)} KB</div>
                         </div>
-                        <div class="flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                            <button onclick="editBookmark('${bookmark.id}')" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white"><i class="fa-solid fa-edit"></i></button>
-                            <button onclick="deleteBookmark('${bookmark.id}')" class="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-red-400"><i class="fa-solid fa-trash"></i></button>
-                        </div>
+                        <button onclick="deleteFile(${index})" class="text-red-400 hover:text-red-500">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </div>
+                    ${file.type.startsWith('image/') ? `<img src="${file.data}" class="mt-4 w-full rounded-2xl">` : ''}
+                    <a href="${file.data}" download="${file.name}" class="mt-4 block text-center bg-zinc-800 hover:bg-zinc-700 py-2 rounded-2xl text-sm">下载</a>
                 `;
                 container.appendChild(card);
             });
         }
 
-        function showAddModal() {
-            currentEditId = null;
-            document.getElementById('modal-title').textContent = '新建书签';
-            document.getElementById('bookmark-title').value = '';
-            document.getElementById('bookmark-url').value = '';
-            document.getElementById('bookmark-desc').value = '';
-            document.getElementById('bookmark-category').value = '';
-            document.getElementById('bookmark-tags').value = '';
-            document.getElementById('modal').classList.remove('hidden');
+        function uploadFiles(e) {
+            const uploadedFiles = e.target.files;
+            Array.from(uploadedFiles).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    files.unshift({
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        data: ev.target.result,
+                        date: new Date().toISOString()
+                    });
+                    localStorage.setItem('outai_files', JSON.stringify(files));
+                    renderFiles();
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
-        function hideModal() {
-            document.getElementById('modal').classList.add('hidden');
-        }
-
-        function saveBookmark() {
-            const title = document.getElementById('bookmark-title').value.trim();
-            const url = document.getElementById('bookmark-url').value.trim();
-            
-            if (!title || !url) {
-                alert('标题和 URL 不能为空');
-                return;
+        function deleteFile(index) {
+            if (confirm('确定删除这个文件吗？')) {
+                files.splice(index, 1);
+                localStorage.setItem('outai_files', JSON.stringify(files));
+                renderFiles();
             }
-
-            const tagsStr = document.getElementById('bookmark-tags').value;
-            const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t) : [];
-
-            if (currentEditId) {
-                // Edit
-                const bookmark = bookmarks.find(b => b.id === currentEditId);
-                if (bookmark) {
-                    bookmark.title = title;
-                    bookmark.url = url;
-                    bookmark.description = document.getElementById('bookmark-desc').value.trim();
-                    bookmark.category = document.getElementById('bookmark-category').value.trim();
-                    bookmark.tags = tags;
-                }
-            } else {
-                // New
-                bookmarks.unshift({
-                    id: 'bk_' + Date.now(),
-                    title,
-                    url,
-                    description: document.getElementById('bookmark-desc').value.trim(),
-                    category: document.getElementById('bookmark-category').value.trim(),
-                    tags,
-                    date: new Date().toISOString()
-                });
-            }
-
-            localStorage.setItem('outai_bookmarks', JSON.stringify(bookmarks));
-            hideModal();
-            renderBookmarks();
         }
 
-        function editBookmark(id) {
-            const bookmark = bookmarks.find(b => b.id === id);
-            if (!bookmark) return;
-
-            currentEditId = id;
-            document.getElementById('modal-title').textContent = '编辑书签';
-            document.getElementById('bookmark-title').value = bookmark.title;
-            document.getElementById('bookmark-url').value = bookmark.url;
-            document.getElementById('bookmark-desc').value = bookmark.description || '';
-            document.getElementById('bookmark-category').value = bookmark.category || '';
-            document.getElementById('bookmark-tags').value = (bookmark.tags || []).join(', ');
-            document.getElementById('modal').classList.remove('hidden');
-        }
-
-        function deleteBookmark(id) {
-            if (!confirm('确定删除这个书签吗？')) return;
-            bookmarks = bookmarks.filter(b => b.id !== id);
-            localStorage.setItem('outai_bookmarks', JSON.stringify(bookmarks));
-            renderBookmarks();
-        }
-
-        function filterBookmarks() {
-            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
-            const categoryFilter = document.getElementById('category-filter').value;
-            
-            let filtered = bookmarks;
-            
-            if (searchTerm) {
-                filtered = filtered.filter(b => 
-                    b.title.toLowerCase().includes(searchTerm) || 
-                    (b.description && b.description.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            if (categoryFilter) {
-                filtered = filtered.filter(b => b.category === categoryFilter);
-            }
-            
-            renderBookmarks(filtered);
-        }
-
-        // Allow Enter key in password field
+        // Enter key support
         document.getElementById('password').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') login();
         });
-
-        // Tailwind script already loaded
     </script>
 </body>
 </html>
