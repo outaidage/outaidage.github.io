@@ -1,159 +1,346 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outai 文件管理</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', system-ui, sans-serif; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>outaidage.xyz</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+*{
+  box-sizing:border-box;
+}
+body{
+  margin:0;
+  font-family:Inter,sans-serif;
+  background:#09090b;
+  color:#fafafa;
+  overflow:hidden;
+}
+.bg{
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(circle at top, rgba(99,102,241,.18), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(168,85,247,.14), transparent 30%);
+}
+.glass{
+  background:rgba(24,24,27,.68);
+  backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,.08);
+}
+</style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen">
-    <!-- Login Screen -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div class="bg-zinc-900 p-8 rounded-3xl w-full max-w-md border border-zinc-700">
-            <div class="text-center mb-8">
-                <div class="mx-auto w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center text-3xl mb-4">📁</div>
-                <h1 class="text-3xl font-bold">Outai 文件库</h1>
-                <p class="text-zinc-400 mt-2">上传 & 浏览文件</p>
-            </div>
-            
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-sm text-zinc-400 mb-1.5">账号</label>
-                    <input id="username" type="text" value="outai" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-emerald-500 transition-colors">
-                </div>
-                <div>
-                    <label class="block text-sm text-zinc-400 mb-1.5">密码</label>
-                    <input id="password" type="password" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-5 py-3 focus:outline-none focus:border-emerald-500 transition-colors">
-                </div>
-                <button onclick="login()" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-semibold text-lg transition-all active:scale-95">登录</button>
-                <p id="login-error" class="text-red-400 text-center hidden">账号或密码错误</p>
-            </div>
-        </div>
+
+<body>
+
+<div class="bg"></div>
+
+<!-- LOGIN -->
+<div id="loginOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl">
+
+  <div class="glass rounded-[32px] p-10 w-[92%] max-w-md shadow-2xl">
+
+    <div class="mb-10">
+      <div class="text-4xl font-black mb-2">
+        outaidage.xyz
+      </div>
+
+      <div class="text-zinc-400">
+        Secure Upload Workspace
+      </div>
     </div>
 
-    <!-- Main App -->
-    <div id="main-app" class="hidden min-h-screen">
-        <nav class="bg-zinc-900 border-b border-zinc-800 sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="text-2xl">📁</div>
-                    <div>
-                        <div class="font-semibold">Outai 文件管理</div>
-                        <div class="text-xs text-zinc-500">浏览器本地存储</div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <button onclick="logout()" class="text-sm px-4 py-2 text-zinc-400 hover:text-white transition-colors">退出登录</button>
-                </div>
-            </div>
-        </nav>
+    <input
+      id="username"
+      placeholder="账号"
+      class="w-full mb-4 px-5 py-4 rounded-2xl bg-zinc-900 border border-zinc-800 outline-none"
+    >
 
-        <div class="max-w-7xl mx-auto px-6 py-8">
-            <div class="flex justify-between items-center mb-8">
-                <h1 class="text-4xl font-bold">我的文件</h1>
-                <label class="cursor-pointer bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-2xl font-medium flex items-center gap-2">
-                    <i class="fa-solid fa-upload"></i> 上传文件
-                    <input type="file" id="file-upload" multiple class="hidden" onchange="uploadFiles(event)">
-                </label>
-            </div>
+    <input
+      id="password"
+      type="password"
+      placeholder="密码"
+      class="w-full mb-6 px-5 py-4 rounded-2xl bg-zinc-900 border border-zinc-800 outline-none"
+    >
 
-            <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Populated by JS -->
-            </div>
-        </div>
+    <button
+      onclick="login()"
+      class="w-full py-4 rounded-2xl bg-white text-black font-bold transition hover:scale-[1.01]"
+    >
+      进入系统
+    </button>
+
+    <div id="loginError" class="hidden text-red-400 text-sm mt-4">
+      账号或密码错误
     </div>
 
-    <script>
-        const correctUsername = 'outai';
-        const correctPassword = 'zxcvb@asdf@123A';
-        let files = JSON.parse(localStorage.getItem('outai_files')) || [];
+  </div>
 
-        function login() {
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            
-            if (username === correctUsername && password === correctPassword) {
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
-                renderFiles();
-            } else {
-                const error = document.getElementById('login-error');
-                error.classList.remove('hidden');
-                setTimeout(() => error.classList.add('hidden'), 3000);
-            }
+</div>
+
+<!-- APP -->
+<div class="relative z-10 max-w-6xl mx-auto px-6 py-10">
+
+  <!-- HEADER -->
+  <div class="flex items-center justify-between mb-16">
+
+    <div>
+      <div class="text-6xl font-black tracking-tight">
+        File Cloud
+      </div>
+
+      <div class="text-zinc-500 mt-3">
+        Modern GitHub Upload Workspace
+      </div>
+    </div>
+
+    <button
+      onclick="logout()"
+      class="glass px-5 py-3 rounded-2xl"
+    >
+      退出登录
+    </button>
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="glass rounded-[36px] p-10 shadow-2xl">
+
+    <!-- CONFIG -->
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+
+      <input
+        id="repo"
+        value="outaidage/outaidage.github.io"
+        class="px-5 py-4 rounded-2xl bg-zinc-900 border border-zinc-800 outline-none"
+      >
+
+      <input
+        id="token"
+        type="password"
+        placeholder="输入 GitHub Personal Access Token"
+        class="px-5 py-4 rounded-2xl bg-zinc-900 border border-zinc-800 outline-none"
+      >
+
+    </div>
+
+    <!-- DROPZONE -->
+    <div
+      id="dropzone"
+      class="border-2 border-dashed border-zinc-700 rounded-[36px] p-24 text-center transition-all cursor-pointer hover:border-white"
+    >
+
+      <div class="text-4xl font-black mb-4">
+        拖拽文件到这里
+      </div>
+
+      <div class="text-zinc-500 text-lg">
+        文件将自动提交到 uploads 文件夹
+      </div>
+
+      <div class="mt-6 text-sm text-zinc-600">
+        Click or Drag File
+      </div>
+
+      <input id="fileInput" type="file" class="hidden">
+
+    </div>
+
+    <!-- STATUS -->
+    <div
+      id="status"
+      class="mt-8 text-zinc-400 text-sm"
+    ></div>
+
+  </div>
+
+</div>
+
+<script>
+
+/* =========================
+   LOGIN
+========================= */
+
+const AUTH_USER = "admin";
+const AUTH_PASS = "zxcvb@asdf@123A";
+
+if(localStorage.getItem("outai_auth")==="ok"){
+  document.getElementById("loginOverlay").style.display="none";
+}
+
+function login(){
+
+  const u=document.getElementById("username").value.trim();
+  const p=document.getElementById("password").value;
+
+  if(u===AUTH_USER && p===AUTH_PASS){
+
+    localStorage.setItem("outai_auth","ok");
+
+    document.getElementById("loginOverlay").style.display="none";
+
+  }else{
+
+    document.getElementById("loginError").classList.remove("hidden");
+
+  }
+
+}
+
+function logout(){
+
+  localStorage.removeItem("outai_auth");
+
+  location.reload();
+
+}
+
+/* =========================
+   DROPZONE
+========================= */
+
+const dropzone=document.getElementById("dropzone");
+const fileInput=document.getElementById("fileInput");
+
+dropzone.addEventListener("click",()=>{
+
+  fileInput.click();
+
+});
+
+dropzone.addEventListener("dragover",(e)=>{
+
+  e.preventDefault();
+
+  dropzone.classList.add("border-white");
+
+});
+
+dropzone.addEventListener("dragleave",()=>{
+
+  dropzone.classList.remove("border-white");
+
+});
+
+dropzone.addEventListener("drop",(e)=>{
+
+  e.preventDefault();
+
+  dropzone.classList.remove("border-white");
+
+  const file=e.dataTransfer.files[0];
+
+  if(file){
+    uploadFile(file);
+  }
+
+});
+
+fileInput.addEventListener("change",(e)=>{
+
+  const file=e.target.files[0];
+
+  if(file){
+    uploadFile(file);
+  }
+
+});
+
+/* =========================
+   GITHUB UPLOAD
+========================= */
+
+async function uploadFile(file){
+
+  const token=document.getElementById("token").value.trim();
+  const repo=document.getElementById("repo").value.trim();
+
+  if(!token){
+
+    alert("请输入 GitHub Token");
+
+    return;
+
+  }
+
+  const status=document.getElementById("status");
+
+  status.innerHTML="读取文件中...";
+
+  const reader=new FileReader();
+
+  reader.onload=async()=>{
+
+    try{
+
+      const base64=reader.result.split(",")[1];
+
+      const path=`uploads/${Date.now()}-${file.name}`;
+
+      status.innerHTML=`上传中：${file.name}`;
+
+      const response=await fetch(
+        `https://api.github.com/repos/${repo}/contents/${path}`,
+        {
+          method:"PUT",
+          headers:{
+            "Authorization":"Bearer "+token,
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            message:"feat: modernize UI and integrated file upload system",
+            content:base64
+          })
         }
+      );
 
-        function logout() {
-            document.getElementById('main-app').classList.add('hidden');
-            document.getElementById('login-screen').classList.remove('hidden');
-            document.getElementById('password').value = '';
-        }
+      if(response.ok){
 
-        function renderFiles() {
-            const container = document.getElementById('files-list');
-            container.innerHTML = '';
+        status.innerHTML=`
+          <div class="text-green-400">
+            上传成功：${path}
+          </div>
+        `;
 
-            if (files.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-20 text-zinc-500">还没有上传文件，点击上方按钮上传</div>`;
-                return;
-            }
+      }else{
 
-            files.forEach((file, index) => {
-                const card = document.createElement('div');
-                card.className = 'bg-zinc-900 border border-zinc-800 rounded-3xl p-6';
-                card.innerHTML = `
-                    <div class="flex justify-between">
-                        <div class="flex-1">
-                            <div class="font-medium">${file.name}</div>
-                            <div class="text-xs text-zinc-500 mt-1">${(file.size / 1024).toFixed(1)} KB</div>
-                        </div>
-                        <button onclick="deleteFile(${index})" class="text-red-400 hover:text-red-500">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                    ${file.type.startsWith('image/') ? `<img src="${file.data}" class="mt-4 w-full rounded-2xl">` : ''}
-                    <a href="${file.data}" download="${file.name}" class="mt-4 block text-center bg-zinc-800 hover:bg-zinc-700 py-2 rounded-2xl text-sm">下载</a>
-                `;
-                container.appendChild(card);
-            });
-        }
+        const err=await response.text();
 
-        function uploadFiles(e) {
-            const uploadedFiles = e.target.files;
-            Array.from(uploadedFiles).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = function(ev) {
-                    files.unshift({
-                        name: file.name,
-                        size: file.size,
-                        type: file.type,
-                        data: ev.target.result,
-                        date: new Date().toISOString()
-                    });
-                    localStorage.setItem('outai_files', JSON.stringify(files));
-                    renderFiles();
-                };
-                reader.readAsDataURL(file);
-            });
-        }
+        status.innerHTML=`
+          <div class="text-red-400">
+            上传失败
+          </div>
+        `;
 
-        function deleteFile(index) {
-            if (confirm('确定删除这个文件吗？')) {
-                files.splice(index, 1);
-                localStorage.setItem('outai_files', JSON.stringify(files));
-                renderFiles();
-            }
-        }
+        console.error(err);
 
-        // Enter key support
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') login();
-        });
-    </script>
+      }
+
+    }catch(e){
+
+      console.error(e);
+
+      status.innerHTML=`
+        <div class="text-red-400">
+          上传异常
+        </div>
+      `;
+
+    }
+
+  };
+
+  reader.readAsDataURL(file);
+
+}
+
+</script>
+
 </body>
 </html>
