@@ -1,4 +1,4 @@
-# Dopefolio 🔥
+# outaidage🔥
 
 ## A Blazing Fast Multipage Portfolio Template for Developers 🚀
 
