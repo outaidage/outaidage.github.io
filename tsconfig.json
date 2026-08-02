@@ -2,21 +2,17 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "strict": true,
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "vitepress/client"]
   },
-  "include": ["docs/.vitepress/**/*.ts", "docs/.vitepress/**/*.vue", "scripts/**/*.ts"]
+  "include": [
+    "docs/.vitepress/**/*.ts",
+    "docs/.vitepress/**/*.vue",
+    "scripts/**/*.ts"
+  ]
 }
-"compilerOptions": {
-  "types": ["vitepress/client"],
-  "jsx": "preserve",
-  "strict": true,
-  "moduleResolution": "bundler",
-  "resolveJsonModule": true
-},
-"include": ["docs/.vitepress/**/*.ts", "scripts/**/*.ts"]
