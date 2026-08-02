@@ -202,7 +202,7 @@ function toBase64(str: string) {
 async function publishToGitHub() {
   if (!ghToken.value.trim()) {
     showToken.value = true
-    flash('请先填写 GitHub Token')
+    flash('请先填写 GitHub Token，或改用同步服务（书签/文档同款）')
     return
   }
   if (!items.value.length && !confirm('当前无条目，仍要发布空页面吗？')) return
@@ -262,7 +262,7 @@ async function publishToGitHub() {
     </header>
 
     <div v-if="showToken" class="sm-token">
-      <p>需要 <code>repo</code> 权限的 Fine-grained 或 classic PAT，仅存在本机浏览器。</p>
+      <p>需要 <code>repo</code> 权限的 PAT，仅存在本机。也可用书签/文档的同步服务发布（后续会统一）。</p>
       <input v-model="ghToken" type="password" placeholder="ghp_... 或 github_pat_..." />
     </div>
 
@@ -296,7 +296,11 @@ async function publishToGitHub() {
         </div>
       </li>
     </ul>
-    <p v-else class="sm-empty">暂无条目，点击「添加」开始维护本栏目。</p>
+    <div v-else class="sm-empty">
+      <p>本栏目还没有内容。</p>
+      <p class="sm-empty-hint">点击上方「添加」写入条目，再点「发布到 GitHub」同步到网站。</p>
+      <p class="sm-empty-hint">也可以先在 <a href="/bookmarks/manage">书签管理器</a> 整理相关链接，或把文件放到 <a href="/documents/">文档库</a>。</p>
+    </div>
   </div>
 </template>
 
@@ -369,4 +373,6 @@ async function publishToGitHub() {
 }
 .sm-ops { display: flex; gap: 0.3rem; align-items: flex-start; }
 .sm-empty { padding: 1.5rem; text-align: center; color: var(--ol-text-secondary, #6b7280); font-size: 0.9rem; }
+.sm-empty-hint { margin: 0.4rem 0 0; font-size: 0.8rem; }
+.sm-empty a { color: var(--ol-primary, #2563eb); }
 </style>
