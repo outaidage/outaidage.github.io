@@ -31,7 +31,7 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
 
       if (children.length) {
         items.push({
-          text: prettyName(d.name),
+          text: prettyName(d.name, childPath),
           collapsed: true,
           items: [
             ...(childHasIndex ? [{ text: '概览', link: childUrl }] : []),
@@ -39,7 +39,7 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
           ],
         })
       } else if (childHasIndex) {
-        items.push({ text: prettyName(d.name), link: childUrl })
+        items.push({ text: prettyName(d.name, childPath), link: childUrl })
       }
     }
 
@@ -48,14 +48,28 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
       .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
     for (const f of mds) {
       const name = f.name.replace(/\.md$/, '')
-      items.push({ text: prettyName(name), link: `${urlBase}${name}` })
+      items.push({ text: prettyName(name, dir), link: `${urlBase}${name}` })
     }
 
     return items
   }
 
-  function prettyName(slug: string) {
-    return slug.replace(/-/g, ' ')
+  function prettyName(slug: string, dirPath?: string) {
+    if (dirPath) {
+      const indexMd = path.join(dirPath, 'index.md')
+      if (fs.existsSync(indexMd)) {
+        const raw = fs.readFileSync(indexMd, 'utf-8')
+        const titleFm = raw.match(/^title:\s*["']?(.+?)["']?\s*$/m)
+        if (titleFm) return titleFm[1].replace(/^"|"$/g, '')
+        const h1 = raw.match(/^#\s+(.+)$/m)
+        if (h1) return h1[1].trim()
+      }
+    }
+    try {
+      return decodeURIComponent(slug).replace(/-/g, ' ')
+    } catch {
+      return slug.replace(/-/g, ' ')
+    }
   }
 
   const tree = walk(base, '/bookmarks/')
@@ -66,7 +80,6 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
   ]
 }
 
-/** 扫描已发布文档列表 */
 function buildDocumentsSidebar(): { text: string; link: string }[] {
   const items: { text: string; link: string }[] = [
     { text: '文档库首页', link: '/documents/' },
