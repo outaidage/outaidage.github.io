@@ -18,6 +18,9 @@ interface Folder {
 }
 
 const STORAGE_KEY = 'outai-lab-bookmarks-v1'
+const TOKEN_KEY = 'outai-lab-gh-token'
+const GH_OWNER = 'outaidage'
+const GH_REPO = 'outaidage.github.io'
 
 const root = ref<Folder>({
   id: 'root',
@@ -32,8 +35,10 @@ const statusMsg = ref('')
 const showAddForm = ref(false)
 const showAddFolder = ref(false)
 const editingId = ref<string | null>(null)
+const showToken = ref(false)
+const ghToken = ref('')
+const publishing = ref(false)
 
-// forms
 const formTitle = ref('')
 const formUrl = ref('')
 const formTags = ref('')
@@ -47,7 +52,6 @@ function uid() {
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(root.value))
-  flash('已保存到本机')
 }
 
 function load() {
@@ -57,22 +61,25 @@ function load() {
       root.value = JSON.parse(raw)
       selectedFolderId.value = 'root'
     }
-  } catch {
-    /* ignore */
-  }
+  } catch { /* */ }
+  try {
+    ghToken.value = localStorage.getItem(TOKEN_KEY) || ''
+  } catch { /* */ }
 }
 
 function flash(msg: string) {
   statusMsg.value = msg
   setTimeout(() => {
     if (statusMsg.value === msg) statusMsg.value = ''
-  }, 2500)
+  }, 3500)
 }
 
 onMounted(load)
 watch(root, save, { deep: true })
-
-// ─── tree helpers ───
+watch(ghToken, (v) => {
+  if (v) localStorage.setItem(TOKEN_KEY, v)
+  else localStorage.removeItem(TOKEN_KEY)
+})
 
 function findFolder(folder: Folder, id: string): Folder | null {
   if (folder.id === id) return folder
@@ -124,8 +131,6 @@ const allFoldersFlat = computed(() => {
   return list
 })
 
-// ─── CRUD ───
-
 function addBookmark() {
   const title = formTitle.value.trim()
   const url = formUrl.value.trim()
@@ -133,10 +138,7 @@ function addBookmark() {
     flash('请填写 URL')
     return
   }
-  const tags = formTags.value
-    .split(/[,，\s]+/)
-    .map((t) => t.trim())
-    .filter(Boolean)
+  const tags = formTags.value.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean)
   const folder = selectedFolder.value
 
   if (editingId.value) {
@@ -240,8 +242,6 @@ function moveBookmark(bookmarkId: string) {
   flash('已移动')
 }
 
-// ─── import ───
-
 function parseCsvLine(line: string): string[] {
   const result: string[] = []
   let cur = ''
@@ -332,9 +332,7 @@ function importCsv(text: string) {
 function importHtml(html: string) {
   const tempRoot: Folder = { id: uid(), name: 'tmp', bookmarks: [], children: [] }
   const stack: Folder[] = [tempRoot]
-  const normalized = html
-    .replace(/\r\n/g, '\n')
-    .replace(/<(A|H3)\b([^>]*)\n([^>]*)>/gi, '<$1$2 $3>')
+  const normalized = html.replace(/\r\n/g, '\n').replace(/<(A|H3)\b([^>]*)\n([^>]*)>/gi, '<$1$2 $3>')
   const h3Re = /<H3\b([^>]*)>([\s\S]*?)<\/H3>/i
   const aRe = /<A\b([^>]*)HREF="([^"]+)"([^>]*)>([\s\S]*?)<\/A>/i
   const tagsRe = /TAGS="([^"]*)"/i
@@ -362,14 +360,11 @@ function importHtml(html: string) {
         url: a[2],
         title: a[4].replace(/<[^>]+>/g, '').trim() || a[2],
         tags: tagsM ? tagsM[1].split(',').map((t) => t.trim()).filter(Boolean) : [],
-        addDate: dateM
-          ? new Date(Number(dateM[1]) * 1000).toISOString().slice(0, 10)
-          : undefined,
+        addDate: dateM ? new Date(Number(dateM[1]) * 1000).toISOString().slice(0, 10) : undefined,
       })
     }
   }
 
-  // merge into root
   let added = 0
   function merge(from: Folder, to: Folder) {
     for (const b of from.bookmarks) {
@@ -420,15 +415,9 @@ function clearAll() {
   flash('已清空')
 }
 
-// ─── export markdown ───
-
 function slugify(name: string) {
   return (
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\p{L}\p{N}]+/gu, '-')
-      .replace(/^-+|-+$/g, '') || 'untitled'
+    name.toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '') || 'untitled'
   )
 }
 
@@ -464,11 +453,7 @@ function folderToMd(folder: Folder, childLinks: { name: string; slug: string; co
   return lines.join('\n')
 }
 
-function buildMdFiles(
-  folder: Folder,
-  prefix: string,
-  files: { path: string; content: string }[],
-) {
+function buildMdFiles(folder: Folder, prefix: string, files: { path: string; content: string }[]) {
   const used = new Set<string>()
   const childLinks: { name: string; slug: string; count: number }[] = []
   for (const child of folder.children) {
@@ -500,10 +485,9 @@ function downloadText(filename: string, content: string) {
 function exportMarkdown() {
   const files: { path: string; content: string }[] = []
   buildMdFiles(root.value, '', files)
-  // single combined download as a simple text archive guide
   const parts = files.map((f) => `===== FILE: docs/bookmarks/${f.path} =====\n${f.content}`)
   downloadText('outai-bookmarks-export.md', parts.join('\n\n'))
-  flash(`已导出 ${files.length} 个 Markdown 文件（合并下载）`)
+  flash(`已导出 ${files.length} 个 Markdown 文件`)
 }
 
 function exportJson() {
@@ -514,20 +498,99 @@ function exportJson() {
 function exportCsv() {
   const rows = ['folder,url,title,tags,note,created']
   function walk(f: Folder, path: string) {
-    const folderPath = path
     for (const b of f.bookmarks) {
       const tags = `"${b.tags.join(', ')}"`
       const note = `"${(b.note || '').replace(/"/g, '""')}"`
       const title = `"${b.title.replace(/"/g, '""')}"`
-      rows.push(`${JSON.stringify(folderPath)},${b.url},${title},${tags},${note},${b.addDate || ''}`)
+      rows.push(`${JSON.stringify(path)},${b.url},${title},${tags},${note},${b.addDate || ''}`)
     }
-    for (const c of f.children) {
-      walk(c, path ? `${path}/${c.name}` : c.name)
-    }
+    for (const c of f.children) walk(c, path ? `${path}/${c.name}` : c.name)
   }
   walk(root.value, '')
   downloadText('outai-bookmarks.csv', rows.join('\n'))
   flash('已导出 CSV')
+}
+
+// ─── GitHub publish ───
+
+function toBase64(str: string) {
+  return btoa(unescape(encodeURIComponent(str)))
+}
+
+async function githubRequest(apiPath: string, method: string, body?: any) {
+  const res = await fetch(`https://api.github.com${apiPath}`, {
+    method,
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${ghToken.value.trim()}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.message || `GitHub API ${res.status}`)
+  return data
+}
+
+async function putFile(filePath: string, content: string, message: string) {
+  let sha: string | undefined
+  try {
+    const existing = await githubRequest(
+      `/repos/${GH_OWNER}/${GH_REPO}/contents/${filePath}?ref=main`,
+      'GET',
+    )
+    sha = existing.sha
+  } catch { /* new */ }
+  await githubRequest(`/repos/${GH_OWNER}/${GH_REPO}/contents/${filePath}`, 'PUT', {
+    message,
+    content: toBase64(content),
+    branch: 'main',
+    ...(sha ? { sha } : {}),
+  })
+}
+
+async function publishToGitHub() {
+  if (!ghToken.value.trim()) {
+    showToken.value = true
+    flash('请先填写 GitHub Token')
+    return
+  }
+  if (!totalCount.value) {
+    flash('没有书签可发布')
+    return
+  }
+  if (!confirm(`将把 ${totalCount.value} 条书签发布到仓库 docs/bookmarks/，是否继续？`)) return
+
+  publishing.value = true
+  try {
+    const files: { path: string; content: string }[] = []
+    buildMdFiles(root.value, '', files)
+
+    // 写一个说明性的首页覆盖
+    const homeIdx = files.findIndex((f) => f.path === 'index.md')
+    if (homeIdx >= 0) {
+      files[homeIdx].content =
+        '---\ntitle: "Bookmarks"\ndescription: "书签集合"\n---\n\n# 🔖 Bookmarks\n\n' +
+        `共 ${totalCount.value} 条 · 由书签管理器发布\n\n` +
+        `[打开管理器](/bookmarks/manage)\n\n` +
+        files[homeIdx].content.replace(/^---[\s\S]*?---\n*/, '').replace(/^# .+\n*/, '')
+    }
+
+    let done = 0
+    for (const f of files) {
+      const full = `docs/bookmarks/${f.path}`
+      await putFile(full, f.content, `chore(bookmarks): publish ${f.path}`)
+      done++
+      flash(`发布中… ${done}/${files.length}`)
+    }
+
+    flash(`已发布 ${files.length} 个文件，等待 GitHub Actions 部署（约 1–2 分钟）`)
+  } catch (e: any) {
+    flash('发布失败：' + (e?.message || e))
+  } finally {
+    publishing.value = false
+  }
 }
 </script>
 
@@ -549,12 +612,30 @@ function exportCsv() {
         <button class="bm-btn" type="button" @click="exportCsv">导出 CSV</button>
         <button class="bm-btn" type="button" @click="exportMarkdown">导出 MD</button>
         <button class="bm-btn" type="button" @click="exportJson">导出 JSON</button>
+        <button
+          class="bm-btn bm-btn-primary"
+          type="button"
+          :disabled="publishing"
+          @click="publishToGitHub"
+        >
+          {{ publishing ? '发布中…' : '发布到 GitHub' }}
+        </button>
+        <button class="bm-btn" type="button" @click="showToken = !showToken">Token</button>
         <button class="bm-btn bm-btn-danger" type="button" @click="clearAll">清空</button>
       </div>
     </header>
 
+    <div v-if="showToken" class="bm-token">
+      <p>
+        创建
+        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Personal Access Token</a>
+        （classic 勾选 <code>repo</code>，或 fine-grained 授权本仓库 Contents: Read and write）。
+        Token 仅保存在你的浏览器，不会上传到别处。
+      </p>
+      <input v-model="ghToken" type="password" placeholder="ghp_... 或 github_pat_..." />
+    </div>
+
     <div class="bm-layout">
-      <!-- sidebar folders -->
       <aside class="bm-sidebar">
         <div class="bm-side-head">
           <span>文件夹</span>
@@ -585,7 +666,6 @@ function exportCsv() {
         </ul>
       </aside>
 
-      <!-- main -->
       <section class="bm-main">
         <div class="bm-main-bar">
           <h3>{{ selectedFolder.name }}</h3>
@@ -637,12 +717,9 @@ function exportCsv() {
 
     <footer class="bm-footer">
       <p>
-        <strong>使用说明：</strong>
-        1）从 Raindrop 导出 CSV 后点「导入」；
-        2）在此增删改、移动分类；
-        3）点「导出 MD」下载，解压内容放到仓库
-        <code>docs/bookmarks/</code> 后 <code>git push</code> 即可上线。
-        数据仅存本机浏览器，换设备需重新导入或导出 JSON。
+        <strong>流程：</strong>
+        导入 Raindrop CSV → 分类整理 → 填写 Token → 点「发布到 GitHub」→ 等待 Actions 部署。
+        侧边栏会在下次构建时根据 <code>docs/bookmarks/</code> 文件夹自动生成。
       </p>
     </footer>
   </div>
@@ -665,289 +742,115 @@ function exportCsv() {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--ol-border, #e5e7eb);
 }
-.bm-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 650;
+.bm-title { margin: 0; font-size: 1.25rem; font-weight: 650; }
+.bm-sub { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--ol-text-secondary, #6b7280); }
+.bm-status { margin-left: 0.5rem; color: var(--ol-primary, #2563eb); font-weight: 600; }
+.bm-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.bm-btn {
+  appearance: none; border: 1px solid var(--ol-border, #e5e7eb);
+  background: var(--ol-bg, #fafafa); color: var(--ol-text, #111);
+  border-radius: 8px; padding: 0.4rem 0.75rem; font-size: 0.85rem; cursor: pointer; line-height: 1.3;
 }
-.bm-sub {
-  margin: 0.25rem 0 0;
+.bm-btn:hover { border-color: var(--ol-primary, #2563eb); }
+.bm-btn-primary { background: var(--ol-primary, #2563eb); border-color: transparent; color: #fff; }
+.bm-btn-primary:hover { filter: brightness(1.05); }
+.bm-btn-danger { color: #dc2626; border-color: #fecaca; }
+.bm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.bm-token {
+  padding: 0.85rem 1.5rem;
+  background: var(--vp-c-bg-soft, #f4f4f5);
+  border-bottom: 1px solid var(--ol-border, #e5e7eb);
   font-size: 0.85rem;
   color: var(--ol-text-secondary, #6b7280);
 }
-.bm-status {
-  margin-left: 0.5rem;
-  color: var(--ol-primary, #2563eb);
-  font-weight: 600;
+.bm-token a { color: var(--ol-primary, #2563eb); }
+.bm-token input {
+  width: 100%; margin-top: 0.5rem; padding: 0.45rem 0.65rem;
+  border-radius: 8px; border: 1px solid var(--ol-border, #e5e7eb);
+  background: var(--ol-card, #fff); color: var(--ol-text, #111); font-size: 0.9rem;
 }
-.bm-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.bm-btn {
-  appearance: none;
-  border: 1px solid var(--ol-border, #e5e7eb);
-  background: var(--ol-bg, #fafafa);
-  color: var(--ol-text, #111);
-  border-radius: 8px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-  line-height: 1.3;
-}
-.bm-btn:hover {
-  border-color: var(--ol-primary, #2563eb);
-}
-.bm-btn-primary {
-  background: var(--ol-primary, #2563eb);
-  border-color: transparent;
-  color: #fff;
-}
-.bm-btn-primary:hover {
-  filter: brightness(1.05);
-}
-.bm-btn-danger {
-  color: #dc2626;
-  border-color: #fecaca;
-}
-.bm-layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: 420px;
-}
-@media (max-width: 768px) {
-  .bm-layout {
-    grid-template-columns: 1fr;
-  }
-}
+.bm-layout { display: grid; grid-template-columns: 240px 1fr; min-height: 420px; }
+@media (max-width: 768px) { .bm-layout { grid-template-columns: 1fr; } }
 .bm-sidebar {
   border-right: 1px solid var(--ol-border, #e5e7eb);
   background: var(--vp-c-bg-soft, #f4f4f5);
-  max-height: 560px;
-  overflow: auto;
+  max-height: 560px; overflow: auto;
 }
 .bm-side-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--ol-text-secondary, #6b7280);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 600;
+  color: var(--ol-text-secondary, #6b7280); text-transform: uppercase; letter-spacing: 0.04em;
 }
-.bm-icon-btn {
-  border: none;
-  background: transparent;
-  font-size: 1.2rem;
-  cursor: pointer;
-  color: var(--ol-primary, #2563eb);
-}
-.bm-inline-form {
-  display: flex;
-  gap: 0.35rem;
-  padding: 0 0.75rem 0.75rem;
-}
+.bm-icon-btn { border: none; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--ol-primary, #2563eb); }
+.bm-inline-form { display: flex; gap: 0.35rem; padding: 0 0.75rem 0.75rem; }
 .bm-inline-form input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--ol-border, #e5e7eb);
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.85rem;
-  background: var(--ol-card, #fff);
-  color: var(--ol-text, #111);
+  flex: 1; min-width: 0; border: 1px solid var(--ol-border, #e5e7eb); border-radius: 6px;
+  padding: 0.35rem 0.5rem; font-size: 0.85rem; background: var(--ol-card, #fff); color: var(--ol-text, #111);
 }
-.bm-tree {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 1rem;
-}
+.bm-tree { list-style: none; margin: 0; padding: 0 0 1rem; }
 .bm-tree-item {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.75rem;
-  cursor: pointer;
-  font-size: 0.9rem;
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.9rem;
 }
-.bm-tree-item:hover,
-.bm-tree-item.active {
-  background: var(--vp-c-brand-soft, rgba(37, 99, 235, 0.08));
-}
-.bm-tree-item.active {
-  color: var(--ol-primary, #2563eb);
-  font-weight: 600;
-}
-.bm-tree-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bm-tree-count {
-  font-size: 0.75rem;
-  color: var(--ol-text-secondary, #6b7280);
-}
+.bm-tree-item:hover, .bm-tree-item.active { background: var(--vp-c-brand-soft, rgba(37, 99, 235, 0.08)); }
+.bm-tree-item.active { color: var(--ol-primary, #2563eb); font-weight: 600; }
+.bm-tree-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-tree-count { font-size: 0.75rem; color: var(--ol-text-secondary, #6b7280); }
 .bm-tree-ops button {
-  border: none;
-  background: transparent;
-  font-size: 0.75rem;
-  color: var(--ol-text-secondary, #6b7280);
-  cursor: pointer;
-  padding: 0 0.2rem;
+  border: none; background: transparent; font-size: 0.75rem;
+  color: var(--ol-text-secondary, #6b7280); cursor: pointer; padding: 0 0.2rem;
 }
-.bm-tree-ops button:hover {
-  color: var(--ol-primary, #2563eb);
-}
-.bm-main {
-  padding: 1rem 1.25rem 1.5rem;
-  max-height: 560px;
-  overflow: auto;
-}
-.bm-main-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-.bm-main-bar h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  flex: 1;
-  min-width: 100px;
-}
+.bm-tree-ops button:hover { color: var(--ol-primary, #2563eb); }
+.bm-main { padding: 1rem 1.25rem 1.5rem; max-height: 560px; overflow: auto; }
+.bm-main-bar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-bottom: 1rem; }
+.bm-main-bar h3 { margin: 0; font-size: 1.05rem; flex: 1; min-width: 100px; }
 .bm-search {
-  border: 1px solid var(--ol-border, #e5e7eb);
-  border-radius: 8px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.85rem;
-  min-width: 160px;
-  flex: 1;
-  max-width: 280px;
-  background: var(--ol-bg, #fafafa);
-  color: var(--ol-text, #111);
+  border: 1px solid var(--ol-border, #e5e7eb); border-radius: 8px; padding: 0.4rem 0.75rem;
+  font-size: 0.85rem; min-width: 160px; flex: 1; max-width: 280px;
+  background: var(--ol-bg, #fafafa); color: var(--ol-text, #111);
 }
 .bm-form {
-  display: grid;
-  gap: 0.5rem;
-  grid-template-columns: 1fr 1fr;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px dashed var(--ol-border, #e5e7eb);
-  border-radius: 10px;
+  display: grid; gap: 0.5rem; grid-template-columns: 1fr 1fr; margin-bottom: 1rem;
+  padding: 1rem; border: 1px dashed var(--ol-border, #e5e7eb); border-radius: 10px;
   background: var(--vp-c-bg-soft, #f4f4f5);
 }
-@media (max-width: 600px) {
-  .bm-form {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 600px) { .bm-form { grid-template-columns: 1fr; } }
 .bm-form input {
-  border: 1px solid var(--ol-border, #e5e7eb);
-  border-radius: 8px;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.9rem;
-  background: var(--ol-card, #fff);
-  color: var(--ol-text, #111);
+  border: 1px solid var(--ol-border, #e5e7eb); border-radius: 8px; padding: 0.45rem 0.65rem;
+  font-size: 0.9rem; background: var(--ol-card, #fff); color: var(--ol-text, #111);
 }
-.bm-empty {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--ol-text-secondary, #6b7280);
-  font-size: 0.9rem;
-}
-.bm-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
+.bm-empty { padding: 2rem 1rem; text-align: center; color: var(--ol-text-secondary, #6b7280); font-size: 0.9rem; }
+.bm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.65rem; }
 .bm-item {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--ol-border, #e5e7eb);
-  border-radius: 10px;
+  display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between;
+  padding: 0.85rem 1rem; border: 1px solid var(--ol-border, #e5e7eb); border-radius: 10px;
   background: var(--ol-bg, #fafafa);
 }
-.bm-item-main {
-  flex: 1;
-  min-width: 200px;
-}
-.bm-link {
-  font-weight: 600;
-  color: var(--ol-primary, #2563eb);
-  text-decoration: none;
-}
-.bm-link:hover {
-  text-decoration: underline;
-}
-.bm-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.35rem;
-  align-items: center;
-}
+.bm-item-main { flex: 1; min-width: 200px; }
+.bm-link { font-weight: 600; color: var(--ol-primary, #2563eb); text-decoration: none; }
+.bm-link:hover { text-decoration: underline; }
+.bm-meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.35rem; align-items: center; }
 .bm-url {
-  font-size: 0.75rem;
-  color: var(--ol-text-secondary, #6b7280);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 0.75rem; color: var(--ol-text-secondary, #6b7280);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bm-tag {
-  font-size: 0.7rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  background: var(--vp-c-brand-soft, rgba(37, 99, 235, 0.1));
-  color: var(--ol-primary, #2563eb);
+  font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px;
+  background: var(--vp-c-brand-soft, rgba(37, 99, 235, 0.1)); color: var(--ol-primary, #2563eb);
 }
-.bm-date {
-  font-size: 0.7rem;
-  color: var(--ol-text-secondary, #6b7280);
-}
-.bm-note {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
-  color: var(--ol-text-secondary, #6b7280);
-}
-.bm-item-ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  align-items: center;
-}
+.bm-date { font-size: 0.7rem; color: var(--ol-text-secondary, #6b7280); }
+.bm-note { margin: 0.35rem 0 0; font-size: 0.8rem; color: var(--ol-text-secondary, #6b7280); }
+.bm-item-ops { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 .bm-select {
-  border: 1px solid var(--ol-border, #e5e7eb);
-  border-radius: 6px;
-  padding: 0.3rem 0.4rem;
-  font-size: 0.8rem;
-  background: var(--ol-card, #fff);
-  color: var(--ol-text, #111);
-  max-width: 140px;
+  border: 1px solid var(--ol-border, #e5e7eb); border-radius: 6px; padding: 0.3rem 0.4rem;
+  font-size: 0.8rem; background: var(--ol-card, #fff); color: var(--ol-text, #111); max-width: 140px;
 }
 .bm-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--ol-border, #e5e7eb);
-  font-size: 0.8rem;
-  color: var(--ol-text-secondary, #6b7280);
-  line-height: 1.6;
+  padding: 1rem 1.5rem; border-top: 1px solid var(--ol-border, #e5e7eb);
+  font-size: 0.8rem; color: var(--ol-text-secondary, #6b7280); line-height: 1.6;
   background: var(--vp-c-bg-soft, #f4f4f5);
 }
 .bm-footer code {
-  font-size: 0.75rem;
-  padding: 0.1rem 0.3rem;
-  border-radius: 4px;
-  background: var(--ol-card, #fff);
+  font-size: 0.75rem; padding: 0.1rem 0.3rem; border-radius: 4px; background: var(--ol-card, #fff);
 }
 </style>
