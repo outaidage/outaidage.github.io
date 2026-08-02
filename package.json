@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev docs",
+    "prebuild": "tsx scripts/generate-stats.ts && tsx scripts/build-tags.ts",
     "build": "vitepress build docs",
     "preview": "vitepress preview docs",
     "import-bookmarks": "tsx scripts/import-bookmarks.ts",
-    "build-tags": "tsx scripts/build-tags.ts"
+    "build-tags": "tsx scripts/build-tags.ts",
+    "generate-stats": "tsx scripts/generate-stats.ts"
   },
   "dependencies": {
     "vitepress": "^1.5.0",

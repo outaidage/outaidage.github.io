@@ -6,6 +6,8 @@ description: Build · Learn · Collect. 一个不断成长的个人知识库。
 
 <Hero />
 
+<SiteStats />
+
 <div class="ol-grid">
   <FeatureCard icon="⭐" title="Featured" desc="精选推荐" link="/featured/" />
   <FeatureCard icon="📚" title="Learn" desc="学习资源" link="/learn/" />
@@ -20,6 +22,7 @@ description: Build · Learn · Collect. 一个不断成长的个人知识库。
   <FeatureCard icon="🔖" title="Bookmarks" desc="书签集合" link="/bookmarks/" />
   <FeatureCard icon="⚙️" title="书签管理" desc="导入 · 分类 · 增删" link="/bookmarks/manage" />
   <FeatureCard icon="📄" title="文档库" desc="上传 · 预览 · 下载" link="/documents/" />
+  <FeatureCard icon="🏷" title="Tags" desc="按标签浏览" link="/tags/" />
 </div>
 
 <Footer />
