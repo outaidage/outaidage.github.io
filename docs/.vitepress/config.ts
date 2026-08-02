@@ -1,4 +1,74 @@
 import { defineConfig } from 'vitepress'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/** 扫描 docs/bookmarks 生成侧边栏树 */
+function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boolean; items?: any[] }[] {
+  const base = path.resolve(__dirname, '../bookmarks')
+  if (!fs.existsSync(base)) {
+    return [
+      { text: '书签首页', link: '/bookmarks/' },
+      { text: '管理器', link: '/bookmarks/manage' },
+    ]
+  }
+
+  function walk(dir: string, urlBase: string): any[] {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    const items: any[] = []
+
+    // index.md at this level
+    const hasIndex = entries.some((e) => e.isFile() && e.name === 'index.md')
+
+    const dirs = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+
+    for (const d of dirs) {
+      const childPath = path.join(dir, d.name)
+      const childUrl = `${urlBase}${d.name}/`
+      const children = walk(childPath, childUrl)
+      const childHasIndex = fs.existsSync(path.join(childPath, 'index.md'))
+
+      if (children.length) {
+        items.push({
+          text: prettyName(d.name),
+          collapsed: true,
+          items: [
+            ...(childHasIndex ? [{ text: '概览', link: childUrl }] : []),
+            ...children,
+          ],
+        })
+      } else if (childHasIndex) {
+        items.push({ text: prettyName(d.name), link: childUrl })
+      }
+    }
+
+    // other md files (non-index)
+    const mds = entries
+      .filter((e) => e.isFile() && e.name.endsWith('.md') && e.name !== 'index.md' && e.name !== 'manage.md')
+      .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    for (const f of mds) {
+      const name = f.name.replace(/\.md$/, '')
+      items.push({ text: prettyName(name), link: `${urlBase}${name}` })
+    }
+
+    return items
+  }
+
+  function prettyName(slug: string) {
+    return slug.replace(/-/g, ' ')
+  }
+
+  const tree = walk(base, '/bookmarks/')
+  return [
+    { text: '书签首页', link: '/bookmarks/' },
+    { text: '管理器（导入/发布）', link: '/bookmarks/manage' },
+    ...tree,
+  ]
+}
 
 export default defineConfig({
   title: 'Outai Lab',
@@ -37,6 +107,7 @@ export default defineConfig({
     sidebar: [
       {
         text: '知识库',
+        collapsed: false,
         items: [
           { text: 'Home', link: '/' },
           { text: 'Featured', link: '/featured/' },
@@ -53,15 +124,15 @@ export default defineConfig({
       },
       {
         text: '书签',
-        items: [
-          { text: '书签首页', link: '/bookmarks/' },
-          { text: '管理器（导入/分类）', link: '/bookmarks/manage' },
-          { text: 'Tags', link: '/tags/' },
-        ],
+        collapsed: false,
+        items: buildBookmarksSidebar(),
       },
       {
-        text: '关于',
-        items: [{ text: 'About', link: '/about' }],
+        text: '标签 & 关于',
+        items: [
+          { text: 'Tags', link: '/tags/' },
+          { text: 'About', link: '/about' },
+        ],
       },
     ],
 
