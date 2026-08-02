@@ -1,5 +1,10 @@
+---
+title: Downloads
+description: 下载资源
+---
+
 # 📦 Downloads
 
-下载资源与获取渠道整理。
+常用下载源与资源镜像。
 
-- 暂无内容，敬请期待
+> 持续更新中…

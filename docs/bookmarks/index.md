@@ -1,5 +1,10 @@
+---
+title: Bookmarks
+description: 书签集合
+---
+
 # 🔖 Bookmarks
 
-书签集合，可由 `scripts/import-bookmarks.ts` 从 Raindrop 导出的 HTML 自动生成。
+整理后的书签集合（支持 Raindrop 一键导入）。
 
-- 暂无内容，敬请期待
+> 持续更新中…

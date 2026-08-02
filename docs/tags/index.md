@@ -1,5 +1,10 @@
+---
+title: Tags
+description: 标签
+---
+
 # 🏷 Tags
 
-标签索引页，可由 `scripts/build-tags.ts` 根据各页面 frontmatter 中的 `tags` 字段自动生成。
+按标签浏览所有内容（预留）。
 
-- 暂无标签
+> 标签系统将在后续版本启用。
