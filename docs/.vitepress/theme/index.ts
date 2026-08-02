@@ -9,6 +9,7 @@ import BookmarkManager from './components/BookmarkManager.vue'
 import SectionManager from './components/SectionManager.vue'
 import DocumentManager from './components/DocumentManager.vue'
 import SyncSettings from './components/SyncSettings.vue'
+import SiteStats from './components/SiteStats.vue'
 
 export default {
   extends: DefaultTheme,
@@ -20,5 +21,6 @@ export default {
     app.component('SectionManager', SectionManager)
     app.component('DocumentManager', DocumentManager)
     app.component('SyncSettings', SyncSettings)
+    app.component('SiteStats', SiteStats)
   },
 } satisfies Theme
