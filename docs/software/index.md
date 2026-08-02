@@ -7,4 +7,4 @@ description: 软件工具
 
 实用软件、开源项目与效率工具。
 
-> 持续更新中…
+<SectionManager section="software" title="Software" icon="💻" />

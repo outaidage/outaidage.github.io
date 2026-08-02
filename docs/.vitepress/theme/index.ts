@@ -6,6 +6,7 @@ import Hero from './components/Hero.vue'
 import FeatureCard from './components/FeatureCard.vue'
 import Footer from './components/Footer.vue'
 import BookmarkManager from './components/BookmarkManager.vue'
+import SectionManager from './components/SectionManager.vue'
 
 export default {
   extends: DefaultTheme,
@@ -14,5 +15,6 @@ export default {
     app.component('FeatureCard', FeatureCard)
     app.component('Footer', Footer)
     app.component('BookmarkManager', BookmarkManager)
+    app.component('SectionManager', SectionManager)
   },
 } satisfies Theme

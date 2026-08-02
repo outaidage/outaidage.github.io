@@ -7,4 +7,4 @@ description: 精选推荐
 
 精选高质量资源与推荐内容。
 
-> 持续更新中…
+<SectionManager section="featured" title="Featured" icon="⭐" />

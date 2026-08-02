@@ -7,4 +7,4 @@ description: 影音资源
 
 影音、播客与多媒体相关资源。
 
-> 持续更新中…
+<SectionManager section="media" title="Media" icon="🎬" />

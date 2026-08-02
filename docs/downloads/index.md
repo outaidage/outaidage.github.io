@@ -7,4 +7,4 @@ description: 下载资源
 
 常用下载源与资源镜像。
 
-> 持续更新中…
+<SectionManager section="downloads" title="Downloads" icon="📦" />

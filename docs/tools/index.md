@@ -7,4 +7,4 @@ description: 实用工具
 
 在线工具、实用脚本与效率助手。
 
-> 持续更新中…
+<SectionManager section="tools" title="Tools" icon="🛠" />

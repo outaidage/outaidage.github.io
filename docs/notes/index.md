@@ -7,4 +7,4 @@ description: 笔记
 
 个人笔记与碎片知识。
 
-> 持续更新中…
+<SectionManager section="notes" title="Notes" icon="📝" />
