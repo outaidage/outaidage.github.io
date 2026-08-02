@@ -14,6 +14,7 @@
 - 📱 Fully responsive
 - 📑 Sidebar navigation
 - 📚 Markdown knowledge base
+- 🔖 浏览器内书签管理器（导入 / 分类 / 增删 / 导出）
 - ⚙ GitHub Actions auto-deploy
 
 ## Development
@@ -23,9 +24,27 @@ npm install
 npm run dev
 ```
 
+## Bookmarks
+
+### 浏览器管理（推荐日常使用）
+
+打开站点 **/bookmarks/manage**：
+
+1. 从 Raindrop 导出 CSV 并导入
+2. 增删改、移动文件夹分类
+3. 导出 Markdown → 放入 `docs/bookmarks/` → push
+
+### 命令行导入
+
+```bash
+npm run import-bookmarks -- ./Raindrop.io-Export.csv --clean
+npm run build-tags   # 可选：生成标签索引
+```
+
 ## Build & Deploy
 
-Push to `main` → GitHub Actions builds and deploys to GitHub Pages (outaidage.xyz).
+1. 仓库 **Settings → Pages → Source** 设为 **GitHub Actions**（不是 Deploy from a branch）
+2. Push to `main` → Actions 自动构建部署到 outaidage.xyz
 
 ```bash
 git add .
@@ -45,13 +64,15 @@ docs/
 │   │   └── components/
 │   │       ├── Hero.vue
 │   │       ├── FeatureCard.vue
-│   │       └── Footer.vue
+│   │       ├── Footer.vue
+│   │       └── BookmarkManager.vue
 │   └── public/
+├── bookmarks/
+│   ├── index.md
+│   └── manage.md          # 交互式管理器
 ├── index.md
-├── featured/ learn/ network/ ai/ ...
-└── about.md
+└── ...
+scripts/
+├── import-bookmarks.ts    # CLI：CSV/HTML → Markdown
+└── build-tags.ts
 ```
-
-## License
-
-MIT

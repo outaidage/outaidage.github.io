@@ -18,6 +18,7 @@ description: Build · Learn · Collect. 一个不断成长的个人知识库。
   <FeatureCard icon="📦" title="Downloads" desc="下载资源" link="/downloads/" />
   <FeatureCard icon="📝" title="Notes" desc="笔记" link="/notes/" />
   <FeatureCard icon="🔖" title="Bookmarks" desc="书签集合" link="/bookmarks/" />
+  <FeatureCard icon="⚙️" title="书签管理" desc="导入 · 分类 · 增删" link="/bookmarks/manage" />
 </div>
 
 <Footer />

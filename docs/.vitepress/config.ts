@@ -23,12 +23,20 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Featured', link: '/featured/' },
+      {
+        text: 'Bookmarks',
+        items: [
+          { text: '书签首页', link: '/bookmarks/' },
+          { text: '书签管理器', link: '/bookmarks/manage' },
+          { text: '标签', link: '/tags/' },
+        ],
+      },
       { text: 'About', link: '/about' },
     ],
 
     sidebar: [
       {
-        text: '导航',
+        text: '知识库',
         items: [
           { text: 'Home', link: '/' },
           { text: 'Featured', link: '/featured/' },
@@ -41,10 +49,19 @@ export default defineConfig({
           { text: 'Tools', link: '/tools/' },
           { text: 'Downloads', link: '/downloads/' },
           { text: 'Notes', link: '/notes/' },
-          { text: 'Bookmarks', link: '/bookmarks/' },
-          { text: 'Tags', link: '/tags/' },
-          { text: 'About', link: '/about' },
         ],
+      },
+      {
+        text: '书签',
+        items: [
+          { text: '书签首页', link: '/bookmarks/' },
+          { text: '管理器（导入/分类）', link: '/bookmarks/manage' },
+          { text: 'Tags', link: '/tags/' },
+        ],
+      },
+      {
+        text: '关于',
+        items: [{ text: 'About', link: '/about' }],
       },
     ],
 
@@ -76,9 +93,5 @@ export default defineConfig({
     darkModeSwitchTitle: '切换到深色模式',
     sidebarMenuLabel: '菜单',
     returnToTopLabel: '回到顶部',
-  },
-
-  vite: {
-    // UnoCSS is handled via vite.config.ts at root
   },
 })
