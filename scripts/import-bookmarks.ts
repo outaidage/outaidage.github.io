@@ -1,21 +1,20 @@
 /**
- * 将 Netscape 书签 HTML（Chrome / Firefox / Raindrop 导出）转换为
- * docs/bookmarks/ 下按真实文件夹层级嵌套的 Markdown 目录结构。
+ * 书签导入脚本 —— 支持：
+ *   1. Raindrop.io CSV 导出（推荐，完整保留集合路径 + 标签）
+ *   2. Netscape HTML（Chrome / Firefox / Raindrop HTML）
  *
  * 用法：
- *   npm run import-bookmarks -- ./bookmarks.html
+ *   npm run import-bookmarks -- ./Raindrop.io-Export.csv --clean
  *   npm run import-bookmarks -- ./bookmarks.html --clean
  *
- * 生成结构示例：
+ * 生成结构（深层嵌套）：
  *   docs/bookmarks/
- *     index.md                 # 根目录书签 + 子文件夹入口
- *     design/
+ *     index.md
+ *     科学上网/
  *       index.md
- *       fonts/
- *         index.md
- *     programming/
+ *     电影电视/
  *       index.md
- *       javascript/
+ *       纪录片/
  *         index.md
  */
 import fs from 'node:fs'
@@ -26,6 +25,7 @@ interface Bookmark {
   url: string
   addDate?: string
   tags?: string[]
+  note?: string
 }
 
 interface Folder {
@@ -34,24 +34,183 @@ interface Folder {
   children: Folder[]
 }
 
-// ───────── parse ─────────
+// ───────── utils ─────────
+
+function decodeEntities(str: string): string {
+  return str
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+}
+
+function stripTags(str: string): string {
+  return str.replace(/<[^>]+>/g, '').trim()
+}
+
+function slugify(name: string): string {
+  const s = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+  return s || 'untitled'
+}
+
+function uniqueSlug(name: string, used: Set<string>): string {
+  let base = slugify(name)
+  let slug = base
+  let i = 2
+  while (used.has(slug)) {
+    slug = `${base}-${i}`
+    i++
+  }
+  used.add(slug)
+  return slug
+}
+
+function ensureChild(parent: Folder, name: string): Folder {
+  let child = parent.children.find((c) => c.name === name)
+  if (!child) {
+    child = { name, bookmarks: [], children: [] }
+    parent.children.push(child)
+  }
+  return child
+}
+
+/** 按 "a/b/c" 路径创建/获取嵌套文件夹 */
+function ensurePath(root: Folder, folderPath: string): Folder {
+  const parts = folderPath
+    .split('/')
+    .map((p) => p.trim())
+    .filter(Boolean)
+  let cur = root
+  for (const part of parts) {
+    cur = ensureChild(cur, part)
+  }
+  return cur
+}
+
+function countAll(folder: Folder): number {
+  let n = folder.bookmarks.length
+  for (const c of folder.children) n += countAll(c)
+  return n
+}
+
+// ───────── CSV parser (Raindrop) ─────────
+
+/** 简易 CSV 行解析，支持双引号转义 */
+function parseCsvLine(line: string): string[] {
+  const result: string[] = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"'
+          i++
+        } else {
+          inQuotes = false
+        }
+      } else {
+        cur += ch
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true
+      } else if (ch === ',') {
+        result.push(cur)
+        cur = ''
+      } else {
+        cur += ch
+      }
+    }
+  }
+  result.push(cur)
+  return result
+}
+
+function parseRaindropCsv(text: string): Folder {
+  const root: Folder = { name: 'Bookmarks', bookmarks: [], children: [] }
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter((l) => l.trim())
+  if (lines.length < 2) return root
+
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase())
+  const idx = (name: string) => headers.indexOf(name)
+
+  // Raindrop 常见列名
+  const iUrl = idx('url')
+  const iTitle = idx('title')
+  const iFolder = idx('folder') >= 0 ? idx('folder') : idx('collection')
+  const iTags = idx('tags')
+  const iCreated = idx('created')
+  const iNote = idx('note') >= 0 ? idx('note') : idx('excerpt')
+
+  if (iUrl < 0) {
+    throw new Error('CSV 缺少 url 列，请确认是 Raindrop 导出的 CSV')
+  }
+
+  for (let li = 1; li < lines.length; li++) {
+    const cols = parseCsvLine(lines[li])
+    const url = (cols[iUrl] || '').trim()
+    if (!url || !/^https?:\/\//i.test(url)) continue
+
+    const title = (iTitle >= 0 ? cols[iTitle] : '') || url
+    const folderPath = (iFolder >= 0 ? cols[iFolder] : '') || ''
+    const tagsRaw = iTags >= 0 ? cols[iTags] || '' : ''
+    const tags = tagsRaw
+      .split(/[,;]/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+    const note = iNote >= 0 ? (cols[iNote] || '').trim() : undefined
+
+    let addDate: string | undefined
+    if (iCreated >= 0 && cols[iCreated]) {
+      const raw = cols[iCreated].trim()
+      // Unix 秒 / 毫秒 / ISO
+      if (/^\d{10,13}$/.test(raw)) {
+        const n = Number(raw)
+        const ms = n > 1e12 ? n : n * 1000
+        addDate = new Date(ms).toISOString().slice(0, 10)
+      } else {
+        const d = new Date(raw)
+        if (!isNaN(d.getTime())) addDate = d.toISOString().slice(0, 10)
+      }
+    }
+
+    const target = folderPath ? ensurePath(root, folderPath) : root
+    target.bookmarks.push({
+      title: title.trim(),
+      url,
+      tags: tags.length ? tags : undefined,
+      addDate,
+      note: note || undefined,
+    })
+  }
+
+  return root
+}
+
+// ───────── HTML parser (Netscape) ─────────
 
 function parseNetscapeHtml(html: string): Folder {
   const root: Folder = { name: 'Bookmarks', bookmarks: [], children: [] }
   const stack: Folder[] = [root]
 
-  // 部分导出器会把属性折行，先压成单行再按标签切
   const normalized = html
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
-    // 把跨行的 <A ...> 和 <H3 ...> 合并到一行
     .replace(/<(A|H3)\b([^>]*)\n([^>]*)>/gi, '<$1$2 $3>')
 
   const lines = normalized.split('\n')
-
   const h3Re = /<H3\b([^>]*)>([\s\S]*?)<\/H3>/i
   const aRe = /<A\b([^>]*)HREF="([^"]+)"([^>]*)>([\s\S]*?)<\/A>/i
-  // 更宽松：HREF 可能不在第一个属性
   const aReAlt = /<A\b([^>]*)>([\s\S]*?)<\/A>/i
   const tagsRe = /TAGS="([^"]*)"/i
   const addDateRe = /ADD_DATE="(\d+)"/i
@@ -120,47 +279,7 @@ function parseNetscapeHtml(html: string): Folder {
   return root
 }
 
-function stripTags(str: string): string {
-  return str.replace(/<[^>]+>/g, '').trim()
-}
-
-function decodeEntities(str: string): string {
-  return str
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
-}
-
-// ───────── path helpers ─────────
-
-function slugify(name: string): string {
-  const s = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '')
-  return s || 'untitled'
-}
-
-/** 同一父目录下避免 slug 冲突：design、design-2、design-3 … */
-function uniqueSlug(name: string, used: Set<string>): string {
-  let base = slugify(name)
-  let slug = base
-  let i = 2
-  while (used.has(slug)) {
-    slug = `${base}-${i}`
-    i++
-  }
-  used.add(slug)
-  return slug
-}
-
-// ───────── markdown ─────────
+// ───────── markdown render ─────────
 
 function bookmarkLine(b: Bookmark): string {
   const tags =
@@ -168,10 +287,17 @@ function bookmarkLine(b: Bookmark): string {
       ? ' ' + b.tags.map((t) => '`' + t + '`').join(' ')
       : ''
   const date = b.addDate ? ` · ${b.addDate}` : ''
-  return `- [${b.title}](${b.url})${tags}${date}`
+  let line = `- [${b.title}](${b.url})${tags}${date}`
+  if (b.note) {
+    line += `\n  > ${b.note.replace(/\n/g, ' ')}`
+  }
+  return line
 }
 
-function renderFolderPage(folder: Folder, childLinks: { name: string; rel: string; count: number }[]): string {
+function renderFolderPage(
+  folder: Folder,
+  childLinks: { name: string; rel: string; count: number }[],
+): string {
   const lines: string[] = []
 
   lines.push('---')
@@ -210,12 +336,6 @@ function renderFolderPage(folder: Folder, childLinks: { name: string; rel: strin
   return lines.join('\n')
 }
 
-function countAll(folder: Folder): number {
-  let n = folder.bookmarks.length
-  for (const c of folder.children) n += countAll(c)
-  return n
-}
-
 // ───────── write tree ─────────
 
 interface WriteStats {
@@ -226,31 +346,23 @@ interface WriteStats {
 
 function cleanBookmarksDir(outDir: string) {
   if (!fs.existsSync(outDir)) return
-  // 只清 docs/bookmarks 下内容，保留目录本身
   for (const entry of fs.readdirSync(outDir)) {
-    const p = path.join(outDir, entry)
-    fs.rmSync(p, { recursive: true, force: true })
+    fs.rmSync(path.join(outDir, entry), { recursive: true, force: true })
   }
 }
 
-function writeFolderTree(
-  folder: Folder,
-  dir: string,
-  stats: WriteStats,
-  isRoot = false,
-): void {
+function writeFolderTree(folder: Folder, dir: string, stats: WriteStats): void {
   fs.mkdirSync(dir, { recursive: true })
 
   const usedSlugs = new Set<string>()
   const childLinks: { name: string; rel: string; count: number }[] = []
 
   for (const child of folder.children) {
-    // 跳过完全空的叶子（无书签且无子文件夹）
     if (child.bookmarks.length === 0 && child.children.length === 0) continue
 
     const slug = uniqueSlug(child.name, usedSlugs)
     const childDir = path.join(dir, slug)
-    writeFolderTree(child, childDir, stats, false)
+    writeFolderTree(child, childDir, stats)
 
     childLinks.push({
       name: child.name,
@@ -260,8 +372,7 @@ function writeFolderTree(
   }
 
   const body = renderFolderPage(folder, childLinks)
-  const filePath = path.join(dir, 'index.md')
-  fs.writeFileSync(filePath, body, 'utf-8')
+  fs.writeFileSync(path.join(dir, 'index.md'), body, 'utf-8')
 
   stats.files += 1
   stats.folders += 1
@@ -285,8 +396,11 @@ function main() {
   const input = args.find((a) => !a.startsWith('--'))
 
   if (!input) {
-    console.error('用法: npm run import-bookmarks -- <bookmarks.html> [--clean]')
-    console.error('  --clean  导入前清空 docs/bookmarks/ 目录')
+    console.error('用法: npm run import-bookmarks -- <file.csv|file.html> [--clean]')
+    console.error('')
+    console.error('Raindrop 推荐导出 CSV：')
+    console.error('  Settings → Backups → 下载 CSV')
+    console.error('  或 集合页 → Export → CSV')
     process.exit(1)
   }
 
@@ -295,8 +409,27 @@ function main() {
     process.exit(1)
   }
 
-  const html = fs.readFileSync(input, 'utf-8')
-  const root = parseNetscapeHtml(html)
+  const raw = fs.readFileSync(input, 'utf-8')
+  const lower = input.toLowerCase()
+  let root: Folder
+
+  if (lower.endsWith('.csv')) {
+    console.log('检测到 Raindrop CSV，按集合路径 + 标签解析…')
+    root = parseRaindropCsv(raw)
+  } else if (lower.endsWith('.html') || lower.endsWith('.htm')) {
+    console.log('检测到 Netscape HTML…')
+    root = parseNetscapeHtml(raw)
+  } else {
+    // 自动嗅探
+    if (raw.trimStart().startsWith('<!') || /<DL/i.test(raw)) {
+      console.log('内容像 HTML，按 Netscape 解析…')
+      root = parseNetscapeHtml(raw)
+    } else {
+      console.log('按 CSV 解析…')
+      root = parseRaindropCsv(raw)
+    }
+  }
+
   const outDir = path.resolve('docs/bookmarks')
 
   if (clean) {
@@ -305,7 +438,7 @@ function main() {
   }
 
   const stats: WriteStats = { files: 0, bookmarks: 0, folders: 0 }
-  writeFolderTree(root, outDir, stats, true)
+  writeFolderTree(root, outDir, stats)
 
   console.log('')
   console.log('文件夹树：')
