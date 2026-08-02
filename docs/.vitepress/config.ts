@@ -19,9 +19,6 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
     const entries = fs.readdirSync(dir, { withFileTypes: true })
     const items: any[] = []
 
-    // index.md at this level
-    const hasIndex = entries.some((e) => e.isFile() && e.name === 'index.md')
-
     const dirs = entries
       .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
       .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
@@ -46,7 +43,6 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
       }
     }
 
-    // other md files (non-index)
     const mds = entries
       .filter((e) => e.isFile() && e.name.endsWith('.md') && e.name !== 'index.md' && e.name !== 'manage.md')
       .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
@@ -68,6 +64,24 @@ function buildBookmarksSidebar(): { text: string; link?: string; collapsed?: boo
     { text: '管理器（导入/发布）', link: '/bookmarks/manage' },
     ...tree,
   ]
+}
+
+/** 扫描已发布文档列表 */
+function buildDocumentsSidebar(): { text: string; link: string }[] {
+  const items: { text: string; link: string }[] = [
+    { text: '文档库首页', link: '/documents/' },
+  ]
+  const filesDir = path.resolve(__dirname, '../public/files')
+  if (fs.existsSync(filesDir)) {
+    const files = fs
+      .readdirSync(filesDir)
+      .filter((f) => f !== '.gitkeep' && f !== 'manifest.json' && !f.startsWith('.'))
+      .sort((a, b) => a.localeCompare(b, 'zh-CN'))
+    for (const f of files) {
+      items.push({ text: f, link: `/files/${f}` })
+    }
+  }
+  return items
 }
 
 export default defineConfig({
@@ -101,6 +115,7 @@ export default defineConfig({
           { text: '标签', link: '/tags/' },
         ],
       },
+      { text: '文档库', link: '/documents/' },
       { text: 'About', link: '/about' },
     ],
 
@@ -121,6 +136,11 @@ export default defineConfig({
           { text: 'Downloads', link: '/downloads/' },
           { text: 'Notes', link: '/notes/' },
         ],
+      },
+      {
+        text: '📄 文档管理',
+        collapsed: false,
+        items: buildDocumentsSidebar(),
       },
       {
         text: '书签',
