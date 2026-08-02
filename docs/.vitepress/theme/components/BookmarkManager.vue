@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { syncFiles, toBase64FromString } from '../lib/sync'
+import SyncSettings from './SyncSettings.vue'
 
 interface Bookmark {
   id: string
@@ -18,9 +20,6 @@ interface Folder {
 }
 
 const STORAGE_KEY = 'outai-lab-bookmarks-v1'
-const TOKEN_KEY = 'outai-lab-gh-token'
-const GH_OWNER = 'outaidage'
-const GH_REPO = 'outaidage.github.io'
 
 const root = ref<Folder>({
   id: 'root',
@@ -35,8 +34,6 @@ const statusMsg = ref('')
 const showAddForm = ref(false)
 const showAddFolder = ref(false)
 const editingId = ref<string | null>(null)
-const showToken = ref(false)
-const ghToken = ref('')
 const publishing = ref(false)
 
 const formTitle = ref('')
@@ -62,9 +59,6 @@ function load() {
       selectedFolderId.value = 'root'
     }
   } catch { /* */ }
-  try {
-    ghToken.value = localStorage.getItem(TOKEN_KEY) || ''
-  } catch { /* */ }
 }
 
 function flash(msg: string) {
@@ -76,10 +70,6 @@ function flash(msg: string) {
 
 onMounted(load)
 watch(root, save, { deep: true })
-watch(ghToken, (v) => {
-  if (v) localStorage.setItem(TOKEN_KEY, v)
-  else localStorage.removeItem(TOKEN_KEY)
-})
 
 function findFolder(folder: Folder, id: string): Folder | null {
   if (folder.id === id) return folder
@@ -511,63 +501,18 @@ function exportCsv() {
   flash('已导出 CSV')
 }
 
-// ─── GitHub publish ───
-
-function toBase64(str: string) {
-  return btoa(unescape(encodeURIComponent(str)))
-}
-
-async function githubRequest(apiPath: string, method: string, body?: any) {
-  const res = await fetch(`https://api.github.com${apiPath}`, {
-    method,
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${ghToken.value.trim()}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.message || `GitHub API ${res.status}`)
-  return data
-}
-
-async function putFile(filePath: string, content: string, message: string) {
-  let sha: string | undefined
-  try {
-    const existing = await githubRequest(
-      `/repos/${GH_OWNER}/${GH_REPO}/contents/${filePath}?ref=main`,
-      'GET',
-    )
-    sha = existing.sha
-  } catch { /* new */ }
-  await githubRequest(`/repos/${GH_OWNER}/${GH_REPO}/contents/${filePath}`, 'PUT', {
-    message,
-    content: toBase64(content),
-    branch: 'main',
-    ...(sha ? { sha } : {}),
-  })
-}
-
 async function publishToGitHub() {
-  if (!ghToken.value.trim()) {
-    showToken.value = true
-    flash('请先填写 GitHub Token')
-    return
-  }
   if (!totalCount.value) {
     flash('没有书签可发布')
     return
   }
-  if (!confirm(`将把 ${totalCount.value} 条书签发布到仓库 docs/bookmarks/，是否继续？`)) return
+  if (!confirm(`将把 ${totalCount.value} 条书签同步到仓库 docs/bookmarks/？`)) return
 
   publishing.value = true
   try {
     const files: { path: string; content: string }[] = []
     buildMdFiles(root.value, '', files)
 
-    // 写一个说明性的首页覆盖
     const homeIdx = files.findIndex((f) => f.path === 'index.md')
     if (homeIdx >= 0) {
       files[homeIdx].content =
@@ -577,17 +522,22 @@ async function publishToGitHub() {
         files[homeIdx].content.replace(/^---[\s\S]*?---\n*/, '').replace(/^# .+\n*/, '')
     }
 
-    let done = 0
-    for (const f of files) {
-      const full = `docs/bookmarks/${f.path}`
-      await putFile(full, f.content, `chore(bookmarks): publish ${f.path}`)
-      done++
-      flash(`发布中… ${done}/${files.length}`)
+    const payload = files.map((f) => ({
+      path: `docs/bookmarks/${f.path}`,
+      content: toBase64FromString(f.content),
+      message: `chore(bookmarks): ${f.path}`,
+    }))
+
+    for (let i = 0; i < payload.length; i += 10) {
+      const chunk = payload.slice(i, i + 10)
+      flash(`同步中… ${Math.min(i + 10, payload.length)}/${payload.length}`)
+      const result = await syncFiles(chunk)
+      if (!result.ok) throw new Error(result.message || '部分失败')
     }
 
-    flash(`已发布 ${files.length} 个文件，等待 GitHub Actions 部署（约 1–2 分钟）`)
+    flash(`已同步 ${files.length} 个文件，等待部署（1–2 分钟）`)
   } catch (e: any) {
-    flash('发布失败：' + (e?.message || e))
+    flash('同步失败：' + (e?.message || e))
   } finally {
     publishing.value = false
   }
@@ -600,7 +550,7 @@ async function publishToGitHub() {
       <div>
         <h2 class="bm-title">书签管理器</h2>
         <p class="bm-sub">
-          数据保存在浏览器本地 · 共 {{ totalCount }} 条
+          网站直接同步 · 无需 GitHub Token · 共 {{ totalCount }} 条
           <span v-if="statusMsg" class="bm-status">{{ statusMsg }}</span>
         </p>
       </div>
@@ -612,27 +562,15 @@ async function publishToGitHub() {
         <button class="bm-btn" type="button" @click="exportCsv">导出 CSV</button>
         <button class="bm-btn" type="button" @click="exportMarkdown">导出 MD</button>
         <button class="bm-btn" type="button" @click="exportJson">导出 JSON</button>
-        <button
-          class="bm-btn bm-btn-primary"
-          type="button"
-          :disabled="publishing"
-          @click="publishToGitHub"
-        >
-          {{ publishing ? '发布中…' : '发布到 GitHub' }}
+        <button class="bm-btn bm-btn-primary" type="button" :disabled="publishing" @click="publishToGitHub">
+          {{ publishing ? '同步中…' : '发布到仓库' }}
         </button>
-        <button class="bm-btn" type="button" @click="showToken = !showToken">Token</button>
         <button class="bm-btn bm-btn-danger" type="button" @click="clearAll">清空</button>
       </div>
     </header>
 
-    <div v-if="showToken" class="bm-token">
-      <p>
-        创建
-        <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">Personal Access Token</a>
-        （classic 勾选 <code>repo</code>，或 fine-grained 授权本仓库 Contents: Read and write）。
-        Token 仅保存在你的浏览器，不会上传到别处。
-      </p>
-      <input v-model="ghToken" type="password" placeholder="ghp_... 或 github_pat_..." />
+    <div class="bm-sync" style="padding: 0.75rem 1.5rem 0">
+      <SyncSettings />
     </div>
 
     <div class="bm-layout">
@@ -718,8 +656,8 @@ async function publishToGitHub() {
     <footer class="bm-footer">
       <p>
         <strong>流程：</strong>
-        导入 Raindrop CSV → 分类整理 → 填写 Token → 点「发布到 GitHub」→ 等待 Actions 部署。
-        侧边栏会在下次构建时根据 <code>docs/bookmarks/</code> 文件夹自动生成。
+        导入 Raindrop CSV → 分类整理 → 配置同步服务（一次）→ 点「发布到仓库」→ 等待 Actions 部署。
+        侧边栏会在构建时根据 <code>docs/bookmarks/</code> 自动生成。
       </p>
     </footer>
   </div>
@@ -756,19 +694,6 @@ async function publishToGitHub() {
 .bm-btn-primary:hover { filter: brightness(1.05); }
 .bm-btn-danger { color: #dc2626; border-color: #fecaca; }
 .bm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.bm-token {
-  padding: 0.85rem 1.5rem;
-  background: var(--vp-c-bg-soft, #f4f4f5);
-  border-bottom: 1px solid var(--ol-border, #e5e7eb);
-  font-size: 0.85rem;
-  color: var(--ol-text-secondary, #6b7280);
-}
-.bm-token a { color: var(--ol-primary, #2563eb); }
-.bm-token input {
-  width: 100%; margin-top: 0.5rem; padding: 0.45rem 0.65rem;
-  border-radius: 8px; border: 1px solid var(--ol-border, #e5e7eb);
-  background: var(--ol-card, #fff); color: var(--ol-text, #111); font-size: 0.9rem;
-}
 .bm-layout { display: grid; grid-template-columns: 240px 1fr; min-height: 420px; }
 @media (max-width: 768px) { .bm-layout { grid-template-columns: 1fr; } }
 .bm-sidebar {
