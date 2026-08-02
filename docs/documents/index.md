@@ -1,18 +1,20 @@
 ---
 title: 文档库
-description: 上传、浏览、下载文档
+description: 上传、浏览、下载文档（网站直接上传，无需 Token）
 ---
 
 # 📄 文档库
 
-上传 PDF、图片、Office、压缩包等文件，支持本机预览与下载，并可一键发布到站点。
+在网站上直接上传文件，发布后存入仓库 `docs/public/files/`，可通过 `/files/文件名` 打开或下载。
+
+**不需要在网站填写 GitHub Token。** 只需部署一次免费的同步服务（约 3 分钟），见下方说明。
 
 <DocumentManager />
 
-## 使用说明
+## 首次配置（只需一次）
 
-1. 点 **上传文件**（可多选，单文件建议 &lt; 20MB）
-2. **打开**：图片 / PDF / 文本可预览，其它类型可下载
-3. 填写与书签管理器相同的 **GitHub Token**
-4. 点 **发布到 GitHub**，文件会出现在站点 `/files/文件名`
-5. 部署完成后，任意设备都可打开或下载
+1. 按仓库 [`services/README.md`](https://github.com/outaidage/outaidage.github.io/blob/main/services/README.md) 部署 Cloudflare Worker
+2. 在上方管理器点 **同步设置**，填入 Worker 地址
+3. 之后在本页上传 → 点 **发布到仓库** 即可
+
+Token 只保存在 Cloudflare 后台，不会出现在网页里。
