@@ -2,6 +2,7 @@
 title: "你好，互联网。"
 description: "这是 OUTAI 的第一篇文章，记录这个个人数字空间的开始。"
 pubDate: 2026-11-14
+updatedDate: 2026-11-14
 category: "Personal"
 tags: ["开始", "随笔"]
 draft: false
