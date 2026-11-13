@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+import { SITE } from "@/lib/site";
+const { title = SITE.title, description = SITE.description } = Astro.props;
+const path = Astro.url.pathname;
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#090B0F" />
+    <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar">
+        <a class="brand" href={import.meta.env.BASE_URL}>
+          <span class="brand-mark">O</span><span>OUTAI<span class="brand-dot">.</span></span>
+        </a>
+        <nav class="desktop-nav" aria-label="主导航">
+          {SITE.nav.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
+        </nav>
+        <div class="top-actions">
+          <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
+          <a class="admin-link" href={`${import.meta.env.BASE_URL}admin/`}>管理后台 <span>↗</span></a>
+        </div>
+      </header>
+      <main><slot /></main>
+      <footer class="footer">
+        <span>© {new Date().getFullYear()} OUTAI</span>
+        <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
+      </footer>
+    </div>
+  </body>
+</html>
