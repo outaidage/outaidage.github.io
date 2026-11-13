@@ -139,7 +139,6 @@ export default function AdminApp() {
   function newArticle(){
     setEditingSlug(null);
     setArticle(emptyArticle());
-    say("ok","");
   }
   async function editArticle(file: ArticleFile){
     say("ok","正在加载文章…");
