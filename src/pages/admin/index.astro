@@ -1,0 +1,8 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import AdminApp from "@/components/AdminApp";
+---
+<MainLayout title="管理后台 — OUTAI" description="OUTAI private administration">
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> PRIVATE WORKSPACE</div><h1>管理后台<span style="color:#b5f36b">.</span></h1><p>管理公开与私人书签，并通过安全的 GitHub 内容代理编辑文章。</p></header>
+  <AdminApp client:load />
+</MainLayout>
