@@ -37,6 +37,14 @@ const jsonLd = {
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
     <title>{title}</title>
+    <script is:inline>
+      try {
+        var saved = localStorage.getItem("outai-motion");
+        if (saved === "reduced" || saved === "full") {
+          document.documentElement.dataset.motion = saved;
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div class="site-shell">
@@ -64,6 +72,7 @@ const jsonLd = {
       <footer class="footer">
         <span>© {new Date().getFullYear()} OUTAI</span>
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
+        <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">动效：开</button>
       </footer>
     </div>
     <script is:inline>
@@ -86,6 +95,28 @@ const jsonLd = {
         document.addEventListener("keydown", function (e) {
           if (e.key === "Escape") setOpen(false);
         });
+      })();
+      (function () {
+        var btn = document.getElementById("motion-toggle");
+        var root = document.documentElement;
+        if (!btn) return;
+        function isReduced() {
+          if (root.dataset.motion === "reduced") return true;
+          if (root.dataset.motion === "full") return false;
+          return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        }
+        function label() {
+          var reduced = isReduced();
+          btn.textContent = reduced ? "动效：关" : "动效：开";
+          btn.setAttribute("aria-pressed", reduced ? "true" : "false");
+        }
+        btn.addEventListener("click", function () {
+          var next = isReduced() ? "full" : "reduced";
+          root.dataset.motion = next;
+          try { localStorage.setItem("outai-motion", next); } catch (e) {}
+          label();
+        });
+        label();
       })();
     </script>
   </body>
