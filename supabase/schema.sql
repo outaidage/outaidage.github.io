@@ -23,6 +23,9 @@ create table if not exists public.bookmarks (
   updated_at timestamptz not null default now()
 );
 
+-- P0-4: one bookmark per URL (the admin also checks before saving).
+create unique index if not exists bookmarks_url_unique on public.bookmarks (url);
+
 create table if not exists public.tags (
   id uuid primary key default gen_random_uuid(),
   name text not null unique
