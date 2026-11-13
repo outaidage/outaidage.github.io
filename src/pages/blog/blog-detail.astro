@@ -1,0 +1,104 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { getCollection, render } from "astro:content";
+export async function getStaticPaths() {
+  const posts = await getCollection("blog", ({data}) => !data.draft);
+  return posts.map(post => ({ params: { slug: post.slug }, props: { post } }));
+}
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
+function readingMinutes(body: string) {
+  const chars = body.replace(/\s/g, "").length;
+  return Math.max(1, Math.ceil(chars / 400));
+}
+const minutes = readingMinutes(post.body);
+const allPosts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b)=>b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
+const idx = allPosts.findIndex(p=>p.slug===post.slug);
+const newer = idx > 0 ? allPosts[idx-1] : null;
+const older = idx >= 0 && idx < allPosts.length-1 ? allPosts[idx+1] : null;
+const related = allPosts
+  .filter(p=>p.slug!==post.slug)
+  .map(p=>{
+    const shared = (p.data.tags||[]).filter(t=>(post.data.tags||[]).includes(t)).length;
+    const sameCat = p.data.category===post.data.category ? 2 : 0;
+    return { p, score: sameCat + shared };
+  })
+  .filter(x=>x.score>0)
+  .sort((a,b)=>b.score-a.score || b.p.data.pubDate.valueOf()-a.p.data.pubDate.valueOf())
+  .slice(0,3)
+  .map(x=>x.p);
+---
+<MainLayout title={post.data.seoTitle || `${post.data.title} — OUTAI`} description={post.data.seoDescription || post.data.description} type="article" image={post.data.cover}>
+  <div class="read-progress" id="read-progress" aria-hidden="true"></div>
+  <header class="page-head">
+    <div class="eyebrow"><span class="pulse"></span> {post.data.category} / {post.data.pubDate.toLocaleDateString("zh-CN")}{post.data.updatedDate ? ` · 更新于 ${post.data.updatedDate.toLocaleDateString("zh-CN")}` : ""} · 约 {minutes} 分钟</div>
+    <h1>{post.data.title}</h1>
+    <p>{post.data.description}</p>
+    {(post.data.tags||[]).length>0 && <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">{post.data.tags.map(t=><span class="tag">{t}</span>)}</div>}
+  </header>
+  {post.data.cover && <img class="article-cover" src={post.data.cover} alt={post.data.title} loading="lazy" />}
+  {toc.length>0 && <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ul>
+      {toc.map(h=><li class={h.depth===3 ? "toc-d3" : "toc-d2"}><a href={`#${h.slug}`}>{h.text}</a></li>)}
+    </ul>
+  </nav>}
+  <article class="article-body"><Content /></article>
+  {(newer || older) && <nav class="prev-next" aria-label="上下篇">
+    {older ? <a class="prev-next-link" href={`${import.meta.env.BASE_URL}blog/${older.slug}/`}><span class="prev-next-label">上一篇</span><span class="prev-next-title">{older.data.title}</span></a> : <span></span>}
+    {newer ? <a class="prev-next-link next" href={`${import.meta.env.BASE_URL}blog/${newer.slug}/`}><span class="prev-next-label">下一篇</span><span class="prev-next-title">{newer.data.title}</span></a> : <span></span>}
+  </nav>}
+  {related.length>0 && <section class="section">
+    <div class="section-head"><h2>RELATED / 相关文章</h2><a href={`${import.meta.env.BASE_URL}blog/`}>VIEW ALL ↗</a></div>
+    <div class="card-grid">
+      {related.map(p=><a class="card" href={`${import.meta.env.BASE_URL}blog/${p.slug}/`}>
+        <div class="card-kicker">{p.data.category} · {p.data.pubDate.toLocaleDateString("zh-CN")}</div>
+        <h3>{p.data.title}</h3><p>{p.data.description}</p>
+      </a>)}
+    </div>
+  </section>}
+  <script is:inline>
+    (function () {
+      var bar = document.getElementById("read-progress");
+      function onScroll() {
+        if (!bar) return;
+        var h = document.documentElement;
+        var max = h.scrollHeight - h.clientHeight;
+        var p = max > 0 ? (h.scrollTop / max) * 100 : 0;
+        bar.style.width = p + "%";
+      }
+      document.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+      document.querySelectorAll(".article-body pre").forEach(function (pre) {
+        if (pre.querySelector(".code-copy")) return;
+        var btn = document.createElement("button");
+        btn.className = "code-copy";
+        btn.type = "button";
+        btn.textContent = "复制";
+        btn.addEventListener("click", function () {
+          var code = pre.querySelector("code");
+          var text = code ? code.innerText : pre.innerText;
+          function done() {
+            btn.textContent = "已复制";
+            setTimeout(function () { btn.textContent = "复制"; }, 1500);
+          }
+          function fallback() {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand("copy"); done(); } catch (e) {}
+            document.body.removeChild(ta);
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, fallback);
+          } else {
+            fallback();
+          }
+        });
+        pre.appendChild(btn);
+      });
+    })();
+  </script>
+</MainLayout>
