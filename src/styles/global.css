@@ -96,3 +96,8 @@ button,input,textarea,select{font:inherit}
 .code-copy{position:absolute;top:8px;right:8px;background:#1a212b;border:1px solid #2a3340;border-radius:6px;color:#aab3c0;font-size:11px;padding:5px 9px;cursor:pointer}
 .code-copy:hover{color:#b5f36b;border-color:#657d4b}
 @media(prefers-reduced-motion:reduce){.read-progress{transition:none}}
+#search{--pagefind-ui-scale:1;--pagefind-ui-primary:#b5f36b;--pagefind-ui-text:#eef1f5;--pagefind-ui-background:#11161e;--pagefind-ui-border:#2a3340;--pagefind-ui-tag:#1a212b;--pagefind-ui-border-width:1px;--pagefind-ui-border-radius:8px;--pagefind-ui-font:Inter,system-ui,sans-serif}
+#search .pagefind-ui__search-input{background:#11161e;color:#eef1f5}
+#search .pagefind-ui__result-link{color:#eef1f5}
+#search .pagefind-ui__result-link:hover{color:#b5f36b}
+#search .pagefind-ui__result-excerpt{color:#aab3c0}
