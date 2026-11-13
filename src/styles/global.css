@@ -101,3 +101,18 @@ button,input,textarea,select{font:inherit}
 #search .pagefind-ui__result-link{color:#eef1f5}
 #search .pagefind-ui__result-link:hover{color:#b5f36b}
 #search .pagefind-ui__result-excerpt{color:#aab3c0}
+.motion-toggle{background:none;border:1px solid #2a3340;border-radius:999px;color:#aab3c0;font-size:11px;padding:6px 12px;cursor:pointer}
+.motion-toggle:hover{color:#b5f36b;border-color:#657d4b}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.hero,.page-head,.section{animation:fadeUp .6s ease both}
+.section:nth-of-type(2){animation-delay:.08s}
+.section:nth-of-type(3){animation-delay:.16s}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){
+.hero,.page-head,.section{animation:none}
+html{scroll-behavior:auto}
+}
+html[data-motion="reduced"] .hero,html[data-motion="reduced"] .page-head,html[data-motion="reduced"] .section{animation:none}
+html[data-motion="reduced"]{scroll-behavior:auto}
+html[data-motion="full"] .hero,html[data-motion="full"] .page-head,html[data-motion="full"] .section{animation:fadeUp .6s ease both}
+html[data-motion="full"]{scroll-behavior:smooth}
