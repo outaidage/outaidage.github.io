@@ -5,7 +5,7 @@ export const SITE = {
   url: import.meta.env.SITE_URL || "https://outaidage.xyz",
   nav: [
     { label: "文章", href: "/blog/" },
-    { label: "书签", href: "/links/" },
+    { label: "书签", href: "/collection/" },
     { label: "项目", href: "/projects/" },
     { label: "关于", href: "/about/" },
     { label: "Now", href: "/now/" }
