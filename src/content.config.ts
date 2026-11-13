@@ -10,7 +10,10 @@ const blog = defineCollection({
     category: z.string().default("Notes"),
     tags: z.array(z.string()).default([]),
     draft: z.boolean().default(false),
-    cover: z.string().optional()
+    cover: z.string().optional(),
+    seoTitle: z.string().optional(),
+    seoDescription: z.string().optional(),
+    featured: z.boolean().default(false)
   })
 });
 export const collections = { blog };
