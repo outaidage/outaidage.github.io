@@ -3,10 +3,13 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection } from "astro:content";
 const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
 const categories = [
-  {name:"AI & Tools",count:"—",desc:"AI 模型、产品与效率工具"},
-  {name:"Development",count:"—",desc:"开发、开源项目与技术文档"},
-  {name:"Networking",count:"—",desc:"网络、代理与基础设施"},
-  {name:"Internet",count:"—",desc:"值得收藏的网站与资源"}
+  {name:"AI & Tools",desc:"AI 模型、产品与效率工具"},
+  {name:"Development",desc:"开发、开源项目与技术文档"},
+  {name:"Networking",desc:"网络、代理与基础设施"},
+  {name:"Design",desc:"设计、界面与视觉资源"},
+  {name:"Productivity",desc:"效率方法、工具与工作流"},
+  {name:"Resources",desc:"值得收藏的资料与参考"},
+  {name:"Interesting",desc:"有趣、有用的发现"}
 ];
 ---
 <MainLayout>
@@ -34,7 +37,7 @@ const categories = [
     <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${import.meta.env.BASE_URL}collection/`}>EXPLORE ALL ↗</a></div>
     <div class="category-grid">
       {categories.map((c,i)=><a class="category-card" href={`${import.meta.env.BASE_URL}collection/`}>
-        <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">{c.count}</span>
+        <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">→</span>
       </a>)}
     </div>
   </section>
