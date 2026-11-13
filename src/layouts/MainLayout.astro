@@ -1,8 +1,19 @@
 ---
 import "../styles/global.css";
 import { SITE } from "@/lib/site";
-const { title = SITE.title, description = SITE.description } = Astro.props;
+const { title = SITE.title, description = SITE.description, type = "website", image } = Astro.props as {
+  title?: string; description?: string; type?: "website" | "article"; image?: string;
+};
 const path = Astro.url.pathname;
+const canonical = new URL(path, SITE.url).toString();
+const ogImage = image ? new URL(image, SITE.url).toString() : new URL("og.png", SITE.url).toString();
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE.name,
+  url: SITE.url,
+  description: SITE.description,
+};
 ---
 <!doctype html>
 <html lang="zh-CN">
@@ -11,6 +22,18 @@ const path = Astro.url.pathname;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#090B0F" />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
     <title>{title}</title>
   </head>
@@ -26,13 +49,43 @@ const path = Astro.url.pathname;
         <div class="top-actions">
           <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
           <a class="admin-link" href={`${import.meta.env.BASE_URL}admin/`}>管理后台 <span>↗</span></a>
+          <button class="menu-button" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="打开菜单">
+            <span></span><span></span><span></span>
+          </button>
         </div>
       </header>
+      <nav class="mobile-nav" id="mobile-nav" aria-label="移动导航" hidden>
+        {SITE.nav.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
+        <a href={`${import.meta.env.BASE_URL}search/`}>搜索 ⌕</a>
+        <a href={`${import.meta.env.BASE_URL}admin/`}>管理后台 ↗</a>
+      </nav>
       <main><slot /></main>
       <footer class="footer">
         <span>© {new Date().getFullYear()} OUTAI</span>
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
       </footer>
     </div>
+    <script is:inline>
+      (function () {
+        var btn = document.querySelector(".menu-button");
+        var nav = document.getElementById("mobile-nav");
+        if (!btn || !nav) return;
+        function setOpen(open) {
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+          btn.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
+          btn.classList.toggle("open", open);
+          nav.hidden = !open;
+        }
+        btn.addEventListener("click", function () {
+          setOpen(nav.hidden);
+        });
+        nav.addEventListener("click", function (e) {
+          if (e.target && e.target.tagName === "A") setOpen(false);
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") setOpen(false);
+        });
+      })();
+    </script>
   </body>
 </html>
