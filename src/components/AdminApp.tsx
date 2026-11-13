@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 
-type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean};
+type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
+type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
 type ArticleFile = {name:string;slug:string;path:string;sha:string;size:number};
 type ArticleForm = {slug:string;title:string;description:string;category:string;tags:string;cover:string;seoTitle:string;seoDescription:string;featured:boolean;draft:boolean;pubDate:string;body:string};
-type ConfirmTarget = {kind:"article"|"bookmark";label:string;path?:string;id?:string};
+type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch";label:string;path?:string;id?:string;ids?:string[]};
+const emptyBookmarkForm = (): BookmarkForm => ({url:"",title:"",description:"",note:"",category:"AI & Tools",tags:"",is_public:true,is_favorite:false});
+const normalizeUrl = (u: string) => u.trim().replace(/\/+$/,"");
+const parseTagNames = (s: string) => Array.from(new Set(s.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean)));
 const inputClass = "field";
 const basePath = import.meta.env.BASE_URL.replace(/\/$/,"");
 const SLUG_RE = /^[a-zA-Z0-9_-]+$/;
@@ -72,7 +76,9 @@ export default function AdminApp() {
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
   const [tab,setTab] = useState<"bookmarks"|"articles">("bookmarks");
-  const [form,setForm] = useState({url:"",title:"",description:"",note:"",category:"AI & Tools",is_public:true,is_favorite:false});
+  const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
+  const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
+  const [selected,setSelected] = useState<string[]>([]);
   const [article,setArticle] = useState<ArticleForm>(emptyArticle());
   const [editingSlug,setEditingSlug] = useState<string|null>(null);
   const [articles,setArticles] = useState<ArticleFile[]>([]);
@@ -101,8 +107,14 @@ export default function AdminApp() {
 
   async function loadBookmarks(){
     if(!supabase) return;
-    const {data,error}=await supabase.from("bookmarks").select("id,url,title,description,note,category,is_public,is_favorite").order("created_at",{ascending:false});
-    if(error) say("err",error.message); else setItems((data||[]) as Bookmark[]);
+    const {data,error}=await supabase.from("bookmarks").select("id,url,title,description,note,category,is_public,is_favorite,status,bookmark_tags(tags(name))").order("created_at",{ascending:false});
+    if(error) { say("err",error.message); return; }
+    const mapped = ((data||[]) as any[]).map(x=>({
+      id:x.id,url:x.url,title:x.title,description:x.description,note:x.note,category:x.category,
+      is_public:x.is_public,is_favorite:x.is_favorite,status:x.status||"active",
+      tags:((x.bookmark_tags||[]) as any[]).map(bt=>bt.tags?.name).filter(Boolean) as string[]
+    })) as Bookmark[];
+    setItems(mapped);
   }
   useEffect(()=>{if(session) loadBookmarks()},[session]);
 
@@ -123,18 +135,76 @@ export default function AdminApp() {
     if (error) say("err",error.message); else say("ok","登录成功。");
   }
   async function logout(){await supabase?.auth.signOut();setItems([]);setArticles([])}
-  async function addBookmark(e:React.FormEvent){
+  async function syncBookmarkTags(bookmarkId: string, tagNames: string[]){
+    if(!supabase) return;
+    const ids: string[] = [];
+    for (const name of tagNames) {
+      const {data,error} = await supabase.from("tags").upsert({name},{onConflict:"name"}).select("id").single();
+      if (error || !data) throw new Error(error?.message || `标签“${name}”保存失败`);
+      ids.push((data as any).id as string);
+    }
+    const {error: delErr} = await supabase.from("bookmark_tags").delete().eq("bookmark_id",bookmarkId);
+    if (delErr) throw new Error(delErr.message);
+    if (ids.length) {
+      const {error: insErr} = await supabase.from("bookmark_tags").insert(ids.map(tag_id=>({bookmark_id:bookmarkId,tag_id})));
+      if (insErr) throw new Error(insErr.message);
+    }
+  }
+  async function saveBookmark(e:React.FormEvent){
     e.preventDefault(); if(!supabase)return;
+    const url = normalizeUrl(form.url);
+    if (!/^https?:\/\/.+/.test(url)) { say("err","URL 须以 http:// 或 https:// 开头。"); return; }
+    const {data: dup, error: dupErr} = await supabase.from("bookmarks").select("id").eq("url",url);
+    if (dupErr) { say("err",dupErr.message); return; }
+    if ((dup||[]).some((d:any)=>d.id!==editingBookmarkId)) { say("err","该 URL 已存在，请勿重复添加。"); return; }
     setSaving(true);say("ok","");
-    const payload={...form,url:form.url.trim(),title:form.title.trim()||form.url.trim(),description:form.description||null,note:form.note||null};
-    const {error}=await supabase.from("bookmarks").insert(payload);
+    const payload={url,title:form.title.trim()||url,description:form.description||null,note:form.note||null,category:form.category,is_public:form.is_public,is_favorite:form.is_favorite};
+    let bookmarkId = editingBookmarkId;
+    let error: any = null;
+    if (bookmarkId) {
+      ({error} = await supabase.from("bookmarks").update(payload).eq("id",bookmarkId));
+    } else {
+      const res = await supabase.from("bookmarks").insert(payload).select("id").single();
+      error = res.error;
+      if (!error) bookmarkId = (res.data as any).id as string;
+    }
+    if (error) { setSaving(false); say("err",error.message); return; }
+    try {
+      await syncBookmarkTags(bookmarkId!, parseTagNames(form.tags));
+    } catch (err:any) {
+      setSaving(false); say("err",`书签已保存，但标签同步失败：${err.message}`); loadBookmarks(); return;
+    }
     setSaving(false);
-    if(error)say("err",error.message);else{say("ok","书签已保存。");setForm({...form,url:"",title:"",description:"",note:""});loadBookmarks()}
+    say("ok", editingBookmarkId ? "书签已更新。" : "书签已保存。");
+    setForm(emptyBookmarkForm()); setEditingBookmarkId(null); loadBookmarks();
+  }
+  function editBookmark(b: Bookmark){
+    setForm({url:b.url,title:b.title,description:b.description||"",note:b.note||"",category:b.category||"AI & Tools",tags:b.tags.join(", "),is_public:b.is_public,is_favorite:b.is_favorite});
+    setEditingBookmarkId(b.id);
+    say("ok",`正在编辑书签：${b.title}`);
+  }
+  function cancelBookmarkEdit(){
+    setForm(emptyBookmarkForm()); setEditingBookmarkId(null);
   }
   async function deleteBookmark(id:string){
     if(!supabase)return;
     const {error}=await supabase.from("bookmarks").delete().eq("id",id);
-    if(error)say("err",error.message);else{say("ok","书签已删除。");loadBookmarks()}
+    if(error)say("err",error.message);else{say("ok","书签已删除。");setSelected(s=>s.filter(x=>x!==id));loadBookmarks()}
+  }
+  async function setBookmarkStatus(id:string, status:"active"|"archived"){
+    if(!supabase)return;
+    const {error}=await supabase.from("bookmarks").update({status}).eq("id",id);
+    if(error)say("err",error.message);else{say("ok",status==="archived"?"书签已归档。":"书签已恢复。");loadBookmarks()}
+  }
+  async function batchDeleteBookmarks(ids:string[]){
+    if(!supabase)return;
+    const {error}=await supabase.from("bookmarks").delete().in("id",ids);
+    if(error)say("err",error.message);else{say("ok",`已删除 ${ids.length} 条书签。`);setSelected([]);loadBookmarks()}
+  }
+  async function batchSetStatus(ids:string[], status:"active"|"archived"){
+    if(!supabase)return;
+    const {error}=await supabase.from("bookmarks").update({status}).in("id",ids);
+    if(error)say("err",error.message);else{say("ok",status==="archived"?`已归档 ${ids.length} 条书签。`:`已恢复 ${ids.length} 条书签。`);setSelected([]);loadBookmarks()}
   }
   function newArticle(){
     setEditingSlug(null);
@@ -186,6 +256,7 @@ export default function AdminApp() {
     if (!t) return;
     if (t.kind === "article" && t.path) await deleteArticle(t.path);
     if (t.kind === "bookmark" && t.id) await deleteBookmark(t.id);
+    if (t.kind === "bookmarkBatch" && t.ids?.length) await batchDeleteBookmarks(t.ids);
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
@@ -209,25 +280,53 @@ export default function AdminApp() {
       <button className="button secondary" onClick={logout}>退出登录</button>
     </div>
     {tab==="bookmarks" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
-      <form className="card" onSubmit={addBookmark} style={{display:"grid",gap:10}}>
-        <h3>添加书签</h3>
+      <form className="card" onSubmit={saveBookmark} style={{display:"grid",gap:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <h3>{editingBookmarkId ? "编辑书签" : "添加书签"}</h3>
+          {editingBookmarkId&&<button type="button" onClick={cancelBookmarkEdit} style={{background:"none",border:0,color:"#929dab",cursor:"pointer",fontSize:12}}>取消编辑</button>}
+        </div>
         <input className={inputClass} type="url" required placeholder="https://example.com" value={form.url} onChange={e=>setForm({...form,url:e.target.value})}/>
         <input className={inputClass} placeholder="标题（可选）" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
         <input className={inputClass} placeholder="描述" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
         <textarea className={inputClass} placeholder="个人备注" rows={3} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/>
+        <input className={inputClass} placeholder="标签，逗号分隔" value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})}/>
         <select className={inputClass} value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>
           {["AI & Tools","Development","Networking","Design","Productivity","Resources","Interesting"].map(x=><option key={x}>{x}</option>)}
         </select>
         <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={form.is_public} onChange={e=>setForm({...form,is_public:e.target.checked})}/> 公开书签</label>
         <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={form.is_favorite} onChange={e=>setForm({...form,is_favorite:e.target.checked})}/> 精选书签</label>
-        <button className="button primary" disabled={saving}>{saving?"保存中…":"保存书签"}</button>
+        <button className="button primary" disabled={saving}>{saving?"保存中…":(editingBookmarkId?"保存修改":"保存书签")}</button>
+        <p style={{color:"#929dab",fontSize:12}}>同一 URL 只能保存一次；归档的书签不会在公开页面显示。</p>
       </form>
       <div className="card" style={{gridColumn:"span 1"}}>
-        <h3>现有书签 ({items.length})</h3>
-        <div style={{display:"grid",gap:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+          <h3>现有书签 ({items.length})</h3>
+          <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={items.length>0&&selected.length===items.length} onChange={e=>setSelected(e.target.checked?items.map(x=>x.id):[])}/> 全选</label>
+        </div>
+        {selected.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+          <button className="button secondary" onClick={()=>batchSetStatus(selected,"archived")}>批量归档 ({selected.length})</button>
+          <button className="button secondary" onClick={()=>batchSetStatus(selected,"active")}>批量恢复 ({selected.length})</button>
+          <button className="button primary" style={{background:"#f28b82",borderColor:"#f28b82",color:"#1a1d21"}} onClick={()=>setConfirmTarget({kind:"bookmarkBatch",ids:selected,label:`${selected.length} 条书签`})}>批量删除 ({selected.length})</button>
+        </div>}
+        <div style={{display:"grid",gap:12,marginTop:12}}>
           {items.map(x=><div key={x.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong style={{fontSize:13}}>{x.title}</strong><button onClick={()=>setConfirmTarget({kind:"bookmark",id:x.id,label:x.title})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button></div>
-            <div style={{fontSize:11,color:"#929dab",marginTop:5}}>{x.is_public?"公开":"私人"} · {x.category} · {x.url}</div>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
+              <span style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+                <input type="checkbox" checked={selected.includes(x.id)} onChange={e=>setSelected(e.target.checked?[...selected,x.id]:selected.filter(id=>id!==x.id))} style={{marginTop:3}}/>
+                <span>
+                  <strong style={{fontSize:13}}>{x.title}</strong>
+                  {x.status==="archived"&&<span style={{fontSize:11,color:"#f2c94c",marginLeft:6}}>已归档</span>}
+                  {x.is_favorite&&<span style={{fontSize:11,color:"#b5f36b",marginLeft:6}}>精选</span>}
+                  <div style={{fontSize:11,color:"#929dab",marginTop:5}}>{x.is_public?"公开":"私人"} · {x.category} · {x.url}</div>
+                  {x.tags.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{x.tags.map(t=><span className="tag" key={t}>{t}</span>)}</div>}
+                </span>
+              </span>
+              <span style={{display:"flex",gap:10,whiteSpace:"nowrap"}}>
+                <button onClick={()=>editBookmark(x)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
+                <button onClick={()=>setBookmarkStatus(x.id,x.status==="archived"?"active":"archived")} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>{x.status==="archived"?"恢复":"归档"}</button>
+                <button onClick={()=>setConfirmTarget({kind:"bookmark",id:x.id,label:x.title})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
+              </span>
+            </div>
           </div>)}
           {!items.length&&<p style={{color:"#929dab",fontSize:12}}>还没有书签。</p>}
         </div>
@@ -280,7 +379,7 @@ export default function AdminApp() {
     {confirmTarget&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setConfirmTarget(null)}>
       <div className="card" style={{maxWidth:420,width:"90%"}} onClick={e=>e.stopPropagation()}>
         <h3>确定删除？</h3>
-        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":"书签"}「{confirmTarget.label}」，此操作不可撤销。</p>
+        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="bookmarkBatch"?"":"书签"}「{confirmTarget.label}」，此操作不可撤销。</p>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
           <button className="button secondary" onClick={()=>setConfirmTarget(null)}>取消</button>
           <button className="button primary" style={{background:"#f28b82",borderColor:"#f28b82",color:"#1a1d21"}} onClick={runConfirmedDelete}>确定删除</button>
