@@ -16,7 +16,7 @@ const categories = [
     <p>这里是我的个人数字空间。记录技术、AI、互联网与工具，收藏有价值的链接，也持续构建自己的小项目。</p>
     <div class="hero-actions">
       <a class="button primary" href={`${import.meta.env.BASE_URL}blog/`}>浏览文章 ↗</a>
-      <a class="button secondary" href={`${import.meta.env.BASE_URL}bookmarks/`}>探索书签 ↗</a>
+      <a class="button secondary" href={`${import.meta.env.BASE_URL}links/`}>探索书签 ↗</a>
     </div>
   </section>
 
@@ -31,9 +31,9 @@ const categories = [
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${import.meta.env.BASE_URL}bookmarks/`}>EXPLORE ALL ↗</a></div>
+    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${import.meta.env.BASE_URL}links/`}>EXPLORE ALL ↗</a></div>
     <div class="category-grid">
-      {categories.map((c,i)=><a class="category-card" href={`${import.meta.env.BASE_URL}bookmarks/`}>
+      {categories.map((c,i)=><a class="category-card" href={`${import.meta.env.BASE_URL}links/`}>
         <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">{c.count}</span>
       </a>)}
     </div>
