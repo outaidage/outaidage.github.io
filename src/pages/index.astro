@@ -1,0 +1,50 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+import { getCollection } from "astro:content";
+const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
+const categories = [
+  {name:"AI & Tools",count:"—",desc:"AI 模型、产品与效率工具"},
+  {name:"Development",count:"—",desc:"开发、开源项目与技术文档"},
+  {name:"Networking",count:"—",desc:"网络、代理与基础设施"},
+  {name:"Internet",count:"—",desc:"值得收藏的网站与资源"}
+];
+---
+<MainLayout>
+  <section class="hero">
+    <div class="eyebrow"><span class="pulse"></span> INDEPENDENT DIGITAL SPACE</div>
+    <h1>探索互联网，<br/>记录<em>值得留下</em>的东西。</h1>
+    <p>这里是我的个人数字空间。记录技术、AI、互联网与工具，收藏有价值的链接，也持续构建自己的小项目。</p>
+    <div class="hero-actions">
+      <a class="button primary" href={`${import.meta.env.BASE_URL}blog/`}>浏览文章 ↗</a>
+      <a class="button secondary" href={`${import.meta.env.BASE_URL}bookmarks/`}>探索书签 ↗</a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>01 / LATEST ARTICLES</h2><a href={`${import.meta.env.BASE_URL}blog/`}>VIEW ALL ↗</a></div>
+    {posts.length ? <div class="card-grid">
+      {posts.map(post => <a class="card" href={`${import.meta.env.BASE_URL}blog/${post.slug}/`}>
+        <div class="card-kicker">{post.data.category} · {post.data.pubDate.toLocaleDateString("zh-CN")}</div>
+        <h3>{post.data.title}</h3><p>{post.data.description}</p>
+      </a>)}
+    </div> : <div class="empty-state">还没有发布文章。<br/>在 <code>src/content/blog/</code> 添加 Markdown 文件即可开始。</div>}
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${import.meta.env.BASE_URL}bookmarks/`}>EXPLORE ALL ↗</a></div>
+    <div class="category-grid">
+      {categories.map((c,i)=><a class="category-card" href={`${import.meta.env.BASE_URL}bookmarks/`}>
+        <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">{c.count}</span>
+      </a>)}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>03 / CURRENTLY EXPLORING</h2></div>
+    <div class="card-grid">
+      <div class="card"><div class="card-kicker">FOCUS / 01</div><h3>AI & Agents</h3><p>探索 AI 工具、Agent 工作流与自动化。</p></div>
+      <div class="card"><div class="card-kicker">FOCUS / 02</div><h3>Open Internet</h3><p>记录网络工具、开源项目和互联网服务。</p></div>
+      <div class="card"><div class="card-kicker">FOCUS / 03</div><h3>Building</h3><p>把想法变成可以实际使用的小工具。</p></div>
+    </div>
+  </section>
+</MainLayout>
