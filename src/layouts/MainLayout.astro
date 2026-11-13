@@ -1,8 +1,8 @@
 ---
 import "../styles/global.css";
 import { SITE } from "@/lib/site";
-const { title = SITE.title, description = SITE.description, type = "website", image } = Astro.props as {
-  title?: string; description?: string; type?: "website" | "article"; image?: string;
+const { title = SITE.title, description = SITE.description, type = "website", image, noindex = false } = Astro.props as {
+  title?: string; description?: string; type?: "website" | "article"; image?: string; noindex?: boolean;
 };
 const path = Astro.url.pathname;
 const canonical = new URL(path, SITE.url).toString();
@@ -22,6 +22,7 @@ const jsonLd = {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <meta name="theme-color" content="#090B0F" />
+    {noindex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -59,7 +60,7 @@ const jsonLd = {
         <a href={`${import.meta.env.BASE_URL}search/`}>搜索 ⌕</a>
         <a href={`${import.meta.env.BASE_URL}admin/`}>管理后台 ↗</a>
       </nav>
-      <main><slot /></main>
+      <main data-pagefind-ignore={noindex || undefined}><slot /></main>
       <footer class="footer">
         <span>© {new Date().getFullYear()} OUTAI</span>
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
