@@ -2,6 +2,30 @@
 import MainLayout from "@/layouts/MainLayout.astro";
 ---
 <MainLayout title="搜索 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> SEARCH</div><h1>搜索<span style="color:#b5f36b">.</span></h1><p>搜索功能将在完成 Pagefind 构建索引后启用。书签页已支持实时搜索。</p></header>
-  <div class="empty-state">文章全文搜索：后续接入 Pagefind。<br/>目前可以从文章与书签页面使用各自的筛选功能。</div>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> SEARCH</div><h1>搜索<span style="color:#b5f36b">.</span></h1><p>全文搜索全部文章与页面。书签页有自己的实时搜索。</p></header>
+  <link href={`${import.meta.env.BASE_URL}pagefind/pagefind-ui.css`} rel="stylesheet" />
+  <div id="search"></div>
+  <script src={`${import.meta.env.BASE_URL}pagefind/pagefind-ui.js`} is:inline></script>
+  <script is:inline>
+    window.addEventListener("DOMContentLoaded", () => {
+      new PagefindUI({
+        element: "#search",
+        showSubResults: true,
+        showImages: false,
+        translations: {
+          placeholder: "输入关键词搜索文章…",
+          clear_search: "清除",
+          load_more: "加载更多",
+          search_label: "搜索本站",
+          filters_label: "筛选",
+          zero_results: "没有找到「[SEARCH_TERM]」的相关内容。",
+          many_results: "找到 [COUNT] 条关于「[SEARCH_TERM]」的结果。",
+          one_result: "找到 1 条关于「[SEARCH_TERM]」的结果。",
+          alt_search: "没有找到「[SEARCH_TERM]」的结果，试试「[DIFFERENT_TERM]」。",
+          search_suggestion: "没有找到「[SEARCH_TERM]」的结果，试试以下搜索：",
+          searching: "正在搜索「[SEARCH_TERM]」…"
+        }
+      });
+    });
+  </script>
 </MainLayout>
