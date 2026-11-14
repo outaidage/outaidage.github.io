@@ -229,9 +229,9 @@ export function resolveSceneVideo(scene: VideoScene): {
 /** 是否应使用静态背景（减动效 / 省流量 / 用户已暂停）。 */
 export function shouldUseStaticBackground(): boolean {
   if (typeof window === "undefined") return false;
+  // No stored preference means video is ON (same rule as the motion
+  // toggle): only an explicit stored "reduced" forces static.
   if (document.documentElement.dataset.motion === "reduced") return true;
-  if (document.documentElement.dataset.motion === "full") return false;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
   // 省流量模式：navigator.connection.saveData（Chrome/Android）。
   const conn = (navigator as unknown as { connection?: { saveData?: boolean } })
     .connection;
