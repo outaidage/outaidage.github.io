@@ -2,9 +2,11 @@
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection } from "astro:content";
 import Subscribe from "@/components/Subscribe";
-import HeroTitle from "@/components/HeroTitle";
 import Terminal from "@/components/Terminal";
+import SpaceCore from "@/components/SpaceCore";
+import { supabase } from "@/lib/supabase";
 const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
+const allPosts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
 const categories = [
   {name:"AI & Tools",desc:"AI 模型、产品与效率工具"},
   {name:"Development",desc:"开发、开源项目与技术文档"},
@@ -14,23 +16,70 @@ const categories = [
   {name:"Resources",desc:"值得收藏的资料与参考"},
   {name:"Interesting",desc:"有趣、有用的发现"}
 ];
+// Real bookmark count from the public view (public + active only). Never fabricate.
+let bookmarkCount: number | null = null;
+try {
+  if (supabase) {
+    const { count, error } = await supabase.from("public_bookmarks").select("id", { count: "exact", head: true });
+    if (!error && typeof count === "number") bookmarkCount = count;
+  }
+} catch { bookmarkCount = null; }
+const lastUpdate = allPosts[0]?.data.pubDate;
+const base = import.meta.env.BASE_URL;
 ---
 <MainLayout>
-  <section class="hero">
-    <div class="eyebrow"><span class="pulse"></span> INDEPENDENT DIGITAL SPACE</div>
-    <HeroTitle client:load />
-    <p>这里是我的个人数字空间。记录技术、AI、互联网与工具，收藏有价值的链接，也持续构建自己的小项目。</p>
+  <section class="hero-du">
+    <div class="hero-ghost" aria-hidden="true">Explore</div>
+    <div class="eyebrow"><span class="pulse"></span> DIGITAL UNIVERSE · EST. 2026</div>
+    <h1>Explore <span class="grad">Beyond.</span></h1>
+    <p>这里是 OUTAI 的数字空间。记录技术、探索 AI、收藏灵感，把想法变成现实。</p>
     <div class="hero-actions">
-      <a class="button primary" href={`${import.meta.env.BASE_URL}blog/`}>浏览文章 ↗</a>
-      <a class="button secondary" href={`${import.meta.env.BASE_URL}collection/`}>探索书签 ↗</a>
+      <a class="button primary" href={`${base}blog/`}>探索文章 ↗</a>
+      <a class="button secondary" href={`${base}collection/`}>打开资源库 ⌁</a>
     </div>
+    <div class="ticker" aria-hidden="true"><span><b>⌁</b> AI &amp; TECHNOLOGY</span><span><b>⌁</b> DIGITAL LIFE</span><span><b>⌁</b> OPEN SOURCE</span><span><b>⌁</b> BUILD IN PUBLIC</span></div>
     <Terminal client:load />
   </section>
 
+  <section class="core-stage glass-panel" aria-label="数字宇宙核心">
+    <div class="orbit-ring" style="width:520px;height:520px;left:50%;top:50%;transform:translate(-50%,-50%) rotate(18deg)"></div>
+    <div class="orbit-ring purple" style="width:680px;height:680px;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-12deg)"></div>
+    <SpaceCore client:visible />
+    <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
+  </section>
+
+  <section class="core-status glass-panel" aria-label="核心状态">
+    <div class="cs-item"><span class="cs-key">CORE STATUS</span><span class="cs-val"><span class="pulse" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px"></span><span class="on">● ACTIVE</span></span></div>
+    <div class="cs-item"><span class="cs-key">ORBITAL NODE</span><span class="cs-val">OUTAI / 001</span></div>
+    <div class="cs-item"><span class="cs-key">SYSTEM</span><span class="cs-val">ONLINE</span></div>
+    <div class="cs-item"><span class="cs-key">RENDER</span><span class="cs-val">WEBGL · ON DEMAND</span></div>
+  </section>
+
   <section class="section">
-    <div class="section-head"><h2>01 / LATEST ARTICLES</h2><a href={`${import.meta.env.BASE_URL}blog/`}>VIEW ALL ↗</a></div>
+    <div class="section-head"><h2>NAVIGATION / 空间导航</h2></div>
+    <div class="space-nav">
+      <a class="space-node glass-panel" href={`${base}blog/`}><span class="node-glyph">✦</span><span class="node-label">文章</span><span class="node-sub">Knowledge Galaxy</span></a>
+      <a class="space-node glass-panel purple" href={`${base}collection/`}><span class="node-glyph">◈</span><span class="node-label">书签</span><span class="node-sub">Resource Star Map</span></a>
+      <a class="space-node glass-panel green" href={`${base}projects/`}><span class="node-glyph">⬡</span><span class="node-label">项目</span><span class="node-sub">Build Log</span></a>
+      <a class="space-node glass-panel" href={`${base}about/`}><span class="node-glyph">◎</span><span class="node-label">关于</span><span class="node-sub">Identity</span></a>
+      <a class="space-node glass-panel purple" href={`${base}guestbook/`}><span class="node-glyph">✉</span><span class="node-label">留言板</span><span class="node-sub">Guestbook</span></a>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>SITE DATA / 真实数据</h2></div>
+    <div class="stats-row">
+      <div class="stat-cell glass-panel"><div class="stat-num">{allPosts.length}</div><div class="stat-key">Total Articles</div><div class="stat-sub">已发布文章</div></div>
+      <div class="stat-cell glass-panel"><div class="stat-num purple">{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
+      <div class="stat-cell glass-panel"><div class="stat-num green">{categories.length}</div><div class="stat-key">Categories</div><div class="stat-sub">书签分类</div></div>
+      <div class="stat-cell glass-panel"><div class="stat-num">{lastUpdate ? lastUpdate.toLocaleDateString("zh-CN") : "—"}</div><div class="stat-key">Last Update</div><div class="stat-sub">最近更新</div></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>01 / LATEST TRANSMISSIONS</h2><a href={`${base}blog/`}>VIEW ALL ↗</a></div>
     {posts.length ? <div class="card-grid">
-      {posts.map(post => <a class="card" href={`${import.meta.env.BASE_URL}blog/${post.slug}/`}>
+      {posts.map(post => <a class="card" data-tilt href={`${base}blog/${post.slug}/`}>
         <div class="card-kicker">{post.data.category} · {post.data.pubDate.toLocaleDateString("zh-CN")}</div>
         <h3>{post.data.title}</h3><p>{post.data.description}</p>
       </a>)}
@@ -38,9 +87,9 @@ const categories = [
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${import.meta.env.BASE_URL}collection/`}>EXPLORE ALL ↗</a></div>
+    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${base}collection/`}>EXPLORE ALL ↗</a></div>
     <div class="category-grid">
-      {categories.map((c,i)=><a class="category-card" href={`${import.meta.env.BASE_URL}collection/`}>
+      {categories.map((c,i)=><a class="category-card" data-tilt href={`${base}collection/`}>
         <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">→</span>
       </a>)}
     </div>
@@ -49,9 +98,9 @@ const categories = [
   <section class="section">
     <div class="section-head"><h2>03 / CURRENTLY EXPLORING</h2></div>
     <div class="card-grid">
-      <div class="card"><div class="card-kicker">FOCUS / 01</div><h3>AI & Agents</h3><p>探索 AI 工具、Agent 工作流与自动化。</p></div>
-      <div class="card"><div class="card-kicker">FOCUS / 02</div><h3>Open Internet</h3><p>记录网络工具、开源项目和互联网服务。</p></div>
-      <div class="card"><div class="card-kicker">FOCUS / 03</div><h3>Building</h3><p>把想法变成可以实际使用的小工具。</p></div>
+      <div class="card" data-tilt><div class="card-kicker">FOCUS / 01</div><h3>AI &amp; Agents</h3><p>探索 AI 工具、Agent 工作流与自动化。</p></div>
+      <div class="card" data-tilt><div class="card-kicker">FOCUS / 02</div><h3>Open Internet</h3><p>记录网络工具、开源项目和互联网服务。</p></div>
+      <div class="card" data-tilt><div class="card-kicker">FOCUS / 03</div><h3>Building</h3><p>把想法变成可以实际使用的小工具。</p></div>
     </div>
   </section>
   <Subscribe client:load />
