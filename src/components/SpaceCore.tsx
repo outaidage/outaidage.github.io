@@ -248,9 +248,10 @@ function Starfield({ count }: { count: number }) {
 // 这样太阳相对相机的位置保持不变，地球始终以同样的昼夜面朝向相机
 // （平移跟随会让地球公转一圈从白昼转到黑夜）。用户的拖拽/缩放偏移保留。
 // 固定模式：相机飞到固定位姿。聚焦行星时跟随该行星。
-function CameraRig({ mode, focus, earthPosRef, planetPositions }: {
+function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
   mode: Mode;
   focus: PlanetId | null;
+  resetKey: number;
   earthPosRef: RefObject<THREE.Vector3>;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
 }) {
@@ -288,8 +289,7 @@ function CameraRig({ mode, focus, earthPosRef, planetPositions }: {
     }
   };
 
-  const key = `${mode}:${focus ?? ""}`;
-  useEffect(() => {
+  const startTransition = () => {
     const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
     computeGoal(mode, focus, goal);
     transRef.current = {
@@ -302,8 +302,21 @@ function CameraRig({ mode, focus, earthPosRef, planetPositions }: {
     // 过渡结束后的跟随基准 = 当前被跟踪位置（避免第一帧跳变）
     const tracked = focus ? planetPositions.current.get(focus) : isTrackingMode(mode) ? earthPosRef.current : null;
     if (tracked) prevTracked.current.copy(tracked);
+  };
+
+  const key = `${mode}:${focus ?? ""}`;
+  useEffect(() => {
+    startTransition();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  // 返回首页复位：浏览器返回键 / 视图切换恢复页面时，相机可能仍停在
+  // 之前放大的行星上，而模式与焦点状态已回到默认（面板消失），看起来
+  // 就像界面点不动。resetKey 变化时强制过渡回当前模式的总览。
+  useEffect(() => {
+    if (resetKey > 0) startTransition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   useFrame((_, delta) => {
     if (!controls) return;
@@ -356,6 +369,7 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
   const [reason, setReason] = useState<"motion" | "webgl" | null>(null);
   const [mode, setMode] = useState<Mode>("universe");
   const [focus, setFocus] = useState<PlanetId | null>(null);
+  const [resetKey, setResetKey] = useState(0);
   const [motionPaused, setMotionPaused] = useState(false);
   const [earthSpinOn, setEarthSpinOn] = useState(true);
   const [hoveredSatellite, setHoveredSatellite] = useState<Satellite | null>(null);
@@ -384,6 +398,27 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
     };
     window.addEventListener("outai:universe", handler);
     return () => window.removeEventListener("outai:universe", handler);
+  }, []);
+
+  // 返回首页时复位到总览：浏览器返回键会从缓存恢复页面，相机仍停在
+  // 之前放大的行星上、而 React 的 focus 状态已重置（面板消失），手机上
+  // 整屏是一颗行星、看不到其他行星，点来点去没有反应。pageshow（缓存恢复）
+  // 与 astro:page-load（视图切换返回）都触发复位；首次加载时相机本就在
+  // 总览，复位过渡是空操作，不影响正常进入。
+  useEffect(() => {
+    const reset = () => {
+      setFocus(null);
+      setMode("universe");
+      setResetKey((k) => k + 1);
+    };
+    const onPageShow = (e: PageTransitionEvent) => { if (e.persisted) reset(); };
+    const onPageLoad = () => reset();
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("astro:page-load", onPageLoad);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("astro:page-load", onPageLoad);
+    };
   }, []);
 
   const low = useMemo(() => {
@@ -454,7 +489,7 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
             onSatelliteClick={(sat) => go(sat.path)}
           />
         </Suspense>
-        <CameraRig mode={mode} focus={focus} earthPosRef={earthPosRef} planetPositions={planetPositions} />
+        <CameraRig mode={mode} focus={focus} resetKey={resetKey} earthPosRef={earthPosRef} planetPositions={planetPositions} />
         <OrbitControls makeDefault enablePan={false} enableDamping dampingFactor={0.08} rotateSpeed={0.55} zoomSpeed={0.8} minDistance={2.3} maxDistance={120} />
       </Canvas>
 
