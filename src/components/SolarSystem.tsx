@@ -456,7 +456,11 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
 }
 
 // ---------- 太阳系 ----------
-export function SolarSystem({ planetSatellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, labelDistanceFactor, compactLabels, focusedId, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
+// planets：要渲染的行星（默认内置 PLANETS；后台「3D 宇宙管理」保存后，
+// SpaceCore 传入 Supabase 合并后的配置——被禁用的行星不在列表里，
+// 不渲染；未配置时回落到内置默认值）。
+export function SolarSystem({ planets = PLANETS, planetSatellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, labelDistanceFactor, compactLabels, focusedId, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
+  planets?: PlanetDef[];
   planetSatellites: Record<string, Satellite[]>;
   motionPaused: boolean;
   earthSpinOn: boolean;
@@ -474,7 +478,7 @@ export function SolarSystem({ planetSatellites, motionPaused, earthSpinOn, label
 }) {
   return (
     <group>
-      {PLANETS.map((def) => (
+      {planets.map((def) => (
         <Planet
           key={def.id}
           def={def}
