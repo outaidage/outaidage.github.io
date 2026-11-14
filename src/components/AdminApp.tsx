@@ -9,8 +9,9 @@ type TagRow = {id:string;name:string};
 type CategoryRow = {id:string;name:string;slug:string};
 type RecLink = {id:string;title:string;url:string;description:string|null;category:string|null;sort_order:number};
 type RecLinkForm = {title:string;url:string;description:string;category:string;sort_order:string};
+type GuestbookEntry = {id:string;name:string;message:string;created_at:string;approved:boolean};
 const emptyRecLinkForm = (): RecLinkForm => ({title:"",url:"",description:"",category:"",sort_order:"0"});
-type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category"|"reclink";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
+type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category"|"reclink"|"guestbook";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
 const emptyBookmarkForm = (): BookmarkForm => ({url:"",title:"",description:"",note:"",category:"AI & Tools",tags:"",is_public:true,is_favorite:false});
 const normalizeUrl = (u: string) => u.trim().replace(/\/+$/,"");
 const parseTagNames = (s: string) => Array.from(new Set(s.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean)));
@@ -80,7 +81,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -100,6 +101,7 @@ export default function AdminApp() {
   const [recLinks,setRecLinks] = useState<RecLink[]>([]);
   const [recForm,setRecForm] = useState<RecLinkForm>(emptyRecLinkForm());
   const [editingRecId,setEditingRecId] = useState<string|null>(null);
+  const [gbEntries,setGbEntries] = useState<GuestbookEntry[]>([]);
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
   const raindropFileRef = useRef<HTMLInputElement|null>(null);
@@ -206,9 +208,30 @@ export default function AdminApp() {
     say("ok","推荐链接已删除。");
     loadRecLinks();
   }
+  async function loadGbEntries(){
+    if(!supabase) return;
+    const {data,error}=await supabase.from("guestbook_entries").select("id,name,message,created_at,approved").order("approved",{ascending:true}).order("created_at",{ascending:false});
+    if(error) { say("err",error.message); return; }
+    setGbEntries((data||[]) as GuestbookEntry[]);
+  }
+  async function setGbApproved(id: string, approved: boolean){
+    if(!supabase) return;
+    const {error} = await supabase.from("guestbook_entries").update({approved}).eq("id",id);
+    if (error) { say("err",`操作失败：${error.message}`); return; }
+    say("ok", approved ? "留言已通过审核，将公开显示。" : "留言已撤回，不再公开显示。");
+    loadGbEntries();
+  }
+  async function deleteGbEntry(id: string){
+    if(!supabase) return;
+    const {error} = await supabase.from("guestbook_entries").delete().eq("id",id);
+    if (error) { say("err",`删除失败：${error.message}`); return; }
+    say("ok","留言已删除。");
+    loadGbEntries();
+  }
   useEffect(()=>{if(session){loadTags();loadCategories();}},[session]);
   useEffect(()=>{if(session && tab==="data"){loadTags();loadCategories();loadArticles();}},[session,tab]);
   useEffect(()=>{if(session && tab==="links") loadRecLinks()},[session,tab]);
+  useEffect(()=>{if(session && tab==="guestbook") loadGbEntries()},[session,tab]);
 
   async function loadArticles(){
     setArticlesLoading(true);
@@ -519,6 +542,7 @@ export default function AdminApp() {
     if (t.kind === "tag" && t.id) await deleteTag(t.id, t.label);
     if (t.kind === "category" && t.id) await deleteCategory(t.id, t.label);
     if (t.kind === "reclink" && t.id) await deleteRecLink(t.id);
+    if (t.kind === "guestbook" && t.id) await deleteGbEntry(t.id);
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
@@ -722,6 +746,7 @@ export default function AdminApp() {
         <button className={`button ${tab==="bookmarks"?"primary":"secondary"}`} onClick={()=>setTab("bookmarks")}>书签管理</button>
         <button className={`button ${tab==="articles"?"primary":"secondary"}`} onClick={()=>setTab("articles")}>文章管理</button>
         <button className={`button ${tab==="links"?"primary":"secondary"}`} onClick={()=>setTab("links")}>推荐链接</button>
+        <button className={`button ${tab==="guestbook"?"primary":"secondary"}`} onClick={()=>setTab("guestbook")}>留言板</button>
         <button className={`button ${tab==="data"?"primary":"secondary"}`} onClick={()=>setTab("data")}>数据管理</button>
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
@@ -864,6 +889,28 @@ export default function AdminApp() {
         </div>
         <button className="button secondary" onClick={loadRecLinks} style={{marginTop:12}}>刷新列表</button>
       </div>
+    </div> : tab==="guestbook" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+      <div className="card">
+        <h3>留言审核 ({gbEntries.length})</h3>
+        <p style={{color:"#929dab",fontSize:12}}>访客留言需要通过审核后才会在公开的 /guestbook/ 页面显示。待审核的留言排在前面。</p>
+        <div style={{display:"grid",gap:12,marginTop:12}}>
+          {gbEntries.map(en=><div key={en.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+              <strong style={{fontSize:13}}>{en.name} {en.approved ? <span style={{color:"#b5f36b",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
+              <span style={{display:"flex",gap:10}}>
+                {en.approved
+                  ? <button onClick={()=>setGbApproved(en.id,false)} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>撤回</button>
+                  : <button onClick={()=>setGbApproved(en.id,true)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>通过</button>}
+                <button onClick={()=>setConfirmTarget({kind:"guestbook",id:en.id,label:`${en.name} 的留言`})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
+              </span>
+            </div>
+            <div style={{fontSize:12,color:"#aab3c0",marginTop:5,whiteSpace:"pre-wrap"}}>{en.message}</div>
+            <div style={{fontSize:11,color:"#929dab",marginTop:5}}>{new Date(en.created_at).toLocaleString("zh-CN")}</div>
+          </div>)}
+          {!gbEntries.length&&<p style={{color:"#929dab",fontSize:12}}>还没有留言。</p>}
+        </div>
+        <button className="button secondary" onClick={loadGbEntries} style={{marginTop:12}}>刷新列表</button>
+      </div>
     </div> : <div style={{display:"grid",gap:16}}>
       <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))"}}>
         {[
@@ -967,7 +1014,7 @@ export default function AdminApp() {
     {confirmTarget&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setConfirmTarget(null)}>
       <div className="card" style={{maxWidth:420,width:"90%"}} onClick={e=>e.stopPropagation()}>
         <h3>确定删除？</h3>
-        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="tag"?"标签":confirmTarget.kind==="category"?"分类":confirmTarget.kind==="reclink"?"推荐链接":"书签"}「{confirmTarget.label}」{confirmTarget.kind==="category"?"，相关书签将设为未分类":""}{confirmTarget.kind==="tag"?"，该标签将从所有书签上移除":""}，此操作不可撤销。</p>
+        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="tag"?"标签":confirmTarget.kind==="category"?"分类":confirmTarget.kind==="reclink"?"推荐链接":confirmTarget.kind==="guestbook"?"留言":"书签"}「{confirmTarget.label}」{confirmTarget.kind==="category"?"，相关书签将设为未分类":""}{confirmTarget.kind==="tag"?"，该标签将从所有书签上移除":""}，此操作不可撤销。</p>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
           <button className="button secondary" onClick={()=>setConfirmTarget(null)}>取消</button>
           <button className="button primary" style={{background:"#f28b82",borderColor:"#f28b82",color:"#1a1d21"}} onClick={runConfirmedDelete}>确定删除</button>
