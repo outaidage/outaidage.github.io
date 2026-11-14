@@ -71,6 +71,7 @@ const jsonLd = {
       <main data-pagefind-ignore={noindex || undefined}><slot /></main>
       <footer class="footer">
         <span>© {new Date().getFullYear()} OUTAI</span>
+        <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a href={`${import.meta.env.BASE_URL}bookmarklet/`}>Bookmarklet</a></span>
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
         <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">动效：开</button>
       </footer>
