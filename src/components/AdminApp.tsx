@@ -200,7 +200,7 @@ export default function AdminApp() {
     }
     setSaving(false);
     say("ok", editingBookmarkId ? "书签已更新。" : "书签已保存。");
-    setForm(emptyBookmarkForm()); setEditingBookmarkId(null); loadBookmarks();
+    setForm(emptyBookmarkForm()); setEditingBookmarkId(null); await cleanupOrphanTags(); loadBookmarks(); loadTags();
   }
   function editBookmark(b: Bookmark){
     setForm({url:b.url,title:b.title,description:b.description||"",note:b.note||"",category:b.category||"AI & Tools",tags:b.tags.join(", "),is_public:b.is_public,is_favorite:b.is_favorite});
@@ -210,10 +210,18 @@ export default function AdminApp() {
   function cancelBookmarkEdit(){
     setForm(emptyBookmarkForm()); setEditingBookmarkId(null);
   }
+  async function cleanupOrphanTags(){
+    if(!supabase) return;
+    const {data: used} = await supabase.from("bookmark_tags").select("tag_id");
+    const usedIds = new Set(((used||[]) as any[]).map(x=>x.tag_id));
+    const {data: all} = await supabase.from("tags").select("id");
+    const orphans = ((all||[]) as any[]).map(x=>x.id).filter(id=>!usedIds.has(id));
+    if (orphans.length) await supabase.from("tags").delete().in("id", orphans);
+  }
   async function deleteBookmark(id:string){
     if(!supabase)return;
     const {error}=await supabase.from("bookmarks").delete().eq("id",id);
-    if(error)say("err",error.message);else{say("ok","书签已删除。");setSelected(s=>s.filter(x=>x!==id));loadBookmarks()}
+    if(error)say("err",error.message);else{say("ok","书签已删除。");setSelected(s=>s.filter(x=>x!==id));await cleanupOrphanTags();loadBookmarks();loadTags()}
   }
   async function setBookmarkStatus(id:string, status:"active"|"archived"){
     if(!supabase)return;
@@ -223,7 +231,7 @@ export default function AdminApp() {
   async function batchDeleteBookmarks(ids:string[]){
     if(!supabase)return;
     const {error}=await supabase.from("bookmarks").delete().in("id",ids);
-    if(error)say("err",error.message);else{say("ok",`已删除 ${ids.length} 条书签。`);setSelected([]);loadBookmarks()}
+    if(error)say("err",error.message);else{say("ok",`已删除 ${ids.length} 条书签。`);setSelected([]);await cleanupOrphanTags();loadBookmarks();loadTags()}
   }
   async function batchSetStatus(ids:string[], status:"active"|"archived"){
     if(!supabase)return;
