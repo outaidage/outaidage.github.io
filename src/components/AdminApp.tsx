@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import VideoSceneAdmin from "@/components/VideoSceneAdmin";
 import ArticleVersionHistory, { type ArticleVersion } from "@/components/ArticleVersionHistory";
+import ArticlePreview from "@/components/ArticlePreview";
 
 type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
 type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
@@ -109,6 +110,7 @@ export default function AdminApp() {
   const [comments,setComments] = useState<ArticleComment[]>([]);
   const [auditLog,setAuditLog] = useState<AuditEntry[]>([]);
   const [versionTick,setVersionTick] = useState(0);
+  const [previewMode,setPreviewMode] = useState<"edit"|"preview">("edit");
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
   const raindropFileRef = useRef<HTMLInputElement|null>(null);
@@ -585,6 +587,7 @@ export default function AdminApp() {
   function newArticle(){
     setEditingSlug(null);
     setArticle(emptyArticle());
+    setPreviewMode("edit");
   }
   async function editArticle(file: ArticleFile){
     say("ok","正在加载文章…");
@@ -596,10 +599,13 @@ export default function AdminApp() {
     parsed.slug = file.slug;
     setArticle(parsed);
     setEditingSlug(file.slug);
+    setPreviewMode("edit");
     say("ok",`正在编辑：${file.slug}`);
   }
-  async function saveArticle(e:React.FormEvent){
-    e.preventDefault();
+  // 3.0 P0 预览与发布工作流：draftOverride 显式指定保存为草稿还是发布。
+  // 不传则用表单当前的 draft 复选框状态（兼容回车提交）。
+  async function saveArticle(e:React.FormEvent | React.MouseEvent, draftOverride?: boolean){
+    if (e) e.preventDefault();
     if(!supabase || !session)return;
     const slug = article.slug.trim();
     if (!SLUG_RE.test(slug)) { say("err","slug 只能包含字母、数字、- 和 _，例如 ai-tools-notes。"); return; }
@@ -608,19 +614,23 @@ export default function AdminApp() {
     if (!article.body.trim()) { say("err","正文不能为空。"); return; }
     const isEdit = editingSlug !== null;
     if (!isEdit && articles.some(a=>a.slug===slug)) { say("err",`slug “${slug}” 已存在，请换一个 slug，或先编辑已有文章。`); return; }
+    const draft = draftOverride !== undefined ? draftOverride : article.draft;
+    const isFuture = new Date(article.pubDate).getTime() > Date.now();
     setSaving(true);say("ok","");
     const path = `src/content/blog/${slug}.md`;
-    const content = buildArticleMarkdown({...article,slug}, isEdit);
+    const content = buildArticleMarkdown({...article,slug,draft}, isEdit);
     const {data,error} = await callFunction({action:"upsert",path,content});
     setSaving(false);
     if (error) { say("err",`保存失败：${error.message}`); return; }
     const commit = (data as any)?.commit as string | undefined;
-    say("ok", isEdit ? `文章已更新${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。` : `文章已发布${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
+    const statusText = draft ? "已保存为草稿" : isFuture ? `已保存，将于 ${article.pubDate} 自动发布` : (isEdit ? "文章已更新" : "文章已发布");
+    say("ok", `${statusText}${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
     await logAudit(isEdit ? "article_update" : "article_create","article",slug,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     // 3.0 P0：保存成功后存一条版本快照（失败不影响文章保存本身）。
     await saveArticleVersion(slug, article.title.trim(), content);
     // 新建文章保存后切到编辑模式，版本历史立即出现，不必再点一次 编辑。
     if (!isEdit) setEditingSlug(slug);
+    setArticle({...article, draft});
     loadArticles();
   }
   // 3.0 P0：把本次保存的完整 Markdown 存为一条版本快照。
@@ -1011,7 +1021,17 @@ export default function AdminApp() {
         <button className="button secondary" onClick={loadArticles} style={{marginTop:12}}>刷新列表</button>
       </div>
       <form className="card" onSubmit={saveArticle} style={{display:"grid",gap:12}}>
-        <h3>{editingSlug ? `编辑文章：${editingSlug}` : "新建文章"}</h3>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <h3 style={{margin:0}}>{editingSlug ? `编辑文章：${editingSlug}` : "新建文章"}</h3>
+          <span style={{display:"flex",gap:6,alignItems:"center"}}>
+            <span style={{fontSize:11,border:"1px solid #29313c",borderRadius:999,padding:"2px 8px",color: article.draft ? "#fbbf24" : (article.pubDate && new Date(article.pubDate).getTime() > Date.now() ? "#a68aff" : "#7dffce")}}>
+              {article.draft ? "草稿" : (article.pubDate && new Date(article.pubDate).getTime() > Date.now() ? `定时发布 · ${article.pubDate}` : "已发布")}
+            </span>
+            <button type="button" className={previewMode==="edit" ? "button primary" : "button secondary"} onClick={()=>setPreviewMode("edit")}>编辑</button>
+            <button type="button" className={previewMode==="preview" ? "button primary" : "button secondary"} onClick={()=>setPreviewMode("preview")}>预览</button>
+          </span>
+        </div>
+        {previewMode==="preview" ? <ArticlePreview article={article}/> : <>
         <input className={inputClass} required placeholder="文章标题" value={article.title} onChange={e=>setArticle({...article,title:e.target.value})}/>
         {editingSlug ? <div style={{fontSize:12,color:"#929dab"}}>slug：<code>{editingSlug}</code>（编辑时不可改 slug，改 slug 请删除后新建）</div>
         : <input className={inputClass} required placeholder="URL slug，例如 ai-tools-notes（仅字母、数字、-、_）" value={article.slug} onChange={e=>setArticle({...article,slug:e.target.value})}/>}
@@ -1037,8 +1057,17 @@ export default function AdminApp() {
           <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={article.featured} onChange={e=>setArticle({...article,featured:e.target.checked})}/> 精选文章</label>
         </div>
         <textarea className={inputClass} rows={18} placeholder="使用 Markdown 编写正文…" value={article.body} onChange={e=>setArticle({...article,body:e.target.value})}/>
-        <button className="button primary" disabled={saving}>{saving?"提交中…":(editingSlug?"保存修改":"提交到 GitHub 并发布")}</button>
-        <p style={{color:"#929dab",fontSize:12}}>保存通过 Supabase Edge Function 调用 GitHub API，服务端会校验 frontmatter，非法内容会被拒绝。</p>
+        </>}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {article.draft || !editingSlug ? <>
+            <button type="button" className="button secondary" disabled={saving} onClick={(e)=>saveArticle(e, true)}>{saving?"提交中…":"保存草稿"}</button>
+            <button type="button" className="button primary" disabled={saving} onClick={(e)=>saveArticle(e, false)}>{saving?"提交中…":"发布"}</button>
+          </> : <>
+            <button type="button" className="button primary" disabled={saving} onClick={(e)=>saveArticle(e, false)}>{saving?"提交中…":"保存修改"}</button>
+            <button type="button" className="button secondary" disabled={saving} onClick={(e)=>saveArticle(e, true)}>{saving?"提交中…":"转为草稿"}</button>
+          </>}
+        </div>
+        <p style={{color:"#929dab",fontSize:12}}>保存通过 Supabase Edge Function 调用 GitHub API，服务端会校验 frontmatter，非法内容会被拒绝。发布日期在未来时，文章会在该日期自动上线（每天 00:00 UTC 重建）。</p>
         {editingSlug ? <ArticleVersionHistory slug={editingSlug} refreshTick={versionTick} onRestore={restoreVersion} /> : null}
       </form>
     </div> : tab==="links" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
