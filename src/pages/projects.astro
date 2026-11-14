@@ -1,10 +1,65 @@
 ---
+// /projects/ — 项目空间（数字宇宙门户）。
+// 从 Supabase projects 表读取；构建时拉取，失败或无数据时显示空状态。
 import MainLayout from "@/layouts/MainLayout.astro";
+import { supabase } from "@/lib/supabase";
+
+type Project = {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  status: string;
+  sort_order: number;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  in_progress: "IN PROGRESS",
+  planned: "PLANNED",
+  completed: "COMPLETED",
+};
+
+let projects: Project[] = [];
+let loadError = false;
+try {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id,name,description,url,status,sort_order")
+    .order("sort_order", { ascending: true });
+  if (error) loadError = true;
+  else projects = (data || []) as Project[];
+} catch {
+  loadError = true;
+}
 ---
+
 <MainLayout title="项目 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> SELECTED WORK</div><h1>项目与实验<span style="color:#61edff">.</span></h1><p>记录自己构建的工具、自动化流程、开源项目与实验。</p></header>
-  <div class="card-grid">
-    <div class="card"><div class="card-kicker">EXPERIMENT / 01</div><h3>Personal Digital Space</h3><p>这个网站本身：博客、书签与个人知识空间。</p><span class="tag">IN PROGRESS</span></div>
-    <div class="card"><div class="card-kicker">EXPERIMENT / 02</div><h3>Coming Soon</h3><p>下一个想法将在这里出现。</p><span class="tag">PLANNED</span></div>
-  </div>
+  <header class="page-head">
+    <div class="eyebrow"><span class="pulse"></span> SELECTED WORK</div>
+    <h1>项目与实验<span style="color:#61edff">.</span></h1>
+    <p>记录自己构建的工具、自动化流程、开源项目与实验。</p>
+  </header>
+  {loadError ? (
+    <div class="card"><p>项目列表暂时无法加载，请稍后再试。</p></div>
+  ) : projects.length === 0 ? (
+    <div class="card"><p>还没有项目。下一个想法将在这里出现。</p></div>
+  ) : (
+    <div class="card-grid">
+      {projects.map((p, i) => (
+        <div class="card" data-tilt>
+          <div class="card-kicker">EXPERIMENT / {String(i + 1).padStart(2, "0")}</div>
+          <h3>{p.name}</h3>
+          <p>{p.description}</p>
+          <span class="tag">{STATUS_LABEL[p.status] || p.status.toUpperCase()}</span>
+          {p.url ? (
+            <div style="margin-top:10px">
+              <a href={p.url} target="_blank" rel="noopener noreferrer" style="color:#61edff;font-size:13px">
+                访问项目 ↗
+              </a>
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  )}
 </MainLayout>
