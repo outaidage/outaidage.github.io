@@ -3,6 +3,7 @@ import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import DigitalUniverse from "@/components/DigitalUniverse.astro";
 import OutaiLogo from "@/components/OutaiLogo.astro";
+import CommandTerminal from "@/components/CommandTerminal";
 import { SITE } from "@/lib/site";
 const { title = SITE.title, description = SITE.description, type = "website", image, noindex = false } = Astro.props as {
   title?: string; description?: string; type?: "website" | "article"; image?: string; noindex?: boolean;
@@ -24,7 +25,7 @@ const jsonLd = {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#090B0F" />
+    <meta name="theme-color" content="#03040B" />
     {noindex && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={title} />
@@ -61,6 +62,8 @@ const jsonLd = {
           {SITE.nav.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
         </nav>
         <div class="top-actions">
+          <span class="hud-label dim" aria-hidden="true">SYSTEM ONLINE</span>
+          <button class="terminal-btn" id="terminal-btn" type="button" aria-label="打开终端">⌘ TERMINAL</button>
           <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
           <a class="admin-link" href={`${import.meta.env.BASE_URL}admin/`}>管理后台 <span>↗</span></a>
           <button class="menu-button" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="打开菜单">
@@ -81,6 +84,7 @@ const jsonLd = {
         <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">动效：开</button>
       </footer>
     </div>
+    <CommandTerminal client:load />
     <script is:inline>
       // Menu + motion toggle, via event delegation so the handlers survive
       // Astro view-transition navigation (the footer/header DOM is replaced
@@ -128,6 +132,10 @@ const jsonLd = {
         document.addEventListener("click", function (e) {
           var t = e.target;
           if (!t || !t.closest) return;
+          if (t.closest("#terminal-btn")) {
+            window.dispatchEvent(new CustomEvent("outai:toggle-terminal"));
+            return;
+          }
           if (t.closest(".menu-button")) {
             var nav = mobileNav();
             setOpen(nav ? nav.hidden : false);
@@ -160,7 +168,7 @@ const jsonLd = {
       // astro:page-load because view-transition navigation replaces the
       // canvas element; the previous instance is cleaned up first.
       import { initUniverse } from "@/lib/universe-canvas";
-      let cleanup = null;
+      let cleanup: (() => void) | null = null;
       function startUniverse() {
         if (cleanup) { cleanup(); cleanup = null; }
         const canvas = document.getElementById("universe-canvas");
@@ -170,6 +178,20 @@ const jsonLd = {
       }
       document.addEventListener("astro:page-load", startUniverse);
       startUniverse();
+    </script>
+    <script>
+      // 3D tilt for [data-tilt] cards (DIGITAL UNIVERSE 2.0). Lightweight
+      // pointer-driven rotateX/rotateY with a glow shift; disabled when
+      // motion is reduced or on coarse pointers. Re-attaches on every
+      // astro:page-load because view transitions replace the card DOM.
+      import { initTilt } from "@/lib/tilt";
+      let tiltCleanup: (() => void) | null = null;
+      function startTilt() {
+        if (tiltCleanup) { tiltCleanup(); tiltCleanup = null; }
+        tiltCleanup = initTilt();
+      }
+      document.addEventListener("astro:page-load", startTilt);
+      startTilt();
     </script>
   </body>
 </html>
