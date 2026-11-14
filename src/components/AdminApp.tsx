@@ -4,6 +4,7 @@ import VideoSceneAdmin from "@/components/VideoSceneAdmin";
 import ArticleVersionHistory, { type ArticleVersion } from "@/components/ArticleVersionHistory";
 import ArticlePreview from "@/components/ArticlePreview";
 import HomeModuleAdmin from "@/components/HomeModuleAdmin";
+import BackgroundStudio from "@/components/BackgroundStudio";
 
 type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
 type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
@@ -87,7 +88,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media"|"modules">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media"|"modules"|"background">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -952,6 +953,7 @@ export default function AdminApp() {
         <button className={`button ${tab==="links"?"primary":"secondary"}`} onClick={()=>setTab("links")}>推荐链接</button>
         <button className={`button ${tab==="guestbook"?"primary":"secondary"}`} onClick={()=>setTab("guestbook")}>留言板</button>
         <button className={`button ${tab==="media"?"primary":"secondary"}`} onClick={()=>setTab("media")}>背景与媒体</button>
+        <button className={`button ${tab==="background"?"primary":"secondary"}`} onClick={()=>setTab("background")}>背景管理</button>
         <button className={`button ${tab==="data"?"primary":"secondary"}`} onClick={()=>setTab("data")}>数据管理</button>
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
@@ -1160,7 +1162,7 @@ export default function AdminApp() {
         </div>
         <button className="button secondary" onClick={loadComments} style={{marginTop:12}}>刷新列表</button>
       </div>
-    </div> : tab==="media" ? <VideoSceneAdmin say={say} logAudit={logAudit} /> : <div style={{display:"grid",gap:16}}>
+    </div> : tab==="background" ? <BackgroundStudio say={say} /> : tab==="media" ? <VideoSceneAdmin say={say} logAudit={logAudit} /> : <div style={{display:"grid",gap:16}}>
       <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))"}}>
         {[
           {label:"书签总数",value:items.length},
