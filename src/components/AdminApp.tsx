@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import VideoSceneAdmin from "@/components/VideoSceneAdmin";
+import ArticleVersionHistory, { type ArticleVersion } from "@/components/ArticleVersionHistory";
 
 type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
 type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
@@ -107,6 +108,7 @@ export default function AdminApp() {
   const [gbEntries,setGbEntries] = useState<GuestbookEntry[]>([]);
   const [comments,setComments] = useState<ArticleComment[]>([]);
   const [auditLog,setAuditLog] = useState<AuditEntry[]>([]);
+  const [versionTick,setVersionTick] = useState(0);
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
   const raindropFileRef = useRef<HTMLInputElement|null>(null);
@@ -615,7 +617,48 @@ export default function AdminApp() {
     const commit = (data as any)?.commit as string | undefined;
     say("ok", isEdit ? `文章已更新${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。` : `文章已发布${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
     await logAudit(isEdit ? "article_update" : "article_create","article",slug,commit ? `提交 ${commit.slice(0,7)}` : undefined);
+    // 3.0 P0：保存成功后存一条版本快照（失败不影响文章保存本身）。
+    await saveArticleVersion(slug, article.title.trim(), content);
     loadArticles();
+  }
+  // 3.0 P0：把本次保存的完整 Markdown 存为一条版本快照。
+  async function saveArticleVersion(slug: string, title: string, content: string) {
+    if (!supabase) return;
+    try {
+      const { data: latest } = await supabase
+        .from("article_versions")
+        .select("version_number")
+        .eq("article_slug", slug)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const next = ((latest as { version_number?: number } | null)?.version_number || 0) + 1;
+      const email = (session as any)?.user?.email as string | undefined;
+      const { error } = await supabase.from("article_versions").insert({
+        article_slug: slug,
+        title,
+        content,
+        version_number: next,
+        created_by: email || null,
+      });
+      if (error) {
+        // 表不存在（未执行 008 迁移）时静默跳过，不干扰保存流程。
+        if (error.code !== "42P01") say("err", `文章已保存，但版本快照写入失败：${error.message}`);
+        return;
+      }
+      setVersionTick((t) => t + 1);
+    } catch {
+      /* 版本快照失败不影响文章保存 */
+    }
+  }
+  // 3.0 P0：把旧版本内容载入编辑器；点保存后会产生一条新版本。
+  function restoreVersion(v: ArticleVersion) {
+    const parsed = parseArticle(v.content);
+    parsed.slug = v.article_slug;
+    setArticle(parsed);
+    setEditingSlug(v.article_slug);
+    say("ok", `已载入 v${v.version_number} 的内容，确认无误后点保存即可恢复为新版本。`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function deleteArticle(path: string){
     const {data,error} = await callFunction({action:"delete",path});
@@ -994,6 +1037,7 @@ export default function AdminApp() {
         <textarea className={inputClass} rows={18} placeholder="使用 Markdown 编写正文…" value={article.body} onChange={e=>setArticle({...article,body:e.target.value})}/>
         <button className="button primary" disabled={saving}>{saving?"提交中…":(editingSlug?"保存修改":"提交到 GitHub 并发布")}</button>
         <p style={{color:"#929dab",fontSize:12}}>保存通过 Supabase Edge Function 调用 GitHub API，服务端会校验 frontmatter，非法内容会被拒绝。</p>
+        {editingSlug ? <ArticleVersionHistory slug={editingSlug} refreshTick={versionTick} onRestore={restoreVersion} /> : null}
       </form>
     </div> : tab==="links" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
       <form className="card" onSubmit={saveRecLink} style={{display:"grid",gap:10}}>
