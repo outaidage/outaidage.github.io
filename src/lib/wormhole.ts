@@ -29,6 +29,9 @@ export function initWormhole(): () => void {
     document.body.appendChild(overlay);
   }
 
+  // 转场遮罩 2 秒兜底定时器（见 flashIn）。
+  let safetyTimer = 0;
+
   const flashIn = () => {
     if (motionReduced()) return;
     gsap.killTweensOf(overlay);
@@ -37,8 +40,15 @@ export function initWormhole(): () => void {
       { opacity: 0, scale: 1 },
       { opacity: 1, scale: 1.1, duration: 0.28, ease: "power2.in" },
     );
+    // 安全兜底：如果新页面 2 秒内没有加载完成（page-load 未触发），强制淡出，
+    // 绝不让转场遮罩一直盖住屏幕（慢网络下先显示旧页面，等新页面就绪）。
+    window.clearTimeout(safetyTimer);
+    safetyTimer = window.setTimeout(() => {
+      gsap.to(overlay, { opacity: 0, duration: 0.3 });
+    }, 2000);
   };
   const flashOut = () => {
+    window.clearTimeout(safetyTimer);
     gsap.killTweensOf(overlay);
     gsap.to(overlay, { opacity: 0, scale: 1, duration: 0.35, ease: "power2.out" });
   };
