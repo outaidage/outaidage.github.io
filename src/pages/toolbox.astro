@@ -1,0 +1,15 @@
+---
+// /toolbox/ — 在线工具箱（数字宇宙门户）。
+// 网站内的实用小工具，全部在浏览器本地运行，不上传数据。
+import MainLayout from "@/layouts/MainLayout.astro";
+import Toolbox from "@/components/Toolbox";
+---
+
+<MainLayout title="在线工具箱 — OUTAI">
+  <header class="page-head">
+    <div class="eyebrow"><span class="pulse"></span> TOOLBOX</div>
+    <h1>在线工具箱<span style="color:#61edff">.</span></h1>
+    <p>网站内的实用小工具。所有处理都在你的浏览器本地完成，不上传任何数据。</p>
+  </header>
+  <Toolbox client:load />
+</MainLayout>
