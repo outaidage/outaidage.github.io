@@ -5,9 +5,10 @@ import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
 import Terminal from "@/components/Terminal";
 import SpaceCore from "@/components/SpaceCore";
+import PlanetNodes from "@/components/PlanetNodes";
 import HomeModules from "@/components/HomeModules";
 import { supabase } from "@/lib/supabase";
-import { getHomeModules } from "@/lib/home-modules";
+import { getHomeModules, buildPlanetNodes } from "@/lib/home-modules";
 
 // 最新文章（真实数据；isVisiblePost 排除草稿与未来日期的文章）。
 const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
@@ -41,6 +42,19 @@ try {
     if (data) changelog = data as typeof changelog;
   }
 } catch { changelog = []; }
+// 3D 星球节点的内容数量（真实数据；没有对应计数的模块不显示数量）。
+// 文章数 = 可见文章；书签数 = 公开书签；项目数 = projects 表行数；资源数 = recommended_links 行数。
+let nodeCounts: Record<string, number> = { articles: allPosts.length };
+if (bookmarkCount !== null) nodeCounts.bookmarks = bookmarkCount;
+try {
+  if (supabase) {
+    const { count: pc } = await supabase.from("projects").select("id", { count: "exact", head: true });
+    if (typeof pc === "number") nodeCounts.projects = pc;
+    const { count: rc } = await supabase.from("recommended_links").select("id", { count: "exact", head: true });
+    if (typeof rc === "number") nodeCounts.resources = rc;
+  }
+} catch { /* 数量缺失时节点不显示计数，不伪造 */ }
+const planetNodes = buildPlanetNodes(modules, nodeCounts);
 const lastUpdate = allPosts[0]?.data.pubDate;
 const base = import.meta.env.BASE_URL;
 ---
@@ -62,6 +76,7 @@ const base = import.meta.env.BASE_URL;
     <div class="orbit-ring" style="width:520px;height:520px;left:50%;top:50%;transform:translate(-50%,-50%) rotate(18deg)"></div>
     <div class="orbit-ring purple" style="width:680px;height:680px;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-12deg)"></div>
     <SpaceCore client:idle />
+    <PlanetNodes client:load nodes={planetNodes} base={base} />
     <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
   </section>
 
