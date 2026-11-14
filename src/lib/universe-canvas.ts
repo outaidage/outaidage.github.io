@@ -9,7 +9,8 @@
 // - Faint connection lines only between nearby particles.
 // - rAF pauses when the canvas leaves the viewport (IntersectionObserver),
 //   when the tab is hidden (visibilitychange), and when motion is reduced
-//   (prefers-reduced-motion or documentElement.dataset.motion === "reduced").
+//   (documentElement.dataset.motion === "reduced"; no stored preference
+//   means motion is on).
 // - devicePixelRatio capped at 1.5.
 
 export interface UniverseOptions {
@@ -33,9 +34,9 @@ interface Particle {
 const BRAND = "#61edff";
 
 function motionReduced(): boolean {
-  if (document.documentElement.dataset.motion === "reduced") return true;
-  if (document.documentElement.dataset.motion === "full") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // No stored preference means motion is ON (same rule as MainLayout):
+  // only an explicit stored "reduced" stops the canvas.
+  return document.documentElement.dataset.motion === "reduced";
 }
 
 export function initUniverse(canvas: HTMLCanvasElement, opts: UniverseOptions = {}): () => void {
