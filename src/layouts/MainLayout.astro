@@ -112,6 +112,19 @@ const jsonLd = {
           btn.textContent = reduced ? "动效：关" : "动效：开";
           btn.setAttribute("aria-pressed", reduced ? "true" : "false");
         }
+        function syncMotionFromStorage() {
+          // Re-read the stored preference. View-transition back/forward
+          // restores a cached page snapshot whose dataset.motion may be
+          // stale (the head script that reads localStorage only runs on a
+          // full load), so re-apply it here on every navigation.
+          try {
+            var saved = localStorage.getItem("outai-motion");
+            if (saved === "reduced" || saved === "full") {
+              root.dataset.motion = saved;
+            }
+          } catch (err) {}
+          syncMotionLabel();
+        }
         document.addEventListener("click", function (e) {
           var t = e.target;
           if (!t || !t.closest) return;
@@ -133,7 +146,10 @@ const jsonLd = {
         });
         document.addEventListener("astro:page-load", function () {
           setOpen(false);
-          syncMotionLabel();
+          syncMotionFromStorage();
+        });
+        window.addEventListener("pageshow", function () {
+          syncMotionFromStorage();
         });
         syncMotionLabel();
       })();
