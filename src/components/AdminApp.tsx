@@ -619,6 +619,8 @@ export default function AdminApp() {
     await logAudit(isEdit ? "article_update" : "article_create","article",slug,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     // 3.0 P0：保存成功后存一条版本快照（失败不影响文章保存本身）。
     await saveArticleVersion(slug, article.title.trim(), content);
+    // 新建文章保存后切到编辑模式，版本历史立即出现，不必再点一次 编辑。
+    if (!isEdit) setEditingSlug(slug);
     loadArticles();
   }
   // 3.0 P0：把本次保存的完整 Markdown 存为一条版本快照。
