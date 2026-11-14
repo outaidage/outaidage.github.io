@@ -95,6 +95,7 @@ export default function AdminApp() {
   const [editingCatId,setEditingCatId] = useState<string|null>(null);
   const [editingCatName,setEditingCatName] = useState("");
   const fileRef = useRef<HTMLInputElement|null>(null);
+  const coverFileRef = useRef<HTMLInputElement|null>(null);
 
   const say = (kind:"ok"|"err", text:string) => { setMsgKind(kind); setMessage(text); };
 
@@ -454,6 +455,20 @@ export default function AdminApp() {
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
+  async function uploadCoverImage(file: File){
+    if(!supabase) return;
+    if(!file.type.startsWith("image/")) { say("err","请选择图片文件。"); return; }
+    if(file.size > 5*1024*1024) { say("err","图片不能超过 5 MB。"); return; }
+    const ext = (file.name.split(".").pop()||"").toLowerCase();
+    const safeExt = ["jpg","jpeg","png","gif","webp","avif"].includes(ext) ? ext : "png";
+    const path = `covers/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${safeExt}`;
+    say("ok","正在上传封面图…");
+    const {error} = await supabase.storage.from("article-images").upload(path, file, {contentType: file.type, upsert:false});
+    if (error) { say("err",`封面图上传失败：${error.message}`); return; }
+    const {data} = supabase.storage.from("article-images").getPublicUrl(path);
+    setArticle(f=>({...f, cover: data.publicUrl}));
+    say("ok","封面图已上传。");
+  }
   if(!session)return <div className="card" style={{maxWidth:440}}>
     <div className="eyebrow">ADMIN AUTHENTICATION</div><h3>管理员登录</h3>
     <form onSubmit={login} style={{display:"grid",gap:12}}>
@@ -566,7 +581,15 @@ export default function AdminApp() {
           <input className={inputClass} placeholder="标签，逗号分隔" value={article.tags} onChange={e=>setArticle({...article,tags:e.target.value})}/>
           <input className={inputClass} type="date" value={article.pubDate} onChange={e=>setArticle({...article,pubDate:e.target.value})} title="发布日期"/>
         </div>
-        <input className={inputClass} type="url" placeholder="封面图片 URL（可选）" value={article.cover} onChange={e=>setArticle({...article,cover:e.target.value})}/>
+        <div>
+          <input className={inputClass} type="url" placeholder="封面图片 URL（可选）" value={article.cover} onChange={e=>setArticle({...article,cover:e.target.value})}/>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8,flexWrap:"wrap"}}>
+            <input type="file" accept="image/*" ref={coverFileRef} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) uploadCoverImage(f); e.target.value="";}}/>
+            <button type="button" className="button secondary" onClick={()=>coverFileRef.current?.click()} disabled={saving}>上传封面图（最大 5 MB）</button>
+            {article.cover && <button type="button" className="button ghost" onClick={()=>setArticle({...article,cover:""})}>清除封面</button>}
+          </div>
+          {article.cover && <img src={article.cover} alt="封面预览" style={{maxWidth:"100%",maxHeight:220,marginTop:8,borderRadius:8,border:"1px solid #1e293b"}}/>}
+        </div>
         <input className={inputClass} placeholder="SEO 标题（可选，默认用文章标题）" value={article.seoTitle} onChange={e=>setArticle({...article,seoTitle:e.target.value})}/>
         <input className={inputClass} placeholder="SEO 描述（可选，默认用文章简介）" value={article.seoDescription} onChange={e=>setArticle({...article,seoDescription:e.target.value})}/>
         <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
