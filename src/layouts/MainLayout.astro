@@ -8,6 +8,9 @@ import CommandTerminal from "@/components/CommandTerminal";
 import VideoSceneManager from "@/components/background/VideoSceneManager";
 import VideoControls from "@/components/background/VideoControls";
 import { SITE } from "@/lib/site";
+import { getNavModules } from "@/lib/home-modules";
+// 导航由首页模块驱动（show_in_nav=true 的已发布模块）；失败时回退到 SITE.nav。
+const navItems = (await getNavModules()).map((m) => ({ label: m.name, href: m.path }));
 const { title = SITE.title, description = SITE.description, type = "website", image, noindex = false } = Astro.props as {
   title?: string; description?: string; type?: "website" | "article"; image?: string; noindex?: boolean;
 };
@@ -63,22 +66,22 @@ const jsonLd = {
           <OutaiLogo size={32} withWordmark />
         </a>
         <nav class="desktop-nav" aria-label="主导航">
-          {SITE.nav.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
+          {navItems.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
         </nav>
         <div class="top-actions">
           <span class="hud-label dim" aria-hidden="true">SYSTEM ONLINE</span>
           <button class="terminal-btn" id="terminal-btn" type="button" aria-label="打开终端">⌘ TERMINAL</button>
           <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
-          <a class="admin-link" href={`${import.meta.env.BASE_URL}admin/`}>管理后台 <span>↗</span></a>
+          <a class="admin-link" id="admin-link" href={`${import.meta.env.BASE_URL}admin/`} hidden>管理后台 <span>↗</span></a>
           <button class="menu-button" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="打开菜单">
             <span></span><span></span><span></span>
           </button>
         </div>
       </header>
       <nav class="mobile-nav" id="mobile-nav" aria-label="移动导航" hidden>
-        {SITE.nav.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
+        {navItems.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
         <a href={`${import.meta.env.BASE_URL}search/`}>搜索 ⌕</a>
-        <a href={`${import.meta.env.BASE_URL}admin/`}>管理后台 ↗</a>
+        <a id="admin-link-mobile" href={`${import.meta.env.BASE_URL}admin/`} hidden>管理后台 ↗</a>
       </nav>
       <main data-pagefind-ignore={noindex || undefined}><slot /></main>
       <footer class="footer">
@@ -160,10 +163,34 @@ const jsonLd = {
         document.addEventListener("astro:page-load", function () {
           setOpen(false);
           syncMotionFromStorage();
+          syncAdminLinks();
         });
         window.addEventListener("pageshow", function () {
           syncMotionFromStorage();
+          syncAdminLinks();
         });
+        // 仅登录的管理员可见"管理后台"入口：检查 Supabase 会话。
+        // 未登录时链接保持 hidden；登录后显示。后台页面本身仍要求登录。
+        function syncAdminLinks() {
+          try {
+            var show = false;
+            for (var i = 0; i < localStorage.length; i++) {
+              var k = localStorage.key(i);
+              if (k && k.indexOf("sb-") === 0 && k.indexOf("-auth-token") > 0) {
+                var raw = localStorage.getItem(k);
+                if (raw) {
+                  var sess = JSON.parse(raw);
+                  if (sess && sess.access_token) { show = true; break; }
+                }
+              }
+            }
+            var d = document.getElementById("admin-link");
+            if (d) d.hidden = !show;
+            var m = document.getElementById("admin-link-mobile");
+            if (m) m.hidden = !show;
+          } catch (err) {}
+        }
+        syncAdminLinks();
         syncMotionLabel();
       })();
     </script>

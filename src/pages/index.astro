@@ -5,26 +5,42 @@ import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
 import Terminal from "@/components/Terminal";
 import SpaceCore from "@/components/SpaceCore";
+import HomeModules from "@/components/HomeModules";
 import { supabase } from "@/lib/supabase";
+import { getHomeModules } from "@/lib/home-modules";
+
+// 最新文章（真实数据；isVisiblePost 排除草稿与未来日期的文章）。
 const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
 const allPosts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
-const categories = [
-  {name:"AI & Tools",desc:"AI 模型、产品与效率工具"},
-  {name:"Development",desc:"开发、开源项目与技术文档"},
-  {name:"Networking",desc:"网络、代理与基础设施"},
-  {name:"Design",desc:"设计、界面与视觉资源"},
-  {name:"Productivity",desc:"效率方法、工具与工作流"},
-  {name:"Resources",desc:"值得收藏的资料与参考"},
-  {name:"Interesting",desc:"有趣、有用的发现"}
-];
-// Real bookmark count from the public view (public + active only). Never fabricate.
+// 首页模块（Supabase 驱动，失败时回退内置默认模块）。
+const modules = await getHomeModules();
+// 真实书签数（公开 + active）。
 let bookmarkCount: number | null = null;
+let latestBookmarks: { id: string; title: string; url: string; category: string }[] = [];
 try {
   if (supabase) {
     const { count, error } = await supabase.from("public_bookmarks").select("id", { count: "exact", head: true });
     if (!error && typeof count === "number") bookmarkCount = count;
+    const { data } = await supabase.from("public_bookmarks").select("id,title,url,category").order("created_at", { ascending: false }).limit(3);
+    if (data) latestBookmarks = data as typeof latestBookmarks;
   }
 } catch { bookmarkCount = null; }
+// 最近更新的项目（真实数据）。
+let recentProjects: { id: string; name: string; description: string; status: string }[] = [];
+try {
+  if (supabase) {
+    const { data } = await supabase.from("projects").select("id,name,description,status").order("sort_order", { ascending: true }).limit(3);
+    if (data) recentProjects = data as typeof recentProjects;
+  }
+} catch { recentProjects = []; }
+// 网站更新动态（真实数据）。
+let changelog: { id: string; version: string; title: string; published_at: string }[] = [];
+try {
+  if (supabase) {
+    const { data } = await supabase.from("changelog_entries").select("id,version,title,published_at").order("published_at", { ascending: false }).limit(3);
+    if (data) changelog = data as typeof changelog;
+  }
+} catch { changelog = []; }
 const lastUpdate = allPosts[0]?.data.pubDate;
 const base = import.meta.env.BASE_URL;
 ---
@@ -57,14 +73,8 @@ const base = import.meta.env.BASE_URL;
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>NAVIGATION / 空间导航</h2></div>
-    <div class="space-nav">
-      <a class="space-node glass-panel" href={`${base}blog/`}><span class="node-glyph">✦</span><span class="node-label">文章</span><span class="node-sub">Knowledge Galaxy</span></a>
-      <a class="space-node glass-panel purple" href={`${base}collection/`}><span class="node-glyph">◈</span><span class="node-label">书签</span><span class="node-sub">Resource Star Map</span></a>
-      <a class="space-node glass-panel green" href={`${base}projects/`}><span class="node-glyph">⬡</span><span class="node-label">项目</span><span class="node-sub">Build Log</span></a>
-      <a class="space-node glass-panel" href={`${base}about/`}><span class="node-glyph">◎</span><span class="node-label">关于</span><span class="node-sub">Identity</span></a>
-      <a class="space-node glass-panel purple" href={`${base}guestbook/`}><span class="node-glyph">✉</span><span class="node-label">留言板</span><span class="node-sub">Guestbook</span></a>
-    </div>
+    <div class="section-head"><h2>NAVIGATION / 空间导航</h2><span style="font-size:12px;color:#929dab">模块由后台管理，增删改排自动生效</span></div>
+    <HomeModules client:load initial={modules} base={base} />
   </section>
 
   <section class="section">
@@ -72,7 +82,7 @@ const base = import.meta.env.BASE_URL;
     <div class="stats-row">
       <div class="stat-cell glass-panel"><div class="stat-num">{allPosts.length}</div><div class="stat-key">Total Articles</div><div class="stat-sub">已发布文章</div></div>
       <div class="stat-cell glass-panel"><div class="stat-num purple">{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
-      <div class="stat-cell glass-panel"><div class="stat-num green">{categories.length}</div><div class="stat-key">Categories</div><div class="stat-sub">书签分类</div></div>
+      <div class="stat-cell glass-panel"><div class="stat-num green">{modules.length}</div><div class="stat-key">Modules</div><div class="stat-sub">首页模块</div></div>
       <div class="stat-cell glass-panel"><div class="stat-num">{lastUpdate ? lastUpdate.toLocaleDateString("zh-CN") : "—"}</div><div class="stat-key">Last Update</div><div class="stat-sub">最近更新</div></div>
     </div>
   </section>
@@ -88,21 +98,33 @@ const base = import.meta.env.BASE_URL;
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>02 / BOOKMARK COLLECTIONS</h2><a href={`${base}collection/`}>EXPLORE ALL ↗</a></div>
-    <div class="category-grid">
-      {categories.map((c,i)=><a class="category-card" data-tilt href={`${base}collection/`}>
-        <span class="card-kicker">COLLECTION / 0{i+1}</span><strong>{c.name}</strong><p>{c.desc}</p><span class="num">→</span>
+    <div class="section-head"><h2>02 / RECENT PROJECTS</h2><a href={`${base}projects/`}>VIEW ALL ↗</a></div>
+    {recentProjects.length ? <div class="card-grid">
+      {recentProjects.map(p => <a class="card" data-tilt href={`${base}projects/`}>
+        <div class="card-kicker">PROJECT · {p.status === "in_progress" ? "IN PROGRESS" : p.status === "completed" ? "COMPLETED" : "PLANNED"}</div>
+        <h3>{p.name}</h3><p>{p.description}</p>
       </a>)}
-    </div>
+    </div> : <div class="empty-state">还没有项目。<br/>在后台 → 项目管理中添加。</div>}
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>03 / CURRENTLY EXPLORING</h2></div>
-    <div class="card-grid">
-      <div class="card" data-tilt><div class="card-kicker">FOCUS / 01</div><h3>AI &amp; Agents</h3><p>探索 AI 工具、Agent 工作流与自动化。</p></div>
-      <div class="card" data-tilt><div class="card-kicker">FOCUS / 02</div><h3>Open Internet</h3><p>记录网络工具、开源项目和互联网服务。</p></div>
-      <div class="card" data-tilt><div class="card-kicker">FOCUS / 03</div><h3>Building</h3><p>把想法变成可以实际使用的小工具。</p></div>
-    </div>
+    <div class="section-head"><h2>03 / LATEST BOOKMARKS</h2><a href={`${base}collection/`}>EXPLORE ALL ↗</a></div>
+    {latestBookmarks.length ? <div class="card-grid">
+      {latestBookmarks.map(b => <a class="card" data-tilt href={b.url} target="_blank" rel="noopener noreferrer">
+        <div class="card-kicker">{b.category || "书签"}</div>
+        <h3>{b.title}</h3><p style="word-break:break-all">{b.url}</p>
+      </a>)}
+    </div> : <div class="empty-state">还没有公开书签。<br/>在后台 → 书签管理中添加。</div>}
+  </section>
+
+  <section class="section">
+    <div class="section-head"><h2>04 / CHANGELOG</h2><a href={`${base}changelog/`}>VIEW ALL ↗</a></div>
+    {changelog.length ? <div class="card-grid">
+      {changelog.map(c => <a class="card" data-tilt href={`${base}changelog/`}>
+        <div class="card-kicker">{c.version} · {new Date(c.published_at).toLocaleDateString("zh-CN")}</div>
+        <h3>{c.title}</h3>
+      </a>)}
+    </div> : <div class="empty-state">还没有更新记录。<br/>在后台 → 更新日志管理中添加。</div>}
   </section>
   <Subscribe client:load />
 </MainLayout>
