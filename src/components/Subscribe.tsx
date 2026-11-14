@@ -13,7 +13,7 @@ export default function Subscribe(){
   return <section className="card" style={{marginTop:24}}>
     <h3>订阅更新</h3>
     <p style={{color:"#929dab",fontSize:13}}>新文章发布时收到邮件通知。由 Buttondown 发送，可随时退订。</p>
-    {done ? <p style={{color:"#b5f36b",fontSize:13,marginTop:12}}>订阅请求已发送，请去邮箱点击确认链接完成订阅。</p> : <form action="https://buttondown.com/api/emails/embed-subscribe/outaidage" method="post" target="buttondown-subscribe-frame" onSubmit={submit} style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+    {done ? <p style={{color:"#61edff",fontSize:13,marginTop:12}}>订阅请求已发送，请去邮箱点击确认链接完成订阅。</p> : <form action="https://buttondown.com/api/emails/embed-subscribe/outaidage" method="post" target="buttondown-subscribe-frame" onSubmit={submit} style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
       <input className="field" type="email" name="email" placeholder="你的邮箱" value={email} onChange={e=>setEmail(e.target.value)} required style={{flex:"1 1 200px"}}/>
       <button className="button primary" type="submit">订阅</button>
     </form>}
