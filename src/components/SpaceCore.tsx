@@ -3,7 +3,8 @@
 // 程序化螺旋银河系、太阳 + 八大行星 + 卫星子功能、背景星空。
 // 五种观察模式（UNIVERSE / EARTH / GALAXY / NAVIGATION / SOLAR SYSTEM）
 // 共用同一个场景，只改变相机与图层状态，不重建场景。
-// 相机在地球跟踪模式下跟随地球（地球公转时相机同步平移，
+// 相机在地球跟踪模式下跟随地球（地球公转时相机绕太阳同步旋转，
+// 太阳相对相机的位置不变，地球始终以同样的昼夜面朝向相机；
 // 用户的拖拽/缩放偏移保持不变）；聚焦行星时跟随该行星。
 
 import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -26,17 +27,20 @@ const MODE_LABELS: Record<Mode, { label: string; icon: string }> = {
 };
 
 // 地球跟踪模式下的相机偏移（相对地球位置）。
+// NAVIGATION 改为固定姿态：以太阳为中心俯瞰整个太阳系（八大行星全部入框），
+// 地球跟踪视角装不下天王星/海王星（轨道 23/26，距地球最远 30+）。
 const TRACK_OFFSETS: Record<Mode, [number, number, number] | null> = {
   universe: [0, 2.5, 12],
   earth: [0, 0.8, 3.4],
   galaxy: null,
-  navigation: [0, 3, 16],
+  navigation: null,
   solar: null,
 };
 // 固定模式的相机位姿（世界坐标）。
 const FIXED_POSES: Partial<Record<Mode, { pos: [number, number, number]; target: [number, number, number] }>> = {
   galaxy: { pos: [0, 55, 45], target: [5, -1.5, -20] },
-  solar: { pos: [0, 38, 62], target: [0, 0, 0] },
+  navigation: { pos: [0, 60, 35], target: [0, 0, 0] },
+  solar: { pos: [0, 42, 68], target: [0, 0, 0] },
 };
 
 function easeInOutQuad(t: number): number {
@@ -160,7 +164,7 @@ const NEBULAE: { color: string; pos: [number, number, number]; scale: number; op
   { color: "#8b5cf6", pos: [26, 1, -12], scale: 20, opacity: 0.12 },
 ];
 
-function Galaxy({ count, motionPaused }: { count: number; motionPaused: boolean }) {
+function Galaxy({ count, motionPaused, visible }: { count: number; motionPaused: boolean; visible: boolean }) {
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
     const { pos, col, size, phase } = buildGalaxy(count, 1337);
@@ -183,9 +187,10 @@ function Galaxy({ count, motionPaused }: { count: number; motionPaused: boolean 
     if (!motionPaused && spinRef.current) spinRef.current.rotation.y += 0.008 * delta;
   });
   return (
-    <group position={GALAXY_CENTER} rotation={GALAXY_TILT}>
+    <group position={GALAXY_CENTER} rotation={GALAXY_TILT} visible={visible}>
       <group ref={spinRef}>
-        <points geometry={geo} frustumCulled={false}>
+        {/* 银河系与星云不参与点击：否则它们会拦截射向行星的射线 */}
+        <points geometry={geo} frustumCulled={false} raycast={() => null}>
           <shaderMaterial
             ref={matRef}
             vertexShader={galaxyVertex}
@@ -197,7 +202,7 @@ function Galaxy({ count, motionPaused }: { count: number; motionPaused: boolean 
           />
         </points>
         {NEBULAE.map((n, i) => (
-          <sprite key={i} position={n.pos} scale={[n.scale, n.scale, 1]}>
+          <sprite key={i} position={n.pos} scale={[n.scale, n.scale, 1]} raycast={() => null}>
             <spriteMaterial map={nebTex} color={n.color} transparent opacity={n.opacity} blending={THREE.AdditiveBlending} depthWrite={false} />
           </sprite>
         ))}
@@ -232,14 +237,16 @@ function Starfield({ count }: { count: number }) {
     return g;
   }, [count]);
   return (
-    <points geometry={geo}>
+    <points geometry={geo} raycast={() => null}>
       <pointsMaterial size={1.5} sizeAttenuation={false} vertexColors transparent opacity={0.9} />
     </points>
   );
 }
 
 // ---------- 相机 ----------
-// 跟踪模式：相机 + 目标随被跟踪天体同步平移（用户拖拽/缩放的偏移保留）。
+// 跟踪模式：相机绕太阳旋转被跟踪天体的轨道角变化（不是平移），
+// 这样太阳相对相机的位置保持不变，地球始终以同样的昼夜面朝向相机
+// （平移跟随会让地球公转一圈从白昼转到黑夜）。用户的拖拽/缩放偏移保留。
 // 固定模式：相机飞到固定位姿。聚焦行星时跟随该行星。
 function CameraRig({ mode, focus, earthPosRef, planetPositions }: {
   mode: Mode;
@@ -320,11 +327,22 @@ function CameraRig({ mode, focus, earthPosRef, planetPositions }: {
     }
     const tracked = focus ? planetPositions.current.get(focus) : isTrackingMode(mode) ? earthPosRef.current : null;
     if (tracked) {
-      tmp.copy(tracked).sub(prevTracked.current);
-      if (tmp.lengthSq() > 1e-10) {
-        camera.position.add(tmp);
-        (controls.target as THREE.Vector3).add(tmp);
+      // 轨道角变化：被跟踪天体绕太阳转了多少，相机就绕太阳（原点）转多少。
+      // 目标直接取天体当前位置（相机始终看向它）。
+      const r = Math.hypot(tracked.x, tracked.z);
+      const pr = Math.hypot(prevTracked.current.x, prevTracked.current.z);
+      if (r > 0.5 && pr > 0.5) {
+        let dAngle = Math.atan2(tracked.z, tracked.x) - Math.atan2(prevTracked.current.z, prevTracked.current.x);
+        if (dAngle > Math.PI) dAngle -= Math.PI * 2;
+        if (dAngle < -Math.PI) dAngle += Math.PI * 2;
+        if (Math.abs(dAngle) > 1e-9) {
+          const cos = Math.cos(dAngle), sin = Math.sin(dAngle);
+          const px = camera.position.x, pz = camera.position.z;
+          camera.position.x = px * cos - pz * sin;
+          camera.position.z = px * sin + pz * cos;
+        }
       }
+      (controls.target as THREE.Vector3).copy(tracked);
       prevTracked.current.copy(tracked);
     }
     controls.update();
@@ -395,6 +413,10 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
 
   const labelsVisible = mode === "universe" || mode === "navigation" || mode === "solar";
   const orbitsVisible = mode === "universe" || mode === "navigation" || mode === "solar";
+  // 标签按相机距离缩放（宽视角下字太小看不清）：UNIVERSE 10 / NAVIGATION 18 / SOLAR 40。
+  const labelDistanceFactor = mode === "solar" ? 40 : mode === "navigation" ? 18 : 10;
+  // UNIVERSE 总览下标签只显示名称（水星/金星标签在太阳附近重叠）。
+  const compactLabels = mode === "universe";
   const focusedPlanet = focus ? PLANET_MAP[focus] : null;
   const focusedSatellites = focus ? (planetSatellites[focus] ?? []) : [];
 
@@ -411,7 +433,9 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
       <Canvas dpr={[1, 1.5]} camera={{ fov: 45, near: 0.1, far: 600, position: [0, 2.5, 12] }} gl={{ antialias: true, alpha: true }}>
         <ambientLight intensity={0.3} />
         <Suspense fallback={null}>
-          <Galaxy count={low ? 12000 : 30000} motionPaused={motionPaused} />
+          {/* 银河系在 SOLAR SYSTEM 模式下隐藏（会叠在太阳和内行星上面）；
+              只改图层显隐，不重建场景 */}
+          <Galaxy count={low ? 12000 : 30000} motionPaused={motionPaused} visible={mode !== "solar"} />
           <Starfield count={low ? 700 : 1600} />
           <SolarSystem
             planetSatellites={planetSatellites}
@@ -419,6 +443,9 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
             earthSpinOn={earthSpinOn}
             labelsVisible={labelsVisible}
             orbitsVisible={orbitsVisible}
+            labelDistanceFactor={labelDistanceFactor}
+            compactLabels={compactLabels}
+            focusedId={focus}
             low={low}
             earthPosRef={earthPosRef}
             planetPositions={planetPositions}
