@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { getCollection } from "astro:content";
+import { isVisiblePost } from "@/lib/blog";
 
 const SITE_URL = process.env.SITE_URL || "https://outaidage.xyz";
 
@@ -13,7 +14,7 @@ function esc(s: string) {
 }
 
 export const GET: APIRoute = async () => {
-  const posts = (await getCollection("blog", ({ data }) => !data.draft))
+  const posts = (await getCollection("blog", ({ data }) => isVisiblePost(data)))
     .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
     .slice(0, 20);
   const items = posts
