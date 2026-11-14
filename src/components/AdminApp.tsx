@@ -7,7 +7,10 @@ type ArticleFile = {name:string;slug:string;path:string;sha:string;size:number};
 type ArticleForm = {slug:string;title:string;description:string;category:string;tags:string;cover:string;seoTitle:string;seoDescription:string;featured:boolean;draft:boolean;pubDate:string;body:string};
 type TagRow = {id:string;name:string};
 type CategoryRow = {id:string;name:string;slug:string};
-type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
+type RecLink = {id:string;title:string;url:string;description:string|null;category:string|null;sort_order:number};
+type RecLinkForm = {title:string;url:string;description:string;category:string;sort_order:string};
+const emptyRecLinkForm = (): RecLinkForm => ({title:"",url:"",description:"",category:"",sort_order:"0"});
+type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category"|"reclink";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
 const emptyBookmarkForm = (): BookmarkForm => ({url:"",title:"",description:"",note:"",category:"AI & Tools",tags:"",is_public:true,is_favorite:false});
 const normalizeUrl = (u: string) => u.trim().replace(/\/+$/,"");
 const parseTagNames = (s: string) => Array.from(new Set(s.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean)));
@@ -77,7 +80,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles"|"data">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -94,6 +97,9 @@ export default function AdminApp() {
   const [editingTagName,setEditingTagName] = useState("");
   const [editingCatId,setEditingCatId] = useState<string|null>(null);
   const [editingCatName,setEditingCatName] = useState("");
+  const [recLinks,setRecLinks] = useState<RecLink[]>([]);
+  const [recForm,setRecForm] = useState<RecLinkForm>(emptyRecLinkForm());
+  const [editingRecId,setEditingRecId] = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
 
@@ -152,8 +158,56 @@ export default function AdminApp() {
     if(error) { say("err",error.message); return; }
     setCategories((data||[]) as CategoryRow[]);
   }
+  async function loadRecLinks(){
+    if(!supabase) return;
+    const {data,error}=await supabase.from("recommended_links").select("id,title,url,description,category,sort_order").order("sort_order",{ascending:true}).order("created_at",{ascending:false});
+    if(error) { say("err",error.message); return; }
+    setRecLinks((data||[]) as RecLink[]);
+  }
+  async function saveRecLink(e: React.FormEvent){
+    e.preventDefault();
+    if(!supabase) return;
+    const url = normalizeUrl(recForm.url);
+    if(!/^https?:\/\/.+/.test(url)){ say("err","请填写以 http:// 或 https:// 开头的链接。"); return; }
+    if(!recForm.title.trim()){ say("err","请填写标题。"); return; }
+    setSaving(true);
+    const payload = {
+      title: recForm.title.trim(),
+      url,
+      description: recForm.description.trim() || null,
+      category: recForm.category.trim() || null,
+      sort_order: parseInt(recForm.sort_order,10) || 0,
+    };
+    let error = null;
+    if (editingRecId) {
+      ({error} = await supabase.from("recommended_links").update(payload).eq("id",editingRecId));
+    } else {
+      const {error: dupErr} = await supabase.from("recommended_links").select("id").eq("url",url);
+      if (!dupErr) {
+        const {data: dup} = await supabase.from("recommended_links").select("id").eq("url",url);
+        if (dup && dup.length) { say("err","这个链接已经在推荐列表里了。"); setSaving(false); return; }
+      }
+      ({error} = await supabase.from("recommended_links").insert(payload));
+    }
+    setSaving(false);
+    if (error) { say("err",`推荐链接保存失败：${error.message}`); return; }
+    say("ok", editingRecId ? "推荐链接已更新。" : "推荐链接已添加。");
+    setRecForm(emptyRecLinkForm()); setEditingRecId(null); loadRecLinks();
+  }
+  function editRecLink(l: RecLink){
+    setEditingRecId(l.id);
+    setRecForm({title:l.title, url:l.url, description:l.description||"", category:l.category||"", sort_order:String(l.sort_order)});
+  }
+  async function deleteRecLink(id: string){
+    if(!supabase) return;
+    const {error} = await supabase.from("recommended_links").delete().eq("id",id);
+    if (error) { say("err",`删除失败：${error.message}`); return; }
+    say("ok","推荐链接已删除。");
+    loadRecLinks();
+  }
   useEffect(()=>{if(session){loadTags();loadCategories();}},[session]);
   useEffect(()=>{if(session && tab==="data"){loadTags();loadCategories();loadArticles();}},[session,tab]);
+  useEffect(()=>{if(session && tab==="links") loadRecLinks()},[session,tab]);
 
   async function loadArticles(){
     setArticlesLoading(true);
@@ -463,6 +517,7 @@ export default function AdminApp() {
     if (t.kind === "bookmarkBatch" && t.ids?.length) await batchDeleteBookmarks(t.ids);
     if (t.kind === "tag" && t.id) await deleteTag(t.id, t.label);
     if (t.kind === "category" && t.id) await deleteCategory(t.id, t.label);
+    if (t.kind === "reclink" && t.id) await deleteRecLink(t.id);
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
@@ -503,6 +558,7 @@ export default function AdminApp() {
       <div style={{display:"flex",gap:8}}>
         <button className={`button ${tab==="bookmarks"?"primary":"secondary"}`} onClick={()=>setTab("bookmarks")}>书签管理</button>
         <button className={`button ${tab==="articles"?"primary":"secondary"}`} onClick={()=>setTab("articles")}>文章管理</button>
+        <button className={`button ${tab==="links"?"primary":"secondary"}`} onClick={()=>setTab("links")}>推荐链接</button>
         <button className={`button ${tab==="data"?"primary":"secondary"}`} onClick={()=>setTab("data")}>数据管理</button>
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
@@ -611,6 +667,40 @@ export default function AdminApp() {
         <button className="button primary" disabled={saving}>{saving?"提交中…":(editingSlug?"保存修改":"提交到 GitHub 并发布")}</button>
         <p style={{color:"#929dab",fontSize:12}}>保存通过 Supabase Edge Function 调用 GitHub API，服务端会校验 frontmatter，非法内容会被拒绝。</p>
       </form>
+    </div> : tab==="links" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+      <form className="card" onSubmit={saveRecLink} style={{display:"grid",gap:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <h3>{editingRecId ? "编辑推荐链接" : "添加推荐链接"}</h3>
+          {editingRecId&&<button type="button" onClick={()=>{setRecForm(emptyRecLinkForm());setEditingRecId(null);}} style={{background:"none",border:0,color:"#929dab",cursor:"pointer",fontSize:12}}>取消编辑</button>}
+        </div>
+        <input className={inputClass} type="url" required placeholder="https://example.com" value={recForm.url} onChange={e=>setRecForm({...recForm,url:e.target.value})}/>
+        <input className={inputClass} required placeholder="标题" value={recForm.title} onChange={e=>setRecForm({...recForm,title:e.target.value})}/>
+        <input className={inputClass} placeholder="描述（可选）" value={recForm.description} onChange={e=>setRecForm({...recForm,description:e.target.value})}/>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <input className={inputClass} placeholder="分类（可选）" value={recForm.category} onChange={e=>setRecForm({...recForm,category:e.target.value})}/>
+          <input className={inputClass} type="number" placeholder="排序（数字越小越靠前）" value={recForm.sort_order} onChange={e=>setRecForm({...recForm,sort_order:e.target.value})}/>
+        </div>
+        <button className="button primary" disabled={saving}>{saving?"提交中…":(editingRecId?"保存修改":"添加推荐链接")}</button>
+        <p style={{color:"#929dab",fontSize:12}}>保存后会显示在公开的 /links/ 页面上。</p>
+      </form>
+      <div className="card">
+        <h3>推荐链接 ({recLinks.length})</h3>
+        <div style={{display:"grid",gap:12,marginTop:12}}>
+          {recLinks.map(l=><div key={l.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+              <strong style={{fontSize:13}}>{l.title}</strong>
+              <span style={{display:"flex",gap:10}}>
+                <button onClick={()=>editRecLink(l)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
+                <button onClick={()=>setConfirmTarget({kind:"reclink",id:l.id,label:l.title})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
+              </span>
+            </div>
+            <div style={{fontSize:11,color:"#929dab",marginTop:5}}>{l.url}{l.category?` · ${l.category}`:""} · 排序 {l.sort_order}</div>
+            {l.description && <div style={{fontSize:12,color:"#aab3c0",marginTop:4}}>{l.description}</div>}
+          </div>)}
+          {!recLinks.length&&<p style={{color:"#929dab",fontSize:12}}>还没有推荐链接，在左侧添加。</p>}
+        </div>
+        <button className="button secondary" onClick={loadRecLinks} style={{marginTop:12}}>刷新列表</button>
+      </div>
     </div> : <div style={{display:"grid",gap:16}}>
       <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))"}}>
         {[
@@ -705,7 +795,7 @@ export default function AdminApp() {
     {confirmTarget&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setConfirmTarget(null)}>
       <div className="card" style={{maxWidth:420,width:"90%"}} onClick={e=>e.stopPropagation()}>
         <h3>确定删除？</h3>
-        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="tag"?"标签":confirmTarget.kind==="category"?"分类":"书签"}「{confirmTarget.label}」{confirmTarget.kind==="category"?"，相关书签将设为未分类":""}{confirmTarget.kind==="tag"?"，该标签将从所有书签上移除":""}，此操作不可撤销。</p>
+        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="tag"?"标签":confirmTarget.kind==="category"?"分类":confirmTarget.kind==="reclink"?"推荐链接":"书签"}「{confirmTarget.label}」{confirmTarget.kind==="category"?"，相关书签将设为未分类":""}{confirmTarget.kind==="tag"?"，该标签将从所有书签上移除":""}，此操作不可撤销。</p>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
           <button className="button secondary" onClick={()=>setConfirmTarget(null)}>取消</button>
           <button className="button primary" style={{background:"#f28b82",borderColor:"#f28b82",color:"#1a1d21"}} onClick={runConfirmedDelete}>确定删除</button>
