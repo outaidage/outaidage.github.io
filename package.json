@@ -26,9 +26,12 @@
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.17",
     "three": "^0.187.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "marked": "^18.2.0",
+    "dompurify": "^3.4.17"
   },
   "devDependencies": {
-    "pagefind": "^1.6.0"
+    "pagefind": "^1.6.0",
+    "@types/dompurify": "^3.0.5"
   }
 }
