@@ -136,7 +136,10 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused
 }
 
 // ---------- 地球（最高精度模型；从 SpaceCore 迁移至此，成为太阳系的一员） ----------
-const EARTH_DAY = "textures/earth/earth_atmos_2048.jpg";
+// 白天纹理：earth_atmos_2048.jpg 的海洋实测只有 RGB(24,35,60)（近乎黑色），
+// 即使提亮光照也发黑。这里用提亮版（gamma 0.55 + 饱和度 1.25，海洋约
+// RGB(67,85,122)），与原图同 UV，可与 normal/specular/clouds/lights 对齐。
+const EARTH_DAY = "textures/earth/earth_day_bright_2048.jpg";
 const EARTH_NORMAL = "textures/earth/earth_normal_2048.jpg";
 const EARTH_SPEC = "textures/earth/earth_specular_2048.jpg";
 const EARTH_CLOUDS = "textures/earth/earth_clouds_1024.png";
