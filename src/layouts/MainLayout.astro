@@ -82,48 +82,78 @@ const jsonLd = {
       </footer>
     </div>
     <script is:inline>
+      // Menu + motion toggle, via event delegation so the handlers survive
+      // Astro view-transition navigation (the footer/header DOM is replaced
+      // on each client-side navigation, but this document-level listener
+      // persists). The toggle label is re-synced on every astro:page-load.
       (function () {
-        var btn = document.querySelector(".menu-button");
-        var nav = document.getElementById("mobile-nav");
-        if (!btn || !nav) return;
+        var root = document.documentElement;
+        function menuBtn() { return document.querySelector(".menu-button"); }
+        function mobileNav() { return document.getElementById("mobile-nav"); }
+        function motionBtn() { return document.getElementById("motion-toggle"); }
         function setOpen(open) {
+          var btn = menuBtn();
+          var nav = mobileNav();
+          if (!btn || !nav) return;
           btn.setAttribute("aria-expanded", open ? "true" : "false");
           btn.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
           btn.classList.toggle("open", open);
           nav.hidden = !open;
         }
-        btn.addEventListener("click", function () {
-          setOpen(nav.hidden);
-        });
-        nav.addEventListener("click", function (e) {
-          if (e.target && e.target.tagName === "A") setOpen(false);
-        });
-        document.addEventListener("keydown", function (e) {
-          if (e.key === "Escape") setOpen(false);
-        });
-      })();
-      (function () {
-        var btn = document.getElementById("motion-toggle");
-        var root = document.documentElement;
-        if (!btn) return;
         function isReduced() {
           if (root.dataset.motion === "reduced") return true;
           if (root.dataset.motion === "full") return false;
           return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         }
-        function label() {
+        function syncMotionLabel() {
+          var btn = motionBtn();
+          if (!btn) return;
           var reduced = isReduced();
           btn.textContent = reduced ? "动效：关" : "动效：开";
           btn.setAttribute("aria-pressed", reduced ? "true" : "false");
         }
-        btn.addEventListener("click", function () {
-          var next = isReduced() ? "full" : "reduced";
-          root.dataset.motion = next;
-          try { localStorage.setItem("outai-motion", next); } catch (e) {}
-          label();
+        document.addEventListener("click", function (e) {
+          var t = e.target;
+          if (!t || !t.closest) return;
+          if (t.closest(".menu-button")) {
+            var nav = mobileNav();
+            setOpen(nav ? nav.hidden : false);
+            return;
+          }
+          if (t.closest("#mobile-nav a")) { setOpen(false); return; }
+          if (t.closest("#motion-toggle")) {
+            var next = isReduced() ? "full" : "reduced";
+            root.dataset.motion = next;
+            try { localStorage.setItem("outai-motion", next); } catch (err) {}
+            syncMotionLabel();
+          }
         });
-        label();
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") setOpen(false);
+        });
+        document.addEventListener("astro:page-load", function () {
+          setOpen(false);
+          syncMotionLabel();
+        });
+        syncMotionLabel();
       })();
+    </script>
+    <script>
+      // Digital universe background. Bundled by Astro (module script in the
+      // layout, so it is reliably included). Re-initialises on every
+      // astro:page-load because view-transition navigation replaces the
+      // canvas element; the previous instance is cleaned up first.
+      import { initUniverse } from "@/lib/universe-canvas";
+      let cleanup = null;
+      function startUniverse() {
+        if (cleanup) { cleanup(); cleanup = null; }
+        const canvas = document.getElementById("universe-canvas");
+        if (canvas instanceof HTMLCanvasElement) {
+          cleanup = initUniverse(canvas);
+        }
+      }
+      document.addEventListener("astro:page-load", startUniverse);
+      startUniverse();
     </script>
   </body>
 </html>
