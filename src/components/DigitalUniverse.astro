@@ -1,14 +1,15 @@
 ---
 // DigitalUniverse.astro — OUTAI digital universe background.
-// Fixed behind all content (z-index -1, pointer-events none), never covers text
-// or navigation. Layers, back to front:
+// Fixed behind all content (z-index 0; .site-shell sits above at z-index 1),
+// pointer-events none, never covers text or navigation. Layers, back to front:
 //   1. radial glow (CSS, brand green, very low opacity)
-//   2. perspective grid (CSS linear-gradient, slow drift)
+//   2. flat grid (CSS linear-gradient, slow drift, subtle)
 //   3. particle canvas (src/lib/universe-canvas.ts, vanilla 2D canvas)
+// The canvas is initialised from MainLayout (module script, astro:page-load),
+// because a <script> in this component is not reliably bundled by Astro.
 // The canvas only starts when motion is allowed (prefers-reduced-motion and
 // the footer motion toggle both gate it); the grid + glow are static when
 // motion is off.
-import { initUniverse } from "../lib/universe-canvas";
 ---
 
 <div class="universe" aria-hidden="true">
@@ -17,19 +18,11 @@ import { initUniverse } from "../lib/universe-canvas";
   <canvas id="universe-canvas"></canvas>
 </div>
 
-<script>
-  import { initUniverse } from "../lib/universe-canvas";
-  const canvas = document.getElementById("universe-canvas");
-  if (canvas instanceof HTMLCanvasElement) {
-    initUniverse(canvas);
-  }
-</script>
-
 <style>
   .universe {
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
     overflow: hidden;
   }
@@ -42,15 +35,13 @@ import { initUniverse } from "../lib/universe-canvas";
   }
   .universe-grid {
     position: absolute;
-    inset: -40px 0 0 0;
+    inset: 0;
     background-image:
-      linear-gradient(rgba(181, 243, 107, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(181, 243, 107, 0.055) 1px, transparent 1px);
+      linear-gradient(rgba(181, 243, 107, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(181, 243, 107, 0.06) 1px, transparent 1px);
     background-size: 56px 56px;
-    transform: perspective(600px) rotateX(42deg) scale(1.6);
-    transform-origin: center top;
-    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
-    -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent 78%);
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, rgba(0, 0, 0, 0.9), transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, rgba(0, 0, 0, 0.9), transparent 100%);
     animation: universe-grid-drift 24s linear infinite;
   }
   @keyframes universe-grid-drift {

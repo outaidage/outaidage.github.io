@@ -9,7 +9,7 @@ html{scroll-behavior:smooth}
 body{margin:0;min-width:320px;background:#090b0f;color:#eef1f5}
 a{color:inherit;text-decoration:none}
 button,input,textarea,select{font:inherit}
-.site-shell{width:min(1120px,calc(100% - 48px));margin:0 auto}
+.site-shell{width:min(1120px,calc(100% - 48px));margin:0 auto;position:relative;z-index:1}
 .topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #202630}
 .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.12em;font-size:15px}
 .brand-dot{color:#b5f36b}
@@ -35,15 +35,16 @@ button,input,textarea,select{font:inherit}
 .section-head h2{font:12px 'DM Mono',monospace;letter-spacing:.13em;color:#dbe1e8}
 .section-head a{font:10px 'DM Mono',monospace;color:#b5f36b}
 .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.card{background:linear-gradient(145deg,#141a22,#10141b);border:1px solid #252d38;border-radius:11px;padding:20px;transition:transform .2s,border-color .2s}
+.card{background:linear-gradient(145deg,#141a22,#10141b);border:1px solid #252d38;border-radius:11px;padding:20px;transition:transform .2s,border-color .2s;min-width:0}
 .card:hover{transform:translateY(-3px);border-color:#657d4b}
 .card-kicker{font:10px 'DM Mono',monospace;color:#9aa5b3;letter-spacing:.1em}
-.card h3{font-size:16px;line-height:1.5;margin:13px 0 8px}
+.card h3{font-size:16px;line-height:1.5;margin:13px 0 8px;overflow-wrap:break-word;word-break:break-word}
 .card p{color:#929dab;font-size:12px;line-height:1.8;margin:0}
 .category-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.category-card{border:1px solid #252d38;background:#11161e;border-radius:10px;padding:19px}
+.category-card{border:1px solid #252d38;background:#11161e;border-radius:10px;padding:19px;min-width:0}
+.category-card .card-kicker{display:block;margin-bottom:8px}
+.category-card strong{display:block;font-size:13px;overflow-wrap:break-word;word-break:break-word}
 .category-card .num{display:block;color:#b5f36b;font:24px 'DM Mono',monospace;margin-top:18px}
-.category-card strong{font-size:13px}
 .page-head{padding:70px 0 34px}
 .page-head h1{font-size:clamp(36px,5vw,54px);letter-spacing:-.05em;margin:14px 0}
 .page-head p{color:#9ba4b1;line-height:1.8;max-width:650px}
