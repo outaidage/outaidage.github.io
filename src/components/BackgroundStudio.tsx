@@ -2,10 +2,12 @@
 // 分区：资源库 / URL 导入 / GitHub 同步 / 轮换设置 / 统计。
 // 资源库：网格/列表切换、搜索/分类筛选/排序/分页、详情预览、立即应用为首页背景、
 // 启用/禁用/删除、批量操作。
-// R2 上传在 R2 未配置时明确显示配置缺失（不在此组件里伪造上传）。
+// R2 上传走 r2-upload-sign Edge Function（服务端签发预签名 URL，文件直传 R2）；
+// R2 未配置时函数返回明确错误，上传区如实显示，不伪造上传成功。
 // 外部 URL 导入与 GitHub 同步走 Supabase Edge Function（服务端校验 + SSRF 防护）。
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import R2Upload from "./R2Upload";
 
 export type BackgroundAsset = {
   id: string;
@@ -426,7 +428,7 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
           ) : null}
           {loading ? <p style={{ fontSize: 12, color: "#929dab" }}>正在加载资源…</p> : null}
           {!loading && filtered.length === 0 ? (
-            <div className="card"><p style={{ margin: 0 }}>还没有背景资源。通过「外部 URL 导入」添加，或等 GitHub 同步接入后自动导入。R2 上传需先配置 R2（见上传区提示）。</p></div>
+            <div className="card"><p style={{ margin: 0 }}>还没有背景资源。通过「外部 URL 导入」添加、GitHub 同步自动导入，或在「通过 URL 添加背景」下方的 R2 上传区上传文件。</p></div>
           ) : null}
           <div style={view === "grid" ? { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 } : { display: "grid", gap: 8 }}>
             {pageItems.map((a) => (
@@ -496,13 +498,7 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
               <div><button type="button" className="button primary" onClick={saveUrlAsset}>保存到资源库</button></div>
             </>
           ) : null}
-          <div style={{ borderTop: "1px solid #29313c", paddingTop: 12 }}>
-            <h4 style={{ margin: "0 0 8px" }}>R2 上传（未配置）</h4>
-            <p style={{ margin: 0, fontSize: 12, color: "#f2c94c", lineHeight: 1.7 }}>
-              Cloudflare R2 尚未配置，无法上传文件。需要：R2 bucket、Account ID、Access Key ID、Secret Access Key、公共访问域名（media.outaidage.xyz 或 *.r2.dev）。
-              配置完成后，上传区将支持拖放、批量上传、真实进度、预览、重复检测与大视频分片上传。请勿在此填写任何密钥——密钥只通过 Secure Vault 提供给服务端。
-            </p>
-          </div>
+          <R2Upload say={say} onUploaded={() => { loadAssets(); loadStats(); }} />
         </div>
       ) : null}
 
