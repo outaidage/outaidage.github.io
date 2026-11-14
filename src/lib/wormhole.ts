@@ -37,7 +37,7 @@ export function initWormhole(): () => void {
     overlay.style.cssText = [
       "position:fixed", "inset:0", "z-index:300", "pointer-events:none",
       "opacity:0",
-      "background:radial-gradient(circle at var(--wx,50%) var(--wy,50%), rgba(97,237,255,0.28) 0%, rgba(166,138,255,0.16) 22%, rgba(3,4,11,0.92) 68%, rgba(3,4,11,0.98) 100%)",
+      "background:radial-gradient(circle at var(--wx,50%) var(--wy,50%), rgba(97,237,255,0.55) 0%, rgba(166,138,255,0.32) 18%, rgba(3,4,11,0.88) 55%, rgba(3,4,11,0.97) 100%)",
     ].join(";");
     document.body.appendChild(overlay);
   }
@@ -66,8 +66,8 @@ export function initWormhole(): () => void {
       { opacity: 0, scale: 1 },
       {
         opacity: 1,
-        scale: 1.06,
-        duration: 0.26,
+        scale: 1.12,
+        duration: 0.34,
         ease: "power2.in",
         onComplete: () => {
           // Navigate via Astro's client router when available; fall back to
