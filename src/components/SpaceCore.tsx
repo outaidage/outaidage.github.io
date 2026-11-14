@@ -172,11 +172,22 @@ export default function SpaceCore() {
   const [frameloop, setFrameloop] = useState<"always" | "never">("always");
 
   useEffect(() => {
+    // Respect the site's own motion toggle first (same rule as MainLayout's
+    // isReduced): an explicit "full" overrides the OS reduced-motion
+    // preference; an explicit "reduced" forces it off; otherwise fall back
+    // to the OS preference.
+    const stored = document.documentElement.dataset.motion;
     const reducedMotion =
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      document.documentElement.dataset.motion === "reduced";
+      stored === "reduced" ||
+      (stored !== "full" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     const isMobile = window.innerWidth < 760;
-    setEnabled(!reducedMotion && !isMobile);
+    const ok = !reducedMotion && !isMobile;
+    setEnabled(ok);
+    // Show the lightweight-mode note only when the core is actually off.
+    if (!ok) {
+      document.getElementById("core-fallback")?.removeAttribute("hidden");
+    }
   }, []);
 
   // Pause all rendering while the tab is in the background.

@@ -289,6 +289,8 @@ html[data-motion="reduced"] .button:active { transform: none; }
   font: 11px 'DM Mono', monospace;
   letter-spacing: .16em;
 }
+/* The [hidden] attribute must win over the flex display above. */
+.core-stage .core-fallback[hidden] { display: none; }
 
 /* ---- Orbital rings (CSS decoration behind the hero) ---- */
 .orbit-ring {
