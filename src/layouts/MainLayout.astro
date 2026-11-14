@@ -193,5 +193,18 @@ const jsonLd = {
       document.addEventListener("astro:page-load", startTilt);
       startTilt();
     </script>
+    <script>
+      // Wormhole page transition (DIGITAL UNIVERSE 2.0). GSAP energy burst
+      // on internal nav clicks, then Astro client-side navigation. Never
+      // blocks routing: reduced motion or a GSAP failure navigates at once.
+      import { initWormhole } from "@/lib/wormhole";
+      let wormholeCleanup: (() => void) | null = null;
+      function startWormhole() {
+        if (wormholeCleanup) { wormholeCleanup(); wormholeCleanup = null; }
+        wormholeCleanup = initWormhole();
+      }
+      document.addEventListener("astro:page-load", startWormhole);
+      startWormhole();
+    </script>
   </body>
 </html>
