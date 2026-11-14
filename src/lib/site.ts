@@ -10,6 +10,7 @@ export const SITE = {
     { label: "项目", href: "/projects/" },
     { label: "关于", href: "/about/" },
     { label: "Now", href: "/now/" },
+    { label: "留言板", href: "/guestbook/" },
     { label: "联系", href: "/contact/" }
   ]
 };
