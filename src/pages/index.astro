@@ -1,12 +1,13 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection } from "astro:content";
+import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
 import Terminal from "@/components/Terminal";
 import SpaceCore from "@/components/SpaceCore";
 import { supabase } from "@/lib/supabase";
-const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
-const allPosts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
+const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
+const allPosts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
 const categories = [
   {name:"AI & Tools",desc:"AI 模型、产品与效率工具"},
   {name:"Development",desc:"开发、开源项目与技术文档"},

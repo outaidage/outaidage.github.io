@@ -1,8 +1,9 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection } from "astro:content";
+import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
-const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b)=>b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
+const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b)=>b.data.pubDate.valueOf()-a.data.pubDate.valueOf());
 const categories = ["全部", ...Array.from(new Set(posts.map(p=>p.data.category).filter(Boolean)))];
 function readingMinutes(body: string) {
   const chars = body.replace(/\s/g, "").length;
