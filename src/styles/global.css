@@ -292,6 +292,39 @@ html[data-motion="reduced"] .button:active { transform: none; }
 /* The [hidden] attribute must win over the flex display above. */
 .core-stage .core-fallback[hidden] { display: none; }
 
+/* ---- Galaxy Explorer 模式面板（SpaceCore 右下角） ---- */
+.galaxy-panel {
+  position: absolute; right: 12px; bottom: 12px; z-index: 5;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  padding: 8px 10px;
+  background: rgba(3, 4, 11, .72);
+  border: 1px solid rgba(97, 237, 255, .22);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.galaxy-panel-status { font: 9px 'DM Mono', monospace; letter-spacing: .18em; color: var(--text-faint); }
+.galaxy-panel-status .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--energy-green); margin-right: 5px; }
+.galaxy-panel-modes { display: flex; gap: 6px; }
+.galaxy-panel-modes button {
+  background: none; border: 1px solid #232c4a; border-radius: 8px;
+  color: var(--text-dim); font: 10px 'DM Mono', monospace; letter-spacing: .08em;
+  padding: 6px 9px; cursor: pointer; white-space: nowrap;
+  transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+.galaxy-panel-modes button:hover { border-color: rgba(97, 237, 255, .5); color: var(--text); }
+.galaxy-panel-modes button.active {
+  border-color: rgba(97, 237, 255, .65); color: var(--energy-cyan);
+  background: rgba(97, 237, 255, .10);
+  box-shadow: 0 0 16px rgba(97, 237, 255, .12);
+}
+.galaxy-panel-modes button.reset { padding: 6px 8px; }
+@media (max-width: 760px) {
+  .galaxy-panel { right: 8px; top: 8px; bottom: auto; padding: 6px 8px; }
+  .galaxy-panel-status { display: none; }
+  .galaxy-panel-modes button { font-size: 9px; padding: 5px 7px; }
+}
+
 /* ---- Orbital rings (CSS decoration behind the hero) ---- */
 .orbit-ring {
   position: absolute;
