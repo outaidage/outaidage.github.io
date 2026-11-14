@@ -211,6 +211,29 @@ function Galaxy({ count, motionPaused, visible }: { count: number; motionPaused:
   );
 }
 
+// 深空星云（电影级开场用）：数团巨大、极柔和的星云，分布在太阳系之外
+// 的深空（距原点 60–120 单位）。开场镜头从深空出发时它们构成空间纵深；
+// 正常总览下只是远处淡淡的背景云，不干扰行星与导航。复用银河的星云纹理。
+const DEEP_NEBULAE: { color: string; pos: [number, number, number]; scale: number; opacity: number }[] = [
+  { color: "#61edff", pos: [-70, 25, 60], scale: 90, opacity: 0.13 },
+  { color: "#a68aff", pos: [80, -15, 40], scale: 110, opacity: 0.11 },
+  { color: "#4d7cfe", pos: [10, 45, -70], scale: 100, opacity: 0.12 },
+  { color: "#ffb36b", pos: [-40, -30, -80], scale: 80, opacity: 0.08 },
+  { color: "#7dffce", pos: [60, 30, 90], scale: 70, opacity: 0.07 },
+];
+function DeepNebula() {
+  const nebTex = useMemo(nebulaTexture, []);
+  return (
+    <group>
+      {DEEP_NEBULAE.map((n, i) => (
+        <sprite key={i} position={n.pos} scale={[n.scale, n.scale, 1]} raycast={() => null}>
+          <spriteMaterial map={nebTex} color={n.color} transparent opacity={n.opacity} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </sprite>
+      ))}
+    </group>
+  );
+}
+
 function Starfield({ count }: { count: number }) {
   const geo = useMemo(() => {
     const rand = mulberry32(42);
@@ -243,6 +266,70 @@ function Starfield({ count }: { count: number }) {
   );
 }
 
+// ---------- 电影级开场飞行 ----------
+// 镜头在现有 3D 太阳系场景内连续飞行（不新建场景、不换页）：深空星云 →
+// 掠过木星、土星 → 太阳能量核心 → 无缝进入现有总览。BootIntro（DOM 覆盖层）
+// 与 CameraRig（3D 相机）之间用 window 事件通信（事件名与 BootIntro 内
+// 的字面量一致）；再加 window.__outaiBootFly 标志兜底（两者挂载顺序不确定）。
+// 注意：飞行常量与函数直接写在本文件（不从 @/lib/boot-flight 导入——
+// 该模块在岛屿打包时未被正确内联进 SpaceCore 包，引用会成自由变量）。
+const BOOT_FLY = "outai:boot-fly";
+const BOOT_SKIP = "outai:boot-skip";
+const BOOT_CORE = "outai:boot-core"; // 到达能量核心 → 品牌淡入
+const BOOT_ENTER = "outai:boot-enter"; // 进入主场景 → 品牌淡出 + 舞台收回
+const BOOT_CAMERA_DONE = "outai:boot-camera-done"; // 相机到达总览
+// 深空起点：相机初始位置。Boot 播放时 Canvas 直接用此位置创建相机，
+// 第一帧就是深空，不会先出现总览再跳变。
+const FLIGHT_START: [number, number, number] = [0, 16, 120];
+// 飞越巨行星时的侧向距离（相机与行星中心的距离；木星半径 2.3、土星环外缘 4.4）
+const JUPITER_FLYBY = 6.5;
+const SATURN_FLYBY = 8;
+
+function tangentialOffset(planetPos: THREE.Vector3, dist: number, up: number): THREE.Vector3 {
+  // 从太阳指向行星的径向取切向（绕 Y 轴转 90°），相机从行星侧面掠过，
+  // 而不是迎头撞上；再抬高一点，带出纵深。
+  const radial = new THREE.Vector3(planetPos.x, 0, planetPos.z).normalize();
+  const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
+  return planetPos.clone().add(tangent.multiplyScalar(dist)).add(new THREE.Vector3(0, up, 0));
+}
+
+// 构建飞行航线（Catmull-Rom 样条，连续平滑）。行星位置取飞行开始时的
+// 实时位置（它们公转很慢，7 秒内几乎不动，飞越点准确）；若位置尚未就绪，
+// 用轨道半径处的默认点兜底。
+function buildFlightCurve(
+  planetPositions: Map<string, THREE.Vector3>,
+  earthPos: THREE.Vector3,
+): THREE.CatmullRomCurve3 {
+  const jupiter = planetPositions.get("jupiter");
+  const saturn = planetPositions.get("saturn");
+  const pts: THREE.Vector3[] = [new THREE.Vector3(...FLIGHT_START)];
+  pts.push(jupiter ? tangentialOffset(jupiter, JUPITER_FLYBY, 2.5) : new THREE.Vector3(16, 8, 55));
+  pts.push(saturn ? tangentialOffset(saturn, SATURN_FLYBY, 2) : new THREE.Vector3(24, 4, 28));
+  // 接近能量核心（太阳）
+  pts.push(new THREE.Vector3(9, 3, 16));
+  pts.push(new THREE.Vector3(4, 1.5, 8.5));
+  // 进入总览（地球 + UNIVERSE 模式偏移，与正常总览完全一致）
+  pts.push(earthPos.clone().add(new THREE.Vector3(0, 2.5, 12)));
+  return new THREE.CatmullRomCurve3(pts, false, "centripetal", 0.5);
+}
+
+// 电影级缓动：慢起（深空展开）— 快中段（穿越）— 慢收（抵达核心、进入总览）
+function easeFlight(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// 视线过渡：t 在 0.72→1.0 之间从太阳（能量核心）平滑转到地球（总览目标）
+function lookBlend(t: number): number {
+  const s = (t - 0.72) / 0.28;
+  if (s <= 0) return 0;
+  if (s >= 1) return 1;
+  return s * s * (3 - 2 * s);
+}
+
+// 关键时刻（按缓动后的进度 e 计）
+const CORE_AT = 0.55; // 到达能量核心附近 → 品牌淡入
+const ENTER_AT = 0.85; // 进入主场景 → 品牌淡出 + 舞台收回
+
 // ---------- 相机 ----------
 // 跟踪模式：相机绕太阳旋转被跟踪天体的轨道角变化（不是平移），
 // 这样太阳相对相机的位置保持不变，地球始终以同样的昼夜面朝向相机
@@ -263,6 +350,71 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
   const prevTracked = useRef(new THREE.Vector3());
   const tmp = useMemo(() => new THREE.Vector3(), []);
   const tmp2 = useMemo(() => new THREE.Vector3(), []);
+
+  // ---- 电影级开场飞行 ----
+  // 镜头沿 Catmull-Rom 航线连续飞行：深空 → 掠过木星/土星 → 太阳能量核心
+  // → 无缝进入现有总览。飞行期间接管相机（禁用 OrbitControls），结束时
+  // 交还控制，相机已在总览位置，与正常总览完全一致。
+  const flightRef = useRef<{
+    active: boolean; t: number; dur: number;
+    curve: THREE.CatmullRomCurve3 | null;
+    coreFired: boolean; enterFired: boolean;
+  }>({ active: false, t: 0, dur: 6.5, curve: null, coreFired: false, enterFired: false });
+  const sunPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+  const lookTarget = useMemo(() => new THREE.Vector3(), []);
+  const bootPlay = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return (window as unknown as { __outaiBoot?: { play?: boolean } }).__outaiBoot?.play === true;
+  }, []);
+
+  const startFlight = (dur: number) => {
+    if (flightRef.current.active) return; // 已在飞，忽略重复触发
+    transRef.current.active = false; // 取消普通过渡，飞行接管相机
+    if (controls) controls.enabled = false;
+    flightRef.current = { active: true, t: 0, dur, curve: null, coreFired: false, enterFired: false };
+    // 相机已在深空起点（Canvas 初始位置）；若不是（例如重播时），贴到起点。
+    // 第一帧就是深空，不会先出现总览再跳变。
+    camera.position.set(FLIGHT_START[0], FLIGHT_START[1], FLIGHT_START[2]);
+    if (controls) (controls.target as THREE.Vector3).copy(sunPos);
+  };
+
+  const endFlight = () => {
+    const f = flightRef.current;
+    if (!f.active) return;
+    f.active = false;
+    // 落到总览（UNIVERSE 目标），交还控制。飞行结束时相机已在总览位置，
+    // 这里只是对齐（跳过时则是直接贴到总览）。
+    const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+    computeGoal("universe", null, goal);
+    camera.position.copy(goal.pos);
+    if (controls) (controls.target as THREE.Vector3).copy(goal.tgt);
+    if (controls) controls.enabled = true;
+    const tracked = earthPosRef.current;
+    if (tracked) prevTracked.current.copy(tracked);
+    window.dispatchEvent(new CustomEvent(BOOT_CAMERA_DONE));
+  };
+
+  // 飞行触发：BootIntro 的事件；挂载兜底（BootIntro 先跑了，flag 已置）；
+  // 2.5 秒兜底（事件与 flag 都错过时，首次访问仍要起飞，绝不停在深空）。
+  useEffect(() => {
+    const onFly = () => {
+      const isMobile = window.innerWidth < 760;
+      startFlight(isMobile ? 4.6 : 6.5);
+    };
+    const onSkip = () => { if (flightRef.current.active) endFlight(); };
+    window.addEventListener(BOOT_FLY, onFly);
+    window.addEventListener(BOOT_SKIP, onSkip);
+    if ((window as unknown as { __outaiBootFly?: boolean }).__outaiBootFly) onFly();
+    const failsafe = window.setTimeout(() => {
+      if (bootPlay && !flightRef.current.active) onFly();
+    }, 2500);
+    return () => {
+      window.removeEventListener(BOOT_FLY, onFly);
+      window.removeEventListener(BOOT_SKIP, onSkip);
+      window.clearTimeout(failsafe);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const computeGoal = (m: Mode, f: PlanetId | null, out: { pos: THREE.Vector3; tgt: THREE.Vector3 }) => {
     if (f) {
@@ -306,6 +458,8 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
 
   const key = `${mode}:${focus ?? ""}`;
   useEffect(() => {
+    // 开场飞行接管相机时不做普通过渡（飞机会把相机带到总览）。
+    if (bootPlay) return;
     startTransition();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -339,6 +493,26 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
 
   useFrame((_, delta) => {
     if (!controls) return;
+    // ---- 电影级开场飞行（优先于普通过渡与跟随） ----
+    const f = flightRef.current;
+    if (f.active) {
+      // 首次帧：行星位置已就绪（行星每帧写 planetPositions），构建航线。
+      if (!f.curve) f.curve = buildFlightCurve(planetPositions.current, earthPosRef.current);
+      f.t += delta / f.dur;
+      const t = Math.min(1, f.t);
+      const e = easeFlight(t);
+      camera.position.copy(f.curve.getPoint(e));
+      // 视线：大部分时间看太阳（能量核心），末段平滑转到地球（总览目标）。
+      const b = lookBlend(e);
+      lookTarget.copy(sunPos).lerp(earthPosRef.current, b);
+      (controls.target as THREE.Vector3).copy(lookTarget);
+      // 关键时刻事件（只发一次）：品牌淡入 / 进入主场景。
+      if (!f.coreFired && e >= CORE_AT) { f.coreFired = true; window.dispatchEvent(new CustomEvent(BOOT_CORE)); }
+      if (!f.enterFired && e >= ENTER_AT) { f.enterFired = true; window.dispatchEvent(new CustomEvent(BOOT_ENTER)); }
+      controls.update();
+      if (t >= 1) endFlight();
+      return;
+    }
     const trans = transRef.current;
     if (trans.active) {
       trans.t += delta;
@@ -482,17 +656,25 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
     setFocus(id);
   };
 
+  // 首次访问播开场时，Canvas 相机直接创建在深空起点（第一帧就是深空，
+  // 不会先出现总览再跳变）；否则用正常总览位置。
+  const bootPlayCanvas = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return (window as unknown as { __outaiBoot?: { play?: boolean } }).__outaiBoot?.play === true;
+  }, []);
+
   if (!enabled) return null;
 
   return (
     <div style={{ position: "absolute", inset: 0 }}>
-      <Canvas dpr={[1, 1.5]} camera={{ fov: 45, near: 0.1, far: 600, position: [0, 2.5, 12] }} gl={{ antialias: true, alpha: true }}>
+      <Canvas dpr={[1, 1.5]} camera={{ fov: 45, near: 0.1, far: 600, position: bootPlayCanvas ? [...FLIGHT_START] : [0, 2.5, 12] }} gl={{ antialias: true, alpha: true }}>
         <ambientLight intensity={0.3} />
         <Suspense fallback={null}>
           {/* 银河系在 SOLAR SYSTEM 模式下隐藏（会叠在太阳和内行星上面）；
               只改图层显隐，不重建场景 */}
           <Galaxy count={low ? 12000 : 30000} motionPaused={motionPaused} visible={mode !== "solar"} />
           <Starfield count={low ? 700 : 1600} />
+          <DeepNebula />
           <SolarSystem
             planetSatellites={planetSatellites}
             motionPaused={motionPaused}
