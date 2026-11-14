@@ -108,7 +108,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
   </section>
 
   <section class="core-stage glass-panel" id="core-stage" aria-label="数字宇宙核心">
-    <SpaceCore client:idle planetSatellites={planetSatellites} />
+    <SpaceCore client:load planetSatellites={planetSatellites} />
     <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
   </section>
 
