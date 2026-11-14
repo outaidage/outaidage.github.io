@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # 3.0 P0 定时发布：每天 00:00 UTC 重建一次，让发布日期到达的文章自动上线。
+  schedule:
+    - cron: "0 0 * * *"
 
 permissions:
   contents: read
@@ -45,4 +48,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
----
