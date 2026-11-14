@@ -14,7 +14,7 @@ export function initTilt(): () => void {
   const cleanups: Array<() => void> = [];
   const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-tilt]"));
   for (const el of cards) {
-    const onMove = (e: PointerEvent) => {
+    const onMove = (e: PointerEvent | MouseEvent) => {
       const r = el.getBoundingClientRect();
       const px = (e.clientX - r.left) / Math.max(r.width, 1) - 0.5;
       const py = (e.clientY - r.top) / Math.max(r.height, 1) - 0.5;
@@ -25,11 +25,17 @@ export function initTilt(): () => void {
       el.style.transform = "";
       el.style.borderColor = "";
     };
+    // Listen to both pointermove and mousemove: some environments dispatch
+    // only one of them for synthetic or touch-driven cursors.
     el.addEventListener("pointermove", onMove);
+    el.addEventListener("mousemove", onMove);
     el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("mouseleave", onLeave);
     cleanups.push(() => {
       el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("mousemove", onMove);
       el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("mouseleave", onLeave);
     });
   }
   return () => {
