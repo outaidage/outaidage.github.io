@@ -13,7 +13,7 @@
 // 默认隐藏能保证遮罩绝不盖住屏幕黑屏卡死。无 JS 时 <noscript> 直接隐藏。
 ---
 
-<div id="boot-intro" class="boot-intro" role="dialog" aria-label="OUTAI 启动动画" aria-hidden="true">
+<div id="boot-intro" class="boot-intro" role="dialog" aria-label="OUTAI 启动动画" aria-hidden="true" style="display:none; position:fixed; inset:0; z-index:400; background:#03040b; overflow:hidden; pointer-events:auto;">
   <div class="boot-brand" aria-hidden="true">
     <div class="boot-pulse"></div>
     <div class="boot-word">OUTAI</div>
@@ -112,8 +112,14 @@
 
     // 起飞后遮罩变透明（3D 飞行透过遮罩可见）。起飞前遮罩是不透明深空底，
     // 盖住等待期的嵌入式首页，否则首页会先闪一下、再突然切入场动画。
+    // 底色与定位用 div 上的内联 style（不靠打包 CSS）：页面首次绘制时
+    // 外部 CSS 可能还没加载完，内联样式随元素解析立即生效，首帧就有
+    // 不透明底盖住首页；这里同步改内联样式（内联样式优先级高于
+    // .boot-flying 类，类选择器改不动它）。
     const revealScene = () => {
       overlay.classList.add("boot-flying");
+      overlay.style.background = "transparent";
+      overlay.style.pointerEvents = "none";
     };
 
     // 舞台全屏（复用 universe-full，与“进入宇宙”同一机制：同一个
