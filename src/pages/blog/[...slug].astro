@@ -1,6 +1,7 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection, render } from "astro:content";
+import Comments from "@/components/Comments";
 export async function getStaticPaths() {
   const posts = await getCollection("blog", ({data}) => !data.draft);
   return posts.map(post => ({ params: { slug: post.slug }, props: { post } }));
@@ -58,6 +59,7 @@ const related = allPosts
       </a>)}
     </div>
   </section>}
+  <Comments slug={post.slug} client:load />
   <script is:inline>
     (function () {
       var bar = document.getElementById("read-progress");
