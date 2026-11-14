@@ -23,6 +23,11 @@ type ModuleForm = {
   show_in_nav: boolean;
   featured: boolean;
   status: "draft" | "published" | "offline";
+  /** 3D 星球节点轨道（1 内圈 / 2 中圈 / 3 外圈）。 */
+  orbit: number;
+  /** 节点在轨道上的角度（度，0–360；null = 自动均匀分布）。 */
+  angle: number | null;
+  node_size: "sm" | "md" | "lg";
 };
 
 const emptyForm = (): ModuleForm => ({
@@ -41,6 +46,9 @@ const emptyForm = (): ModuleForm => ({
   show_in_nav: false,
   featured: false,
   status: "published",
+  orbit: 1,
+  angle: null,
+  node_size: "md",
 });
 
 const inputStyle: React.CSSProperties = {
@@ -73,7 +81,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     setLoading(true);
     const { data, error } = await supabase
       .from("home_modules")
-      .select("id,name,name_en,description,icon,cover_image,theme_color,path,category,sort_order,show_on_home,enabled,show_in_nav,featured,status,created_at,updated_at")
+      .select("id,name,name_en,description,icon,cover_image,theme_color,path,category,sort_order,show_on_home,enabled,show_in_nav,featured,status,orbit,angle,node_size,created_at,updated_at")
       .order("sort_order", { ascending: true });
     setLoading(false);
     if (error) {
@@ -105,6 +113,9 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
       show_in_nav: m.show_in_nav,
       featured: m.featured,
       status: m.status as ModuleForm["status"],
+      orbit: m.orbit || 1,
+      angle: m.angle ?? null,
+      node_size: (m.node_size as ModuleForm["node_size"]) || "md",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -238,6 +249,9 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
       show_in_nav: m.show_in_nav,
       featured: m.featured,
       status: m.status,
+      orbit: m.orbit || 1,
+      angle: m.angle ?? null,
+      node_size: m.node_size || "md",
     }));
     const { error } = await supabase.from("home_modules").insert(seeds);
     if (error) {
@@ -273,6 +287,17 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
           <input style={{ ...inputStyle, flex: "1 1 160px" }} required placeholder="页面路径，如 /blog/" value={form.path} onChange={(e) => setForm({ ...form, path: e.target.value })} />
           <input style={{ ...inputStyle, flex: "1 1 120px" }} placeholder="分类，如 内容" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
           <input style={{ ...inputStyle, flex: "1 1 100px" }} type="number" placeholder="排序权重" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: Number(e.target.value) })} />
+          <select value={form.orbit} onChange={(e) => setForm({ ...form, orbit: Number(e.target.value) })} style={{ ...inputStyle, flex: "1 1 100px" }}>
+            <option value={1}>轨道 1（内圈）</option>
+            <option value={2}>轨道 2（中圈）</option>
+            <option value={3}>轨道 3（外圈）</option>
+          </select>
+          <input style={{ ...inputStyle, flex: "1 1 100px" }} type="number" min={0} max={360} placeholder="角度 0–360（留空自动）" value={form.angle ?? ""} onChange={(e) => setForm({ ...form, angle: e.target.value === "" ? null : Number(e.target.value) })} />
+          <select value={form.node_size} onChange={(e) => setForm({ ...form, node_size: e.target.value as ModuleForm["node_size"] })} style={{ ...inputStyle, flex: "1 1 90px" }}>
+            <option value="sm">节点小</option>
+            <option value="md">节点中</option>
+            <option value="lg">节点大</option>
+          </select>
         </div>
         <input style={inputStyle} placeholder="封面图片 URL（可选）" value={form.cover_image} onChange={(e) => setForm({ ...form, cover_image: e.target.value })} />
         <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12, color: "#aab3c0" }}>
@@ -323,7 +348,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
               <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <span style={{ color: m.theme_color, fontSize: 18 }}>{m.icon}</span>
                 <strong style={{ fontSize: 14 }}>{m.name}</strong>
-                <span style={{ fontSize: 11, color: "#929dab" }}>{m.id} · {m.path} · 排序 {m.sort_order}</span>
+                <span style={{ fontSize: 11, color: "#929dab" }}>{m.id} · {m.path} · 排序 {m.sort_order} · 轨道 {m.orbit || 1}{m.angle !== null && m.angle !== undefined ? ` · ${m.angle}°` : ""}</span>
                 <span style={{ fontSize: 11, color: m.status === "published" ? "#7dffce" : m.status === "draft" ? "#fbbf24" : "#929dab" }}>{STATUS_LABEL[m.status]}</span>
                 {!m.enabled ? <span style={{ fontSize: 11, color: "#f28b82" }}>已停用</span> : null}
                 {m.featured ? <span style={{ fontSize: 11, color: "#f2c94c" }}>推荐</span> : null}

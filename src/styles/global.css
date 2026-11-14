@@ -375,7 +375,76 @@ html[data-motion="reduced"] .button:active { transform: none; }
   .space-nav { grid-template-columns: repeat(2, 1fr); }
   .core-stage { height: 300px; }
 }
+/* ---- 3D 星球轨道节点（PlanetNodes） ---- */
+.planet-nodes { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.planet-node {
+  position: absolute; left: 50%; top: 50%;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(97, 237, 255, .4);
+  background: rgba(3, 4, 11, .72);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+  cursor: pointer;
+  text-decoration: none;
+  transition: box-shadow .25s ease, background .25s ease, border-color .25s ease;
+  will-change: transform;
+}
+.planet-node-icon { font-size: 17px; line-height: 1; }
+.planet-node-star {
+  position: absolute; top: -4px; right: -4px;
+  font-size: 9px; color: #f2c94c; line-height: 1;
+}
+.planet-node:hover, .planet-node:focus-visible {
+  background: rgba(16, 16, 43, .9);
+  box-shadow: 0 0 20px rgba(97, 237, 255, .35), 0 0 40px rgba(97, 237, 255, .15);
+  outline: none;
+}
+.planet-node:active { transform: translate(-50%, -50%) scale(.92) !important; }
+.planet-node[data-active] { background: rgba(16, 16, 43, .95); }
+.planet-info {
+  position: absolute; left: 16px; bottom: 14px; right: 16px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(97, 237, 255, .18);
+  border-radius: 10px;
+  background: rgba(3, 4, 11, .78);
+  backdrop-filter: blur(4px);
+  font-size: 12px; color: var(--text-dim);
+  opacity: 0; transform: translateY(4px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+.planet-info.visible { opacity: 1; transform: translateY(0); }
+.planet-info-icon { font-size: 18px; flex: none; }
+.planet-info-text { display: grid; gap: 1px; min-width: 0; }
+.planet-info-text strong { color: var(--text); font-size: 13px; }
+.planet-info-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.planet-info-count { flex: none; color: var(--text-faint); font-size: 11px; border: 1px solid rgba(97, 237, 255, .25); border-radius: 999px; padding: 1px 7px; }
+.planet-info-go { flex: none; color: #61edff; }
+.planet-info-hint { color: var(--text-faint); font-size: 11px; letter-spacing: .08em; }
+/* 移动端节点条：默认隐藏，<760px 时显示；桌面节点隐藏 */
+.planet-nodes-mobile { display: none; }
+@media (max-width: 760px) {
+  .planet-nodes { display: none; }
+  .planet-nodes-mobile {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding: 12px 4px 4px;
+    scrollbar-width: none;
+  }
+  .planet-nodes-mobile::-webkit-scrollbar { display: none; }
+  .planet-node-chip {
+    flex: none; display: flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 8px 14px;
+    border: 1px solid rgba(97, 237, 255, .3);
+    border-radius: 999px;
+    background: rgba(3, 4, 11, .72);
+    font-size: 13px; text-decoration: none;
+  }
+  .planet-node-chip em { font-style: normal; font-size: 11px; opacity: .7; }
+}
 @media (prefers-reduced-motion: reduce) {
   .space-node { transition: none; }
 }
 html[data-motion="reduced"] .space-node { transition: none; }
+html[data-motion="reduced"] .planet-node { transition: none; }
