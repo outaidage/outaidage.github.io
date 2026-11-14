@@ -1,0 +1,25 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+---
+<MainLayout title="Colophon — OUTAI">
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> COLOPHON</div><h1>网站是怎样建成的<span style="color:#b5f36b">.</span></h1><p>这个站用的技术、工具与服务。</p></header>
+  <div class="article-body">
+    <h2>技术栈</h2>
+    <ul>
+      <li><strong>框架：</strong>Astro 5 + React 18，静态生成，部署后即是静态文件。</li>
+      <li><strong>样式：</strong>Tailwind CSS，深色极简风格，荧光绿（#B5F36B）为强调色。</li>
+      <li><strong>内容：</strong>文章是仓库里的 Markdown 文件（src/content/blog/），通过 GitHub 提交发布。</li>
+      <li><strong>数据：</strong>书签、标签与分类存在 Supabase（Postgres），通过行级安全策略（RLS）控制读写。</li>
+      <li><strong>管理后台：</strong>React 单页应用，Supabase Auth 登录；文章发布走 Supabase Edge Function 调用 GitHub API。</li>
+      <li><strong>搜索：</strong>Pagefind，构建时生成本地全文索引，无需服务端。</li>
+      <li><strong>托管：</strong>GitHub Pages，自定义域名 outaidage.xyz，推送到 main 分支后由 GitHub Actions 自动构建部署。</li>
+      <li><strong>图片：</strong>文章封面上传到 Supabase Storage（bucket：article-images）。</li>
+    </ul>
+    <h2>字体</h2>
+    <p>正文与标题使用系统字体栈，未引入外部字体服务；代码使用等宽系统字体。</p>
+    <h2>隐私</h2>
+    <p>本站不使用第三方统计与广告追踪。搜索在本地完成；留言与订阅（如果启用）只会把你主动提交的内容存到本站自己的数据库。</p>
+    <h2>源代码</h2>
+    <p>网站源代码在 GitHub：<a href="https://github.com/outaidage/outaidage.github.io">outaidage/outaidage.github.io</a>。</p>
+  </div>
+</MainLayout>
