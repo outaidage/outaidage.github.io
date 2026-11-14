@@ -23,6 +23,18 @@ import {
   shouldUseStaticBackground,
   type VideoScene,
 } from "@/config/video-scenes";
+import {
+  getLocalFavorites,
+  isLocked,
+  loadBackgroundAssets,
+  loadRotationSettings,
+  lockCurrentBackground,
+  pickNextBackground,
+  pickRandomBackground,
+  type BackgroundAsset,
+  type RotationSettings,
+} from "@/lib/background-player";
+import BackgroundControls from "@/components/BackgroundControls";
 
 const HOME_PATHS = ["/", ""];
 const STORAGE_KEY = "outai-video-bg";
@@ -45,6 +57,13 @@ export default function VideoSceneManager() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [scene, setScene] = useState<VideoScene | null>(null);
   const [scenes, setScenes] = useState<VideoScene[]>([]);
+  // Background Studio 资源（有资源时优先用资源库，否则回退 video_scenes）。
+  const [bgAsset, setBgAsset] = useState<BackgroundAsset | null>(null);
+  const [bgAssets, setBgAssets] = useState<BackgroundAsset[]>([]);
+  const [bgRotation, setBgRotation] = useState<RotationSettings | null>(null);
+  const bgAssetsRef = useRef<BackgroundAsset[]>([]);
+  const bgRotationRef = useRef<RotationSettings | null>(null);
+  const bgAssetRef = useRef<BackgroundAsset | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [visible, setVisible] = useState(() => isHomePath());
@@ -53,7 +72,82 @@ export default function VideoSceneManager() {
   const currentSceneId = useRef<string | null>(null);
   const switching = useRef(false);
 
-  // ---- 加载场景（Supabase → 静态 JSON → 内置占位） ----
+  // ---- 加载 Background Studio 资源与轮换设置（有资源时优先用资源库） ----
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadBackgroundAssets(), loadRotationSettings()]).then(([assets, rotation]) => {
+      if (cancelled) return;
+      bgAssetsRef.current = assets;
+      bgRotationRef.current = rotation;
+      setBgAssets(assets);
+      setBgRotation(rotation);
+      if (assets.length > 0) {
+        const first = pickNextBackground(assets, rotation, null, getLocalFavorites());
+        if (first) {
+          bgAssetRef.current = first;
+          setBgAsset(first);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- 定时轮换（前端播放时钟；间隔来自轮换设置，默认 30 分钟） ----
+  useEffect(() => {
+    if (!bgRotation || bgRotation.mode !== "timed") return;
+    if (bgAssets.length === 0) return;
+    const ms = Math.max(1, bgRotation.interval_minutes) * 60 * 1000;
+    const timer = setInterval(() => {
+      if (isLocked()) return;
+      const next = pickNextBackground(bgAssetsRef.current, bgRotationRef.current!, bgAssetRef.current?.id || null, getLocalFavorites());
+      if (next && next.id !== bgAssetRef.current?.id) {
+        bgAssetRef.current = next;
+        setBgAsset(next);
+      }
+    }, ms);
+    return () => clearInterval(timer);
+  }, [bgRotation, bgAssets.length]);
+
+  // ---- 背景控制面板事件（上一张/下一张/随机） ----
+  useEffect(() => {
+    const onNext = () => {
+      const next = pickNextBackground(bgAssetsRef.current, bgRotationRef.current || { mode: "manual", interval_minutes: 30, category: null, source_id: null, collection: null, pinned_asset_id: null }, bgAssetRef.current?.id || null, getLocalFavorites());
+      if (next) {
+        lockCurrentBackground(60);
+        bgAssetRef.current = next;
+        setBgAsset(next);
+      }
+    };
+    const onPrev = () => {
+      // 上一张：从最近历史里取（简化：随机选一个非当前资源）。
+      const next = pickRandomBackground(bgAssetsRef.current, bgAssetRef.current?.id || null);
+      if (next) {
+        lockCurrentBackground(60);
+        bgAssetRef.current = next;
+        setBgAsset(next);
+      }
+    };
+    const onRandom = () => {
+      const next = pickRandomBackground(bgAssetsRef.current, bgAssetRef.current?.id || null);
+      if (next) {
+        lockCurrentBackground(60);
+        bgAssetRef.current = next;
+        setBgAsset(next);
+      }
+    };
+    window.addEventListener("outai:bg-next", onNext);
+    window.addEventListener("outai:bg-prev", onPrev);
+    window.addEventListener("outai:bg-random", onRandom);
+    return () => {
+      window.removeEventListener("outai:bg-next", onNext);
+      window.removeEventListener("outai:bg-prev", onPrev);
+      window.removeEventListener("outai:bg-random", onRandom);
+    };
+  }, []);
+
+  // ---- 加载场景（Supabase → 静态 JSON → 内置占位；无背景资源时才用） ----
   useEffect(() => {
     let cancelled = false;
     loadVideoScenes().then(({ scenes: list, defaultSceneId }) => {
@@ -224,6 +318,57 @@ export default function VideoSceneManager() {
         opacity: scene.overlayOpacity,
       }
     : undefined;
+
+  // ---- Background Studio 资源激活时：用资源做背景（图片或视频） ----
+  if (bgAsset && !staticMode && !paused) {
+    return (
+      <>
+        <div className="video-bg-layer" aria-hidden="true" data-video-state="ready" style={{ opacity: visible ? 1 : 0 }}>
+          <div className="video-bg-fallback" />
+          {bgAsset.media_kind === "video" ? (
+            <video
+              className="video-bg-video"
+              src={bgAsset.url}
+              poster={bgAsset.thumbnail_url || undefined}
+              muted
+              loop
+              playsInline
+              autoPlay
+              preload="metadata"
+              disablePictureInPicture
+              tabIndex={-1}
+              style={{ opacity: 1 }}
+              onError={() => {
+                // 资源失效：自动换下一个可用背景，并把该资源记为异常候选。
+                const next = pickRandomBackground(bgAssetsRef.current, bgAsset.id);
+                if (next) {
+                  bgAssetRef.current = next;
+                  setBgAsset(next);
+                }
+              }}
+            />
+          ) : (
+            <img
+              className="video-bg-poster"
+              src={bgAsset.url}
+              alt=""
+              draggable={false}
+              style={{ opacity: 1 }}
+              onError={() => {
+                const next = pickRandomBackground(bgAssetsRef.current, bgAsset.id);
+                if (next) {
+                  bgAssetRef.current = next;
+                  setBgAsset(next);
+                }
+              }}
+            />
+          )}
+          <div className="video-bg-overlay" style={{ background: "linear-gradient(180deg, rgba(3,4,11,0.55) 0%, transparent 30%, transparent 62%, rgba(3,4,11,0.65) 100%)", opacity: 0.85 }} />
+        </div>
+        <BackgroundControls asset={bgAsset} />
+      </>
+    );
+  }
 
   return (
     <div
