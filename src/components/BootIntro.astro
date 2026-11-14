@@ -1,29 +1,19 @@
 ---
-// BootIntro.astro — OUTAI 全息启动动画（OUTAI CINEMATIC BOOT）。
-// 只在首页渲染。遮罩默认隐藏（display:none），内联脚本在解析时同步决定
-// 是否播放：要播放时立即显示（第一帧就是黑屏+光点），不播放时保持隐藏。
-// 关键：视图切换（Astro 客户端导航）回首页时，ES 模块脚本不会重新执行，
-// 内联脚本也可能不重新执行——默认隐藏能保证遮罩绝不盖住屏幕黑屏卡死。
-// 无 JS 时 <noscript> 直接隐藏，绝不挡住网站。
-// 播放规则：首次访问完整播放；同一会话再次访问跳过；可跳过、可永久关闭、可重播；
-// 音效默认关闭（WebAudio 合成，原创）；手机端缩短；支持 prefers-reduced-motion。
+// BootIntro.astro — OUTAI 电影级开场（CINEMATIC BOOT）。
+// 透明遮罩：3D 场景透过遮罩可见，镜头在现有太阳系场景内连续飞行
+// （深空星云 → 掠过木星、土星 → 太阳能量核心 → 无缝进入现有总览），
+// 不新建场景、不换页、不黑屏。OUTAI 品牌（字标 + PERSONAL DIGITAL
+// UNIVERSE）是 DOM 覆盖层，在能量核心时淡入、进入主场景时淡出。
+// 舞台在开场期间全屏（复用 universe-full，与“进入宇宙”同一机制），
+// 结束时 FLIP 收回嵌入位置（transform 缩放+位移，平滑不闪黑）。
+// 播放规则：首次访问完整播放；同一会话再次访问跳过；可跳过、可永久
+// 关闭、可重播；音效默认关闭（WebAudio 合成，原创）；手机端缩短；
+// 支持 prefers-reduced-motion。遮罩默认隐藏（display:none），内联脚本
+// 在解析时同步决定是否播放。视图切换回首页时 ES 模块脚本不会重新执行，
+// 默认隐藏能保证遮罩绝不盖住屏幕黑屏卡死。无 JS 时 <noscript> 直接隐藏。
 ---
 
 <div id="boot-intro" class="boot-intro" role="dialog" aria-label="OUTAI 启动动画" aria-hidden="true">
-  <canvas id="boot-stars" class="boot-stars" aria-hidden="true"></canvas>
-  <div class="boot-point" aria-hidden="true"></div>
-  <div class="boot-rings" aria-hidden="true">
-    <span class="boot-ring r1"></span>
-    <span class="boot-ring r2"></span>
-    <span class="boot-ring r3"></span>
-    <span class="boot-scan"></span>
-  </div>
-  <div class="boot-lines" aria-hidden="true">
-    <p class="boot-line">SYSTEM INITIALIZING</p>
-    <p class="boot-line">NEURAL NETWORK ONLINE</p>
-    <p class="boot-line">UNIVERSE ENGINE READY</p>
-    <p class="boot-line">WELCOME TO OUTAI</p>
-  </div>
   <div class="boot-brand" aria-hidden="true">
     <div class="boot-pulse"></div>
     <div class="boot-word">OUTAI</div>
@@ -52,15 +42,21 @@
       else if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) play = false;
     } catch (e) {}
     window.__outaiBoot = { play: play };
-    // 默认隐藏（CSS display:none）；要播放时同步显示，避免首屏闪烁；
-    // 不播放时保持隐藏。视图切换回首页时脚本可能不重新执行，
-    // 默认隐藏能保证遮罩绝不盖住屏幕。
+    // 默认隐藏（CSS display:none）；要播放时同步显示；不播放时保持隐藏。
+    // 视图切换回首页时脚本可能不重新执行，默认隐藏能保证遮罩绝不黑屏盖住网站。
     overlay.style.display = play ? "flex" : "none";
   })();
 </script>
 <script>
   import gsap from "gsap";
   import { playBootSound } from "@/lib/boot-sound";
+  // 事件名与 SpaceCore.tsx 内的常量字面量一致（不从 @/lib/boot-flight
+  // 导入——该模块在岛屿打包时未被正确内联，引用会成自由变量）。
+  const BOOT_FLY = "outai:boot-fly";
+  const BOOT_CORE = "outai:boot-core";
+  const BOOT_ENTER = "outai:boot-enter";
+  const BOOT_CAMERA_DONE = "outai:boot-camera-done";
+  const BOOT_SKIP = "outai:boot-skip";
 
   (function () {
     const overlay = document.getElementById("boot-intro");
@@ -78,43 +74,15 @@
     overlay.style.display = "flex";
     overlay.style.opacity = "1";
 
+    const stage = document.getElementById("core-stage");
+    const brand = overlay.querySelector(".boot-brand") as HTMLElement | null;
     const isMobile = window.innerWidth < 760;
-    const D = isMobile ? 0.62 : 1; // 手机端缩短
+    let finished = false;
+
+    // 音效（默认关；WebAudio 合成，原创；只在用户开启后播放）
     const soundOn = (() => {
       try { return localStorage.getItem("outai-boot-sound") === "on"; } catch { return false; }
     })();
-    let finished = false;
-    let raf = 0;
-
-    // 星尘画布：120 颗星缓慢漂移+闪烁，动画结束即停止。
-    const canvas = document.getElementById("boot-stars") as HTMLCanvasElement | null;
-    const ctx = canvas?.getContext("2d") ?? null;
-    const stars: { x: number; y: number; r: number; p: number; s: number }[] = [];
-    if (canvas && ctx) {
-      const w = (canvas.width = window.innerWidth);
-      const h = (canvas.height = window.innerHeight);
-      let seed = 20261114;
-      const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-      for (let i = 0; i < 120; i++) {
-        stars.push({ x: rnd() * w, y: rnd() * h, r: 0.4 + rnd() * 1.4, p: rnd() * Math.PI * 2, s: 0.4 + rnd() * 1.2 });
-      }
-      const draw = (t: number) => {
-        if (finished) return;
-        ctx.clearRect(0, 0, w, h);
-        for (const st of stars) {
-          const a = 0.25 + 0.55 * Math.abs(Math.sin(t * 0.0006 * st.s + st.p));
-          ctx.globalAlpha = a;
-          ctx.fillStyle = st.r > 1.2 ? "#a68aff" : "#61edff";
-          ctx.beginPath();
-          ctx.arc(st.x, st.y + Math.sin(t * 0.00008 * st.s + st.p) * 6, st.r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-        raf = requestAnimationFrame(draw);
-      };
-      raf = requestAnimationFrame(draw);
-    }
-
     const soundBtn = document.getElementById("boot-sound");
     const syncSoundLabel = () => {
       const on = (() => { try { return localStorage.getItem("outai-boot-sound") === "on"; } catch { return false; } })();
@@ -125,7 +93,6 @@
       return on;
     };
     syncSoundLabel();
-    if (soundOn) playBootSound();
     soundBtn?.addEventListener("click", () => {
       const next = !syncSoundLabel();
       try { localStorage.setItem("outai-boot-sound", next ? "on" : "off"); } catch { /* ignore */ }
@@ -136,33 +103,84 @@
     const finish = () => {
       if (finished) return;
       finished = true;
-      cancelAnimationFrame(raf);
       try { sessionStorage.setItem("outai-boot-shown", "1"); } catch { /* ignore */ }
       try { sessionStorage.removeItem("outai-boot-replay"); } catch { /* ignore */ }
       overlay.style.display = "none";
       window.dispatchEvent(new CustomEvent("outai:boot-done"));
     };
 
-    let tl: gsap.core.Timeline | null = null;
-    try {
-      tl = gsap.timeline({ onComplete: finish });
-      tl.fromTo(".boot-point", { scale: 1, opacity: 1 }, { scale: 22, opacity: 0.85, duration: 0.9 * D, ease: "power2.out" }, 0)
-        .fromTo(".boot-stars", { opacity: 0 }, { opacity: 1, duration: 1.2 * D }, 0.1)
-        .fromTo(".boot-ring", { scale: 0.55, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.7 * D, stagger: 0.15 * D, ease: "power2.out" }, 0.7)
-        .fromTo(".boot-line", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35 * D, stagger: 0.3 * D }, 1.2)
-        .to(".boot-lines", { opacity: 0, duration: 0.4 * D }, 2.6)
-        .to(".boot-rings", { opacity: 0, scale: 1.15, duration: 0.5 * D, ease: "power2.in" }, 2.6)
-        .fromTo(".boot-brand", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.7 * D, ease: "power2.out" }, 2.8)
-        .fromTo(".boot-pulse", { scale: 0.4, opacity: 0.7 }, { scale: 2.4, opacity: 0, duration: 0.9 * D, ease: "power2.out" }, 3.0)
-        .fromTo(".boot-sub", { opacity: 0 }, { opacity: 1, duration: 0.5 * D }, 3.3)
-        .to(overlay, { opacity: 0, duration: 0.6 * D, ease: "power1.inOut" }, 4.4);
-    } catch {
-      finish();
-    }
+    // 舞台全屏（复用 universe-full，与“进入宇宙”同一机制：同一个
+    // Canvas/场景全屏展开，不重建场景、不换页）。
+    const enterFullscreen = () => {
+      if (!stage) return;
+      stage.classList.add("universe-full");
+      document.body.classList.add("universe-open");
+    };
+    // FLIP：舞台从全屏平滑收回嵌入位置。先量全屏与嵌入两个矩形，把舞台
+    // 钉在全屏位置（视觉上保持全屏），再用 transform 缩放+位移 tween 到
+    // 嵌入位置，结束时清除固定定位回到正常流。整个过程不闪黑（舞台始终可见）。
+    const flipToEmbedded = (dur: number) => {
+      if (!stage) return;
+      const full = stage.getBoundingClientRect();
+      stage.classList.remove("universe-full");
+      document.body.classList.remove("universe-open");
+      const emb = stage.getBoundingClientRect();
+      if (full.width <= 0 || emb.width <= 0) return; // 量不到矩形时直接收回，不卡住
+      stage.style.position = "fixed";
+      stage.style.left = `${full.left}px`;
+      stage.style.top = `${full.top}px`;
+      stage.style.width = `${full.width}px`;
+      stage.style.height = `${full.height}px`;
+      stage.style.margin = "0";
+      stage.style.zIndex = "200";
+      stage.style.borderRadius = "0px";
+      stage.style.transformOrigin = "top left";
+      const dx = emb.left - full.left;
+      const dy = emb.top - full.top;
+      const sx = emb.width / full.width;
+      const sy = emb.height / full.height;
+      gsap.to(stage, {
+        x: dx, y: dy, scaleX: sx, scaleY: sy, borderRadius: "16px",
+        duration: dur, ease: "power2.inOut",
+        onComplete: () => {
+          stage.style.position = ""; stage.style.left = ""; stage.style.top = "";
+          stage.style.width = ""; stage.style.height = ""; stage.style.margin = "";
+          stage.style.zIndex = ""; stage.style.borderRadius = "";
+          gsap.set(stage, { clearProps: "transform" });
+        },
+      });
+    };
+
+    // 到达能量核心：品牌淡入（字标微放 + 光晕扩散，冰蓝/青紫光效）。
+    const onCore = () => {
+      if (!brand) return;
+      gsap.to(brand, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" });
+      const pulse = brand.querySelector(".boot-pulse");
+      if (pulse) gsap.fromTo(pulse, { scale: 0.4, opacity: 0.7 }, { scale: 2.4, opacity: 0, duration: 1.2, ease: "power2.out" });
+    };
+    // 进入主场景：品牌淡出 + 舞台收回嵌入位置（与镜头进入总览同步）。
+    const onEnter = () => {
+      if (brand) gsap.to(brand, { opacity: 0, duration: 0.5, ease: "power1.inOut" });
+      flipToEmbedded(isMobile ? 0.7 : 0.9);
+    };
+    // 相机到达总览 → 结束开场。
+    const onCameraDone = () => { finish(); };
+
+    window.addEventListener(BOOT_CORE, onCore);
+    window.addEventListener(BOOT_ENTER, onEnter);
+    window.addEventListener(BOOT_CAMERA_DONE, onCameraDone);
 
     const skip = () => {
-      tl?.kill();
-      gsap.to(overlay, { opacity: 0, duration: 0.3, onComplete: finish });
+      if (finished) return;
+      window.removeEventListener(BOOT_CORE, onCore);
+      window.removeEventListener(BOOT_ENTER, onEnter);
+      window.removeEventListener(BOOT_CAMERA_DONE, onCameraDone);
+      // 通知 3D 相机立即贴到总览（不再飞行）
+      window.dispatchEvent(new CustomEvent(BOOT_SKIP));
+      if (brand) { gsap.killTweensOf(brand); gsap.set(brand, { opacity: 0 }); }
+      flipToEmbedded(0.35);
+      // 快速收尾（不等相机，0.4 秒后结束）
+      window.setTimeout(finish, 400);
     };
     document.getElementById("boot-skip")?.addEventListener("click", skip);
     document.getElementById("boot-never")?.addEventListener("click", () => {
@@ -172,51 +190,36 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !finished) skip();
     });
-    // 安全兜底：万一 GSAP 时间轴卡住，7 秒后强制结束，绝不黑屏卡死。
-    window.setTimeout(() => { if (!finished) { tl?.kill(); finish(); } }, 7000);
+    // 安全兜底：万一飞行/事件卡住，8 秒后强制结束，绝不黑屏卡死。
+    window.setTimeout(() => { if (!finished) skip(); }, 8000);
+
+    // 启动：舞台全屏 → 触发镜头飞行（先置 flag 再发事件，挂载顺序不确定时
+    // SpaceCore 靠 flag 兜底；事件与 flag 都以全屏已设置为前提）。
+    enterFullscreen();
+    (window as unknown as { __outaiBootFly?: boolean }).__outaiBootFly = true;
+    window.dispatchEvent(new CustomEvent(BOOT_FLY));
+    if (soundOn) playBootSound();
   })();
 </script>
 <style>
   .boot-intro {
     position: fixed; inset: 0; z-index: 400;
-    background: #03040b;
+    /* 透明：3D 场景透过遮罩可见（电影级开场的核心）。之前的不透明
+       #03040b 背景已去掉；开场期间舞台本身是全屏深色，3D 渲染前是深色底，不闪白。 */
+    background: transparent;
     /* 默认隐藏：只有 JS 明确决定播放时才显示。视图切换回首页时脚本
        可能不重新执行，默认隐藏能保证遮罩绝不黑屏盖住网站。 */
     display: none; align-items: center; justify-content: center;
     overflow: hidden;
+    /* 遮罩本身不拦截点击（飞行中不需要点击页面）；控制按钮单独可点。 */
+    pointer-events: none;
   }
-  .boot-stars { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
-  .boot-point {
+  .boot-brand {
     position: absolute; left: 50%; top: 50%;
-    width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
-    background: radial-gradient(circle, #dff8ff 0%, #61edff 40%, rgba(97, 237, 255, 0) 70%);
-    box-shadow: 0 0 24px 6px rgba(97, 237, 255, 0.55);
+    transform: translate(-50%, -50%) scale(0.94);
+    text-align: center; opacity: 0;
+    pointer-events: none;
   }
-  .boot-rings { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
-  .boot-ring {
-    position: absolute; border-radius: 50%; opacity: 0;
-    border: 1px solid rgba(97, 237, 255, 0.55);
-    box-shadow: 0 0 18px rgba(97, 237, 255, 0.25), inset 0 0 18px rgba(97, 237, 255, 0.12);
-  }
-  .boot-ring.r1 { width: 220px; height: 220px; margin: -110px 0 0 -110px; animation: boot-spin 14s linear infinite; }
-  .boot-ring.r2 { width: 300px; height: 300px; margin: -150px 0 0 -150px; border-color: rgba(166, 138, 255, 0.5); border-style: dashed; animation: boot-spin-rev 20s linear infinite; }
-  .boot-ring.r3 { width: 380px; height: 380px; margin: -190px 0 0 -190px; border-color: rgba(125, 255, 206, 0.35); animation: boot-spin 28s linear infinite; }
-  .boot-scan {
-    position: absolute; left: -190px; top: -190px; width: 380px; height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(97, 237, 255, 0.9), transparent);
-    animation: boot-scan 1.6s ease-in-out infinite alternate;
-  }
-  @keyframes boot-spin { to { transform: rotate(360deg); } }
-  @keyframes boot-spin-rev { to { transform: rotate(-360deg); } }
-  @keyframes boot-scan { from { transform: translateY(0); opacity: 0.4; } to { transform: translateY(380px); opacity: 1; } }
-  .boot-lines {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    margin-top: 210px; text-align: center;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11px; letter-spacing: 0.32em; color: rgba(97, 237, 255, 0.75);
-  }
-  .boot-line { opacity: 0; margin: 6px 0; }
-  .boot-brand { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; opacity: 0; }
   .boot-pulse {
     position: absolute; left: 50%; top: 50%; width: 320px; height: 320px;
     margin: -160px 0 0 -160px; border-radius: 50%; opacity: 0;
@@ -238,23 +241,25 @@
   .boot-controls {
     position: absolute; left: 0; right: 0; bottom: 28px;
     display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 0 16px;
+    /* 控制按钮可点（遮罩其余部分不拦截） */
+    pointer-events: auto;
   }
   .boot-controls button {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 11px; letter-spacing: 0.18em;
     color: rgba(214, 240, 255, 0.85);
-    background: rgba(97, 237, 255, 0.06);
+    background: rgba(3, 4, 11, 0.55);
     border: 1px solid rgba(97, 237, 255, 0.28); border-radius: 999px;
     padding: 8px 16px; cursor: pointer;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
   .boot-controls button:hover { background: rgba(97, 237, 255, 0.16); border-color: rgba(97, 237, 255, 0.6); }
   #boot-skip { border-color: rgba(166, 138, 255, 0.55); color: #e6dcff; }
   @media (max-width: 760px) {
-    .boot-lines { margin-top: 170px; font-size: 10px; }
-    .boot-ring.r1 { width: 170px; height: 170px; margin: -85px 0 0 -85px; }
-    .boot-ring.r2 { width: 230px; height: 230px; margin: -115px 0 0 -115px; }
-    .boot-ring.r3 { width: 290px; height: 290px; margin: -145px 0 0 -145px; }
-    .boot-scan { left: -145px; top: -145px; width: 290px; }
-    @keyframes boot-scan { from { transform: translateY(0); opacity: 0.4; } to { transform: translateY(290px); opacity: 1; } }
+    /* 手机端：按钮不遮挡主体（品牌在画面中央，按钮贴底且半透明）。 */
+    .boot-controls { bottom: 20px; gap: 8px; }
+    .boot-controls button { padding: 7px 12px; font-size: 10px; }
+    .boot-sub { letter-spacing: 0.32em; }
   }
 </style>
