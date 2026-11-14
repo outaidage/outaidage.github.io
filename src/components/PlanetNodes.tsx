@@ -31,11 +31,9 @@ export default function PlanetNodes({ nodes, base }: { nodes: PlanetNode[]; base
   anglesRef.current = angles;
 
   useEffect(() => {
-    // 与全站动效开关一致：显式 "reduced" 强制静止，显式 "full" 强制运动，否则跟随系统。
+    // 与全站动效开关一致：无存储偏好时动效开，只有显式 "reduced" 才静止。
     const stored = document.documentElement.dataset.motion;
-    const isReduced =
-      stored === "reduced" ||
-      (stored !== "full" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const isReduced = stored === "reduced";
     setReduced(isReduced);
     if (isReduced) return;
     lastRef.current = performance.now();
@@ -115,8 +113,8 @@ export default function PlanetNodes({ nodes, base }: { nodes: PlanetNode[]; base
           )}
         </div>
       </div>
-      {/* 移动端：星球下方的横向节点条（不缩小桌面布局） */}
-      <div className="planet-nodes-mobile" aria-label="功能节点">
+      {/* 移动端：星球下方的横向节点条（不缩小桌面布局）。绝对定位贴在舞台底部，3D 画布出现时也不被推出舞台。 */}
+      <div className="planet-nodes-mobile" aria-label="功能节点" style={{ position: "absolute", left: 8, right: 8, bottom: 8, zIndex: 4 }}>
         {nodes.map((n) => (
           <a
             key={n.id}
