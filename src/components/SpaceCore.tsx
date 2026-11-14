@@ -318,6 +318,25 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
+  // 挂载兜底：若恢复后的相机被异常地拉近到行星附近（返回导航的旧视角），
+  // 且当前是默认总览、无聚焦，直接贴到总览。首次加载时相机离地球约 20
+  // 单位，不会触发；只有返回后残留的放大视角会触发。
+  useEffect(() => {
+    if (mode !== "universe" || focus) return;
+    const tracked = earthPosRef.current;
+    if (!tracked) return;
+    if (camera.position.distanceTo(tracked) < 6) {
+      const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+      computeGoal("universe", null, goal);
+      camera.position.copy(goal.pos);
+      if (controls) (controls.target as THREE.Vector3).copy(goal.tgt);
+      transRef.current.active = false;
+      if (controls) controls.enabled = true;
+      prevTracked.current.copy(tracked);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useFrame((_, delta) => {
     if (!controls) return;
     const trans = transRef.current;
@@ -446,7 +465,9 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
     }
   }, [enabled, reason]);
 
-  const labelsVisible = mode === "universe" || mode === "navigation" || mode === "solar";
+  const labelsVisible = (mode === "universe" || mode === "navigation" || mode === "solar") && focus === null;
+  // 聚焦时隐藏全部标签：相机靠近被聚焦行星时，附近行星的 Html 标签
+  // 也会因 distanceFactor 放大成横贯全屏的横幅；信息面板已显示聚焦行星。
   const orbitsVisible = mode === "universe" || mode === "navigation" || mode === "solar";
   // 标签按相机距离缩放（宽视角下字太小看不清）：UNIVERSE 10 / NAVIGATION 18 / SOLAR 40。
   const labelDistanceFactor = mode === "solar" ? 40 : mode === "navigation" ? 18 : 10;
