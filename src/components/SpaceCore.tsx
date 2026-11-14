@@ -14,7 +14,8 @@ import { OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { SolarSystem, go } from "@/components/SolarSystem";
 import { PlanetInfoPanel } from "@/components/PlanetInfoPanel";
-import { PLANET_MAP, type PlanetId, type Satellite } from "@/lib/planets";
+import { PLANETS, PLANET_MAP, type PlanetDef, type PlanetId, type Satellite } from "@/lib/planets";
+import { loadUniverseConfig, type UniverseSettings } from "@/lib/universe-config";
 
 type Mode = "universe" | "earth" | "galaxy" | "navigation" | "solar";
 
@@ -295,14 +296,16 @@ function tangentialOffset(planetPos: THREE.Vector3, dist: number, up: number): T
 }
 
 // 构建飞行航线（Catmull-Rom 样条，连续平滑）。巨行星位置直接按
-// PLANET_MAP 的轨道参数算（orbitRadius + initialAngle，x = r·cos a，
+// 行星配置的轨道参数算（orbitRadius + initialAngle，x = r·cos a，
 // z = r·sin a，与行星实际位置公式一致）：飞行在挂载后立刻开始，行星
 // 公转很慢，起飞时它们基本还在初始角附近；用配置算比等 planetPositions
 // 更可靠（第一帧时 planetPositions 可能还没写入，兜底点又不在行星附近，
 // 会导致镜头掠过空无一物的深空、看不到木星/土星）。
-function buildFlightCurve(earthPos: THREE.Vector3): THREE.CatmullRomCurve3 {
+// planetMap：后台合并后的行星配置；某行星被隐藏时回落到内置 PLANET_MAP，
+// 航线仍完整（飞过该行星原本的位置，不会断在半路）。
+function buildFlightCurve(earthPos: THREE.Vector3, planetMap?: Map<string, PlanetDef>): THREE.CatmullRomCurve3 {
   const planetPos = (id: PlanetId): THREE.Vector3 => {
-    const def = PLANET_MAP[id];
+    const def = planetMap?.get(id) ?? PLANET_MAP[id];
     return new THREE.Vector3(
       Math.cos(def.initialAngle) * def.orbitRadius,
       0,
@@ -342,12 +345,13 @@ const ENTER_AT = 0.85; // 进入主场景 → 品牌淡出 + 舞台收回
 // 这样太阳相对相机的位置保持不变，地球始终以同样的昼夜面朝向相机
 // （平移跟随会让地球公转一圈从白昼转到黑夜）。用户的拖拽/缩放偏移保留。
 // 固定模式：相机飞到固定位姿。聚焦行星时跟随该行星。
-function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
+function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions, planetMap }: {
   mode: Mode;
   focus: PlanetId | null;
   resetKey: number;
   earthPosRef: RefObject<THREE.Vector3>;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
+  planetMap: Map<string, PlanetDef>;
 }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
@@ -427,7 +431,7 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
   const computeGoal = (m: Mode, f: PlanetId | null, out: { pos: THREE.Vector3; tgt: THREE.Vector3 }) => {
     if (f) {
       const p = planetPositions.current.get(f) ?? earthPosRef.current;
-      const r = PLANET_MAP[f].radius;
+      const r = planetMap.get(f)?.radius ?? PLANET_MAP[f].radius;
       const dist = Math.max(r * 4, 2.5) + 1;
       tmp.copy(camera.position).sub(p);
       if (tmp.lengthSq() < 0.01) tmp.set(0, 1, 1);
@@ -519,7 +523,7 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
     const f = flightRef.current;
     if (f.active) {
       // 首次帧：构建航线（行星位置按配置算，不依赖 planetPositions 的写入时机）。
-      if (!f.curve) f.curve = buildFlightCurve(earthPosRef.current);
+      if (!f.curve) f.curve = buildFlightCurve(earthPosRef.current, planetMap);
       f.t += delta / f.dur;
       const t = Math.min(1, f.t);
       const e = easeFlight(t);
@@ -589,6 +593,26 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
   const [earthSpinOn, setEarthSpinOn] = useState(true);
   const [hoveredSatellite, setHoveredSatellite] = useState<Satellite | null>(null);
   const [universeOpen, setUniverseOpen] = useState(false);
+  // 后台「3D 宇宙管理」配置：挂载后从 Supabase 读 planet_config /
+  // universe_settings，与内置 PLANETS 合并；读不到时用内置默认值
+  // （3D 先按默认值渲染，配置到后再更新，不因配置缺失而空白）。
+  const [planets, setPlanets] = useState<PlanetDef[]>(PLANETS);
+  const [universeSettings, setUniverseSettings] = useState<UniverseSettings | null>(null);
+  const planetMap = useMemo(() => {
+    const m = new Map<string, PlanetDef>();
+    for (const p of planets) m.set(p.id, p);
+    return m;
+  }, [planets]);
+  useEffect(() => {
+    let alive = true;
+    loadUniverseConfig().then((cfg) => {
+      if (!alive) return;
+      setPlanets(cfg.planets);
+      setUniverseSettings(cfg.settings);
+      if (cfg.settings.defaultMode !== "universe") setMode(cfg.settings.defaultMode);
+    });
+    return () => { alive = false; };
+  }, []);
   const earthPosRef = useRef(new THREE.Vector3(6.4, 0, -6.4));
   const planetPositions = useRef(new Map<string, THREE.Vector3>());
   const modeRef = useRef<Mode>("universe");
@@ -669,12 +693,12 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
   const labelDistanceFactor = mode === "solar" ? 40 : mode === "navigation" ? 18 : 10;
   // UNIVERSE 总览下标签只显示名称（水星/金星标签在太阳附近重叠）。
   const compactLabels = mode === "universe";
-  const focusedPlanet = focus ? PLANET_MAP[focus] : null;
+  const focusedPlanet = focus ? (planetMap.get(focus) ?? PLANET_MAP[focus]) : null;
   const focusedSatellites = focus ? (planetSatellites[focus] ?? []) : [];
 
   const selectPlanet = (id: PlanetId) => {
     // 再次点击已聚焦的行星 = 直接进入对应页面
-    if (focus === id) { go(PLANET_MAP[id].path); return; }
+    if (focus === id) { go((planetMap.get(id) ?? PLANET_MAP[id]).path); return; }
     setFocus(id);
   };
 
@@ -694,10 +718,11 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
         <Suspense fallback={null}>
           {/* 银河系在 SOLAR SYSTEM 模式下隐藏（会叠在太阳和内行星上面）；
               只改图层显隐，不重建场景 */}
-          <Galaxy count={low ? 12000 : 30000} motionPaused={motionPaused} visible={mode !== "solar"} />
-          <Starfield count={low ? 700 : 1600} />
+          <Galaxy count={universeSettings?.particleDensity === "low" ? 12000 : universeSettings?.particleDensity === "high" ? 45000 : low ? 12000 : 30000} motionPaused={motionPaused} visible={mode !== "solar"} />
+          <Starfield count={universeSettings?.particleDensity === "low" ? 700 : universeSettings?.particleDensity === "high" ? 2400 : low ? 700 : 1600} />
           <DeepNebula />
           <SolarSystem
+            planets={planets}
             planetSatellites={planetSatellites}
             motionPaused={motionPaused}
             earthSpinOn={earthSpinOn}
@@ -714,7 +739,7 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
             onSatelliteClick={(sat) => go(sat.path)}
           />
         </Suspense>
-        <CameraRig mode={mode} focus={focus} resetKey={resetKey} earthPosRef={earthPosRef} planetPositions={planetPositions} />
+        <CameraRig mode={mode} focus={focus} resetKey={resetKey} earthPosRef={earthPosRef} planetPositions={planetPositions} planetMap={planetMap} />
         <OrbitControls makeDefault enablePan={false} enableDamping dampingFactor={0.08} rotateSpeed={0.55} zoomSpeed={0.8} minDistance={2.3} maxDistance={120} />
       </Canvas>
 
