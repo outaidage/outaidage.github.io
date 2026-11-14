@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
   );
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return json({ ok: false, error: "未登录。" }, 401, headers);
-  const { data: allow } = await supabase.from("admin_allowlist").select("email").eq("email", user.email).maybeSingle();
+  const { data: allow } = await supabase.from("admin_allowlist").select("user_id").eq("user_id", user.id).maybeSingle();
   if (!allow) return json({ ok: false, error: "仅管理员可检查外部 URL。" }, 403, headers);
 
   let body: { url?: string };

@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     });
     const { data: { user } } = await authClient.auth.getUser();
     if (user) {
-      const { data: allow } = await authClient.from("admin_allowlist").select("email").eq("email", user.email).maybeSingle();
+      const { data: allow } = await authClient.from("admin_allowlist").select("user_id").eq("user_id", user.id).maybeSingle();
       if (allow) isAdmin = true;
     }
   }
