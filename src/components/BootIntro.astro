@@ -110,6 +110,12 @@
       window.dispatchEvent(new CustomEvent("outai:boot-done"));
     };
 
+    // 起飞后遮罩变透明（3D 飞行透过遮罩可见）。起飞前遮罩是不透明深空底，
+    // 盖住等待期的嵌入式首页，否则首页会先闪一下、再突然切入场动画。
+    const revealScene = () => {
+      overlay.classList.add("boot-flying");
+    };
+
     // 舞台全屏（复用 universe-full，与“进入宇宙”同一机制：同一个
     // Canvas/场景全屏展开，不重建场景、不换页）。
     const enterFullscreen = () => {
@@ -177,6 +183,9 @@
       window.removeEventListener(BOOT_CORE, onCore);
       window.removeEventListener(BOOT_ENTER, onEnter);
       window.removeEventListener(BOOT_CAMERA_DONE, onCameraDone);
+      // 跳过时也先让遮罩变透明（等待期内遮罩是不透明底；不先变透明，
+      // 跳过后的 400ms 里用户会看到黑屏而不是首页）。
+      revealScene();
       // 通知 3D 相机立即贴到总览（不再飞行）
       window.dispatchEvent(new CustomEvent(BOOT_SKIP));
       if (brand) { gsap.killTweensOf(brand); gsap.set(brand, { opacity: 0 }); }
@@ -202,6 +211,9 @@
     const start = () => {
       if (started || finished) return;
       started = true;
+      // 起飞前遮罩是不透明深空底（盖住等待期的首页）；起飞时变透明，
+      // 3D 飞行透过遮罩可见，舞台全屏后不再是黑屏起手。
+      revealScene();
       enterFullscreen();
       (window as unknown as { __outaiBootFly?: boolean }).__outaiBootFly = true;
       window.dispatchEvent(new CustomEvent(BOOT_FLY));
@@ -214,14 +226,23 @@
 <style>
   .boot-intro {
     position: fixed; inset: 0; z-index: 400;
-    /* 透明：3D 场景透过遮罩可见（电影级开场的核心）。之前的不透明
-       #03040b 背景已去掉；开场期间舞台本身是全屏深色，3D 渲染前是深色底，不闪白。 */
-    background: transparent;
+    /* 起飞前是不透明深空底：等 3D 场景就绪期间（最长 2.5 秒），遮罩盖住
+       嵌入式首页，否则首页会先闪一下、再突然切入场动画。起飞时加
+       .boot-flying 变透明，3D 飞行透过遮罩可见。背景 0.4 秒过渡，避免
+       从不透明到底色切换时闪一下。 */
+    background: #03040b;
+    transition: background-color 0.4s ease;
     /* 默认隐藏：只有 JS 明确决定播放时才显示。视图切换回首页时脚本
        可能不重新执行，默认隐藏能保证遮罩绝不黑屏盖住网站。 */
     display: none; align-items: center; justify-content: center;
     overflow: hidden;
-    /* 遮罩本身不拦截点击（飞行中不需要点击页面）；控制按钮单独可点。 */
+    /* 等待期遮罩拦截点击（不让用户点到被盖住的首页）；起飞后放开，
+       3D 画布可拖拽。控制按钮始终可点。 */
+    pointer-events: auto;
+  }
+  /* 起飞后：遮罩变透明，3D 飞行透过遮罩可见；不再拦截点击。 */
+  .boot-intro.boot-flying {
+    background: transparent;
     pointer-events: none;
   }
   .boot-brand {
