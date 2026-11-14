@@ -90,11 +90,12 @@ const sunFragment = /* glsl */ `
   }
 `;
 
-function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPositions, onSelect }: {
+function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused, planetPositions, onSelect }: {
   def: PlanetDef;
   labelsVisible: boolean;
   labelDistanceFactor: number;
   compactLabels: boolean;
+  isFocused: boolean;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
   onSelect: (id: PlanetId) => void;
 }) {
@@ -123,7 +124,9 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPos
       <sprite scale={[def.radius * 5.2, def.radius * 5.2, 1]}>
         <spriteMaterial map={glow} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </sprite>
-      {labelsVisible && (
+      {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
+          放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
+      {labelsVisible && !isFocused && (
         <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
           <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
         </Html>
@@ -360,7 +363,7 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
     }
   });
 
-  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} labelDistanceFactor={labelDistanceFactor} compactLabels={compactLabels} planetPositions={planetPositions} onSelect={onSelect} />;
+  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} labelDistanceFactor={labelDistanceFactor} compactLabels={compactLabels} isFocused={isFocused} planetPositions={planetPositions} onSelect={onSelect} />;
 
   const seg = low ? 28 : 48;
   // 透明命中球：小行星（水星 r=0.45）在默认视角只有约 8px，靠它才点得中。
@@ -413,7 +416,9 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
             onClick={onSatelliteClick}
           />
         ))}
-        {labelsVisible && (
+        {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
+            放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
+        {labelsVisible && !isFocused && (
           <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
             <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
           </Html>
