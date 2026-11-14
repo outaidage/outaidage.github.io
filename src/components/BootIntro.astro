@@ -57,6 +57,7 @@
   const BOOT_ENTER = "outai:boot-enter";
   const BOOT_CAMERA_DONE = "outai:boot-camera-done";
   const BOOT_SKIP = "outai:boot-skip";
+  const SCENE_READY = "outai:scene-ready";
 
   (function () {
     const overlay = document.getElementById("boot-intro");
@@ -152,9 +153,10 @@
     };
 
     // 到达能量核心：品牌淡入（字标微放 + 光晕扩散，冰蓝/青紫光效）。
+    // 淡入要快（0.5s），太阳还在画面中央时品牌就已清晰可见。
     const onCore = () => {
       if (!brand) return;
-      gsap.to(brand, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" });
+      gsap.to(brand, { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" });
       const pulse = brand.querySelector(".boot-pulse");
       if (pulse) gsap.fromTo(pulse, { scale: 0.4, opacity: 0.7 }, { scale: 2.4, opacity: 0, duration: 1.2, ease: "power2.out" });
     };
@@ -193,12 +195,20 @@
     // 安全兜底：万一飞行/事件卡住，8 秒后强制结束，绝不黑屏卡死。
     window.setTimeout(() => { if (!finished) skip(); }, 8000);
 
-    // 启动：舞台全屏 → 触发镜头飞行（先置 flag 再发事件，挂载顺序不确定时
-    // SpaceCore 靠 flag 兜底；事件与 flag 都以全屏已设置为前提）。
-    enterFullscreen();
-    (window as unknown as { __outaiBootFly?: boolean }).__outaiBootFly = true;
-    window.dispatchEvent(new CustomEvent(BOOT_FLY));
-    if (soundOn) playBootSound();
+    // 启动：等 3D 场景渲染出第一帧再全屏+起飞（避免全屏后长时间黑屏）。
+    // 场景通常在挂载后很快就绪；2.5 秒超时兜底（超时也继续，不卡住）。
+    // 等待期间页面是正常首页（非全屏、无黑屏），舞台全屏时 3D 已可见。
+    let started = false;
+    const start = () => {
+      if (started || finished) return;
+      started = true;
+      enterFullscreen();
+      (window as unknown as { __outaiBootFly?: boolean }).__outaiBootFly = true;
+      window.dispatchEvent(new CustomEvent(BOOT_FLY));
+      if (soundOn) playBootSound();
+    };
+    window.addEventListener(SCENE_READY, start, { once: true });
+    window.setTimeout(start, 2500);
   })();
 </script>
 <style>
@@ -220,6 +230,14 @@
     text-align: center; opacity: 0;
     pointer-events: none;
   }
+  /* 品牌背后的暗色径向底衬：无论背景是明亮的地球盘面还是太阳光晕，
+     字标与副标题都有足够对比度，不会发虚看不清。 */
+  .boot-brand::before {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 640px; height: 360px; margin: -180px 0 0 -320px; border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(3, 4, 11, 0.72) 0%, rgba(3, 4, 11, 0.38) 55%, rgba(3, 4, 11, 0) 78%);
+    pointer-events: none;
+  }
   .boot-pulse {
     position: absolute; left: 50%; top: 50%; width: 320px; height: 320px;
     margin: -160px 0 0 -160px; border-radius: 50%; opacity: 0;
@@ -231,12 +249,13 @@
     line-height: 1; color: #f2fbff;
     background: linear-gradient(100deg, #dff8ff 10%, #61edff 45%, #a68aff 75%, #7dffce 100%);
     -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 42px rgba(97, 237, 255, 0.35);
+    text-shadow: 0 0 42px rgba(97, 237, 255, 0.55), 0 2px 18px rgba(3, 4, 11, 0.9);
   }
   .boot-sub {
     position: relative; margin-top: 18px;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11px; letter-spacing: 0.42em; color: rgba(214, 240, 255, 0.72);
+    font-size: 11px; letter-spacing: 0.42em; color: rgba(214, 240, 255, 0.85);
+    text-shadow: 0 1px 12px rgba(3, 4, 11, 0.9), 0 0 24px rgba(97, 237, 255, 0.35);
   }
   .boot-controls {
     position: absolute; left: 0; right: 0; bottom: 28px;
