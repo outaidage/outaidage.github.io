@@ -2,9 +2,13 @@
 // Real WebGL scene (three + React Three Fiber): a breathing emissive core,
 // an energy-cage wireframe, two tilted orbit rings with satellites, a mixed
 // cyan/white/purple starfield, and a camera rig that follows the pointer.
-// Loaded with `client:visible` on the home page only, so it is code-split
-// and never blocks first paint. The canvas is transparent — the page's own
-// 2D universe background shows through behind it.
+// Loaded with `client:idle` on the home page only, so it is code-split
+// and never blocks first paint. NOTE: do NOT use `client:visible` here —
+// Astro's visible directive observes the island's CHILDREN, and this
+// component renders null on the server (and until the client-side checks
+// pass), so it has no children to observe and would never hydrate.
+// The canvas is transparent — the page's own 2D universe background shows
+// through behind it.
 // Performance: DPR capped at 1.5, ~600 starfield points, rendering pauses
 // when the tab is hidden, and the whole scene returns null on mobile
 // (<760px), reduced-motion, or when the site motion toggle is off (the
@@ -182,11 +186,29 @@ export default function SpaceCore() {
       (stored !== "full" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     const isMobile = window.innerWidth < 760;
-    const ok = !reducedMotion && !isMobile;
+    // WebGL pre-check: if this browser cannot create a WebGL context,
+    // three.js cannot render at all — stay in lightweight mode and say so.
+    let webglOk = false;
+    try {
+      const probe = document.createElement("canvas");
+      webglOk = !!(
+        probe.getContext("webgl2") || probe.getContext("webgl")
+      );
+    } catch {
+      webglOk = false;
+    }
+    const ok = !reducedMotion && !isMobile && webglOk;
     setEnabled(ok);
-    // Show the lightweight-mode note only when the core is actually off.
+    // Show the lightweight-mode note only when the core is actually off,
+    // with a reason that matches why (motion / mobile / no WebGL).
     if (!ok) {
-      document.getElementById("core-fallback")?.removeAttribute("hidden");
+      const el = document.getElementById("core-fallback");
+      if (el) {
+        el.removeAttribute("hidden");
+        if (!webglOk) {
+          el.textContent = "WEBGL UNAVAILABLE · 使用轻量模式";
+        }
+      }
     }
   }, []);
 
