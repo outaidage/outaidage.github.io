@@ -45,7 +45,7 @@ export default function BookmarkExplorer() {
     {error && <div className="empty-state">读取书签失败：{error}</div>}
     {!loading && !error && filtered.length===0 && <div className="empty-state">没有找到书签。你可以在管理后台添加第一条收藏。</div>}
     <div className="card-grid">
-      {filtered.map(item=><a className="card" key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
+      {filtered.map(item=><a className="card" data-tilt key={item.id} href={item.url} target="_blank" rel="noopener noreferrer">
         <div className="card-kicker">{item.category || "UNCATEGORIZED"}</div>
         <h3>{item.title}</h3><p>{item.description || item.url}</p>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:14}}>{(item.tags||[]).map(t=><span className="tag" key={t}>{t}</span>)}</div>
