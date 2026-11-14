@@ -11,6 +11,7 @@ type RecLink = {id:string;title:string;url:string;description:string|null;catego
 type RecLinkForm = {title:string;url:string;description:string;category:string;sort_order:string};
 type GuestbookEntry = {id:string;name:string;message:string;created_at:string;approved:boolean};
 type ArticleComment = {id:string;article_slug:string;name:string;message:string;created_at:string;approved:boolean};
+type AuditEntry = {id:string;admin_email:string|null;action:string;target_type:string|null;target_label:string|null;detail:string|null;created_at:string};
 const emptyRecLinkForm = (): RecLinkForm => ({title:"",url:"",description:"",category:"",sort_order:"0"});
 type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category"|"reclink"|"guestbook"|"comment";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
 const emptyBookmarkForm = (): BookmarkForm => ({url:"",title:"",description:"",note:"",category:"AI & Tools",tags:"",is_public:true,is_favorite:false});
@@ -104,11 +105,28 @@ export default function AdminApp() {
   const [editingRecId,setEditingRecId] = useState<string|null>(null);
   const [gbEntries,setGbEntries] = useState<GuestbookEntry[]>([]);
   const [comments,setComments] = useState<ArticleComment[]>([]);
+  const [auditLog,setAuditLog] = useState<AuditEntry[]>([]);
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
   const raindropFileRef = useRef<HTMLInputElement|null>(null);
 
   const say = (kind:"ok"|"err", text:string) => { setMsgKind(kind); setMessage(text); };
+
+  async function logAudit(action:string, targetType:string|null, targetLabel:string|null, detail?:string){
+    if(!supabase) return;
+    const email = (session as any)?.user?.email as string | undefined;
+    await supabase.from("admin_audit_log").insert({
+      admin_email: email || null,
+      action, target_type: targetType, target_label: targetLabel,
+      detail: detail || null,
+    });
+  }
+  async function loadAuditLog(){
+    if(!supabase) return;
+    const {data,error}=await supabase.from("admin_audit_log").select("id,admin_email,action,target_type,target_label,detail,created_at").order("created_at",{ascending:false}).limit(50);
+    if(error) { say("err",error.message); return; }
+    setAuditLog((data||[]) as AuditEntry[]);
+  }
 
   useEffect(()=>{
     if (!supabase) return;
@@ -208,6 +226,7 @@ export default function AdminApp() {
     const {error} = await supabase.from("recommended_links").delete().eq("id",id);
     if (error) { say("err",`删除失败：${error.message}`); return; }
     say("ok","推荐链接已删除。");
+    await logAudit("reclink_delete","recommended_link",id);
     loadRecLinks();
   }
   async function loadGbEntries(){
@@ -221,6 +240,7 @@ export default function AdminApp() {
     const {error} = await supabase.from("guestbook_entries").update({approved}).eq("id",id);
     if (error) { say("err",`操作失败：${error.message}`); return; }
     say("ok", approved ? "留言已通过审核，将公开显示。" : "留言已撤回，不再公开显示。");
+    await logAudit(approved ? "guestbook_approve" : "guestbook_withdraw","guestbook",id);
     loadGbEntries();
   }
   async function deleteGbEntry(id: string){
@@ -228,6 +248,7 @@ export default function AdminApp() {
     const {error} = await supabase.from("guestbook_entries").delete().eq("id",id);
     if (error) { say("err",`删除失败：${error.message}`); return; }
     say("ok","留言已删除。");
+    await logAudit("guestbook_delete","guestbook",id);
     loadGbEntries();
   }
   async function loadComments(){
@@ -241,6 +262,7 @@ export default function AdminApp() {
     const {error} = await supabase.from("comments").update({approved}).eq("id",id);
     if (error) { say("err",`操作失败：${error.message}`); return; }
     say("ok", approved ? "评论已通过审核，将公开显示。" : "评论已撤回，不再公开显示。");
+    await logAudit(approved ? "comment_approve" : "comment_withdraw","comment",id);
     loadComments();
   }
   async function deleteComment(id: string){
@@ -248,10 +270,11 @@ export default function AdminApp() {
     const {error} = await supabase.from("comments").delete().eq("id",id);
     if (error) { say("err",`删除失败：${error.message}`); return; }
     say("ok","评论已删除。");
+    await logAudit("comment_delete","comment",id);
     loadComments();
   }
   useEffect(()=>{if(session){loadTags();loadCategories();}},[session]);
-  useEffect(()=>{if(session && tab==="data"){loadTags();loadCategories();loadArticles();}},[session,tab]);
+  useEffect(()=>{if(session && tab==="data"){loadTags();loadCategories();loadArticles();loadAuditLog();}},[session,tab]);
   useEffect(()=>{if(session && tab==="links") loadRecLinks()},[session,tab]);
   useEffect(()=>{if(session && tab==="guestbook"){loadGbEntries();loadComments();}},[session,tab]);
 
@@ -269,7 +292,7 @@ export default function AdminApp() {
   async function login(e:React.FormEvent){
     e.preventDefault(); if(!supabase)return;
     const {error}=await supabase.auth.signInWithPassword({email,password});
-    if (error) say("err",error.message); else say("ok","登录成功。");
+    if (error) say("err",error.message); else { say("ok","登录成功。"); await logAudit("login","session",email); }
   }
   async function logout(){await supabase?.auth.signOut();setItems([]);setArticles([])}
   async function syncBookmarkTags(bookmarkId: string, tagNames: string[]){
@@ -313,6 +336,7 @@ export default function AdminApp() {
     }
     setSaving(false);
     say("ok", editingBookmarkId ? "书签已更新。" : "书签已保存。");
+    await logAudit(editingBookmarkId ? "bookmark_update" : "bookmark_create","bookmark",payload.title,payload.url);
     setForm(emptyBookmarkForm()); setEditingBookmarkId(null); await cleanupOrphanTags(); loadBookmarks(); loadTags();
   }
   function editBookmark(b: Bookmark){
@@ -342,8 +366,12 @@ export default function AdminApp() {
       if (typeof content !== "string") { say("err",`备份失败：文章 ${a.slug} 内容异常。`); return; }
       articleContents.push({slug:a.slug, content});
     }
+    const {data: recLinksData} = await supabase.from("recommended_links").select("id,title,url,description,category,sort_order,created_at").order("sort_order",{ascending:true});
+    const {data: gbData} = await supabase.from("guestbook_entries").select("id,name,message,created_at,approved").order("created_at",{ascending:true});
+    const {data: commentsData} = await supabase.from("comments").select("id,article_slug,name,message,created_at,approved").order("created_at",{ascending:true});
+    const {data: storageFiles} = await supabase.storage.from("article-images").list("covers",{limit:1000});
     const backup = {
-      version: 1,
+      version: 2,
       app: "OUTAI",
       exportedAt: new Date().toISOString(),
       categories: categories.map(c=>({name:c.name, slug:c.slug})),
@@ -354,6 +382,10 @@ export default function AdminApp() {
         status:b.status, tags:b.tags,
       })),
       articles: articleContents,
+      recommendedLinks: (recLinksData||[]).map((r:any)=>({title:r.title, url:r.url, description:r.description, category:r.category, sort_order:r.sort_order})),
+      guestbookEntries: (gbData||[]).map((g:any)=>({id:g.id, name:g.name, message:g.message, created_at:g.created_at, approved:g.approved})),
+      comments: (commentsData||[]).map((c:any)=>({id:c.id, article_slug:c.article_slug, name:c.name, message:c.message, created_at:c.created_at, approved:c.approved})),
+      storageInventory: (storageFiles||[]).map((f:any)=>({path:`covers/${f.name}`, name:f.name, size:f.metadata?.size ?? null, updated_at:f.updated_at ?? null})),
     };
     const blob = new Blob([JSON.stringify(backup,null,2)], {type:"application/json"});
     const url = URL.createObjectURL(blob);
@@ -364,7 +396,8 @@ export default function AdminApp() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    say("ok",`备份已导出：${items.length} 条书签、${categories.length} 个分类、${tags.length} 个标签、${articleContents.length} 篇文章。`);
+    await logAudit("backup_export","backup",`outai-backup-${new Date().toISOString().slice(0,10)}.json`,`${items.length} 条书签、${categories.length} 个分类、${tags.length} 个标签、${articleContents.length} 篇文章、${(recLinksData||[]).length} 条推荐链接、${(gbData||[]).length} 条留言、${(commentsData||[]).length} 条评论`);
+    say("ok",`备份已导出：${items.length} 条书签、${categories.length} 个分类、${tags.length} 个标签、${articleContents.length} 篇文章、${(recLinksData||[]).length} 条推荐链接、${(gbData||[]).length} 条留言、${(commentsData||[]).length} 条评论。`);
   }
   async function importBackup(file: File){
     if(!supabase) return;
@@ -375,12 +408,12 @@ export default function AdminApp() {
       say("err","备份文件不是有效的 JSON。");
       return;
     }
-    if (parsed?.app !== "OUTAI" || parsed?.version !== 1 || !Array.isArray(parsed.bookmarks)) {
+    if (parsed?.app !== "OUTAI" || (parsed?.version !== 1 && parsed?.version !== 2) || !Array.isArray(parsed.bookmarks)) {
       say("err","这不是有效的 OUTAI 备份文件。");
       return;
     }
     setSaving(true); say("ok","正在导入备份…");
-    let catCount = 0, tagCount = 0, bmCount = 0, artCount = 0;
+    let catCount = 0, tagCount = 0, bmCount = 0, artCount = 0, recCount = 0, gbCount = 0, cmCount = 0;
     try {
       for (const c of (parsed.categories||[])) {
         if (typeof c?.name !== "string" || typeof c?.slug !== "string") continue;
@@ -422,8 +455,44 @@ export default function AdminApp() {
         if (error) throw new Error(`文章 ${a.slug} 导入失败：${error.message}`);
         artCount++;
       }
+      if (parsed.version === 2) {
+        for (const r of (parsed.recommendedLinks||[])) {
+          if (typeof r?.url !== "string" || typeof r?.title !== "string") continue;
+          const {error} = await supabase.from("recommended_links").upsert({
+            title:r.title, url:normalizeUrl(r.url),
+            description: typeof r.description === "string" ? r.description : null,
+            category: typeof r.category === "string" ? r.category : null,
+            sort_order: typeof r.sort_order === "number" ? r.sort_order : 0,
+          }, {onConflict:"url"});
+          if (error) throw new Error(`推荐链接“${r.title}”导入失败：${error.message}`);
+          recCount++;
+        }
+        for (const g of (parsed.guestbookEntries||[])) {
+          if (typeof g?.name !== "string" || typeof g?.message !== "string") continue;
+          const {error} = await supabase.from("guestbook_entries").upsert({
+            id: typeof g.id === "string" ? g.id : undefined,
+            name:g.name, message:g.message,
+            created_at: typeof g.created_at === "string" ? g.created_at : undefined,
+            approved: g.approved === true,
+          }, {onConflict:"id"});
+          if (error) throw new Error(`留言“${g.name}”导入失败：${error.message}`);
+          gbCount++;
+        }
+        for (const c of (parsed.comments||[])) {
+          if (typeof c?.article_slug !== "string" || typeof c?.name !== "string" || typeof c?.message !== "string") continue;
+          const {error} = await supabase.from("comments").upsert({
+            id: typeof c.id === "string" ? c.id : undefined,
+            article_slug:c.article_slug, name:c.name, message:c.message,
+            created_at: typeof c.created_at === "string" ? c.created_at : undefined,
+            approved: c.approved === true,
+          }, {onConflict:"id"});
+          if (error) throw new Error(`评论“${c.name}”导入失败：${error.message}`);
+          cmCount++;
+        }
+      }
       await cleanupOrphanTags();
-      say("ok",`备份导入完成：${catCount} 个分类、${tagCount} 个标签、${bmCount} 条书签、${artCount} 篇文章。`);
+      await logAudit("backup_import","backup",file.name,`${catCount} 个分类、${tagCount} 个标签、${bmCount} 条书签、${artCount} 篇文章、${recCount} 条推荐链接、${gbCount} 条留言、${cmCount} 条评论`);
+      say("ok",`备份导入完成：${catCount} 个分类、${tagCount} 个标签、${bmCount} 条书签、${artCount} 篇文章、${recCount} 条推荐链接、${gbCount} 条留言、${cmCount} 条评论。`);
       loadBookmarks(); loadTags(); loadCategories(); loadArticles();
     } catch (err:any) {
       say("err",`导入失败：${err.message}`);
@@ -434,7 +503,7 @@ export default function AdminApp() {
   async function deleteBookmark(id:string){
     if(!supabase)return;
     const {error}=await supabase.from("bookmarks").delete().eq("id",id);
-    if(error)say("err",error.message);else{say("ok","书签已删除。");setSelected(s=>s.filter(x=>x!==id));await cleanupOrphanTags();loadBookmarks();loadTags()}
+    if(error)say("err",error.message);else{say("ok","书签已删除。");await logAudit("bookmark_delete","bookmark",id);setSelected(s=>s.filter(x=>x!==id));await cleanupOrphanTags();loadBookmarks();loadTags()}
   }
   async function setBookmarkStatus(id:string, status:"active"|"archived"){
     if(!supabase)return;
@@ -544,6 +613,7 @@ export default function AdminApp() {
     if (error) { say("err",`保存失败：${error.message}`); return; }
     const commit = (data as any)?.commit as string | undefined;
     say("ok", isEdit ? `文章已更新${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。` : `文章已发布${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
+    await logAudit(isEdit ? "article_update" : "article_create","article",slug,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     loadArticles();
   }
   async function deleteArticle(path: string){
@@ -551,6 +621,7 @@ export default function AdminApp() {
     if (error) { say("err",`删除失败：${error.message}`); return; }
     const commit = (data as any)?.commit as string | undefined;
     say("ok",`文章已删除${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
+    await logAudit("article_delete","article",path,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     if (editingSlug && path === `src/content/blog/${editingSlug}.md`) newArticle();
     loadArticles();
   }
@@ -729,7 +800,50 @@ export default function AdminApp() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    await logAudit("raindrop_export","bookmarks",`${rows.length-1} 条书签`,`Raindrop CSV`);
     say("ok",`已导出 ${rows.length-1} 条书签为 Raindrop CSV，可直接导入 Raindrop。`);
+  }
+  async function exportArticleMarkdown(slug:string){
+    if(!supabase) return;
+    const {data,error} = await callFunction({action:"get", path:`src/content/blog/${slug}.md`});
+    if (error) { say("err",`导出失败：${error.message}`); return; }
+    const content = (data as any)?.content as string;
+    if (typeof content !== "string") { say("err","导出失败：文章内容异常。"); return; }
+    const blob = new Blob([content], {type:"text/markdown;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    await logAudit("article_export","article",slug,"Markdown");
+    say("ok",`文章 ${slug}.md 已下载。`);
+  }
+  async function exportBookmarksJSON(){
+    if(!supabase) return;
+    const payload = {
+      version: 1,
+      app: "OUTAI",
+      exportedAt: new Date().toISOString(),
+      bookmarks: items.map(b=>({
+        url:b.url, title:b.title, description:b.description, note:b.note,
+        category:b.category, is_public:b.is_public, is_favorite:b.is_favorite,
+        status:b.status, tags:b.tags, created_at:(b as any).created_at ?? null,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `outai-bookmarks-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    await logAudit("bookmarks_export","bookmarks",`${items.length} 条书签`,"JSON");
+    say("ok",`已导出 ${items.length} 条书签为 JSON。`);
   }
   async function uploadCoverImage(file: File){
     if(!supabase) return;
@@ -838,6 +952,7 @@ export default function AdminApp() {
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
               <strong style={{fontSize:13}}>{a.slug}</strong>
               <span style={{display:"flex",gap:10}}>
+                <button onClick={()=>exportArticleMarkdown(a.slug)} style={{background:"none",border:0,color:"#aab3c0",cursor:"pointer"}}>下载 .md</button>
                 <button onClick={()=>editArticle(a)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
                 <button onClick={()=>setConfirmTarget({kind:"article",path:a.path,label:a.slug})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
@@ -1045,12 +1160,28 @@ export default function AdminApp() {
       </div>
       <div className="card">
         <h3>备份与恢复</h3>
-        <p style={{color:"#929dab",fontSize:12}}>导出会把全部书签（含标签）、分类、标签和文章全文打包成一个 JSON 文件下载到本地。导入会按 URL 和 slug 去重合并，不会删除备份文件里没有的内容。</p>
+        <p style={{color:"#929dab",fontSize:12}}>导出会把全部书签（含标签）、分类、标签、文章全文、推荐链接、留言、评论和图片清单打包成一个 JSON 文件下载到本地（备份格式 v2；旧版 v1 备份仍可导入）。导入会按 URL、slug 和 ID 去重合并，不会删除备份文件里没有的内容。</p>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
           <button className="button primary" onClick={exportBackup} disabled={saving}>导出备份 (JSON)</button>
           <input type="file" accept="application/json,.json" ref={fileRef} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) importBackup(f); e.target.value="";}}/>
           <button className="button secondary" onClick={()=>fileRef.current?.click()} disabled={saving}>选择备份文件导入</button>
+          <button className="button secondary" onClick={exportBookmarksJSON} disabled={saving}>仅导出书签 (JSON)</button>
         </div>
+      </div>
+      <div className="card">
+        <h3>操作日志</h3>
+        <p style={{color:"#929dab",fontSize:12}}>记录管理员的操作（登录、发布、删除、导入、导出等），最新 50 条，仅管理员可见。</p>
+        <div style={{display:"grid",gap:8,marginTop:12}}>
+          {auditLog.map(en=><div key={en.id} style={{borderBottom:"1px solid #29313c",paddingBottom:8,fontSize:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+              <span><strong style={{color:"#b5f36b"}}>{en.action}</strong>{en.target_label ? ` · ${en.target_label}` : ""}</span>
+              <span style={{color:"#929dab",whiteSpace:"nowrap"}}>{new Date(en.created_at).toLocaleString("zh-CN")}</span>
+            </div>
+            {(en.detail || en.admin_email) && <div style={{color:"#aab3c0",marginTop:4}}>{en.detail}{en.admin_email ? ` — ${en.admin_email}` : ""}</div>}
+          </div>)}
+          {!auditLog.length&&<p style={{color:"#929dab",fontSize:12}}>还没有操作记录。</p>}
+        </div>
+        <button className="button secondary" onClick={loadAuditLog} style={{marginTop:12}}>刷新日志</button>
       </div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         <button className="button secondary" onClick={()=>{loadBookmarks();loadTags();loadCategories();loadArticles();}}>刷新全部数据</button>
