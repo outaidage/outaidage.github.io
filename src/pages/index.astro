@@ -5,10 +5,9 @@ import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
 import Terminal from "@/components/Terminal";
 import SpaceCore from "@/components/SpaceCore";
-import PlanetNodes from "@/components/PlanetNodes";
 import HomeModules from "@/components/HomeModules";
 import { supabase } from "@/lib/supabase";
-import { getHomeModules, buildPlanetNodes } from "@/lib/home-modules";
+import { getHomeModules } from "@/lib/home-modules";
 
 // 最新文章（真实数据；isVisiblePost 排除草稿与未来日期的文章）。
 const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
@@ -46,17 +45,50 @@ try {
 // 文章数 = 可见文章；书签数 = 公开书签；项目数 = projects 表行数；资源数 = recommended_links 行数。
 let nodeCounts: Record<string, number> = { articles: allPosts.length };
 if (bookmarkCount !== null) nodeCounts.bookmarks = bookmarkCount;
+let categoryCount: number | null = null;
 try {
   if (supabase) {
     const { count: pc } = await supabase.from("projects").select("id", { count: "exact", head: true });
     if (typeof pc === "number") nodeCounts.projects = pc;
     const { count: rc } = await supabase.from("recommended_links").select("id", { count: "exact", head: true });
     if (typeof rc === "number") nodeCounts.resources = rc;
+    const { count: cc } = await supabase.from("categories").select("id", { count: "exact", head: true });
+    if (typeof cc === "number") categoryCount = cc;
   }
 } catch { /* 数量缺失时节点不显示计数，不伪造 */ }
-const planetNodes = buildPlanetNodes(modules, nodeCounts);
-const lastUpdate = allPosts[0]?.data.pubDate;
+// 行星卫星子功能（真实数据、真实页面；没有子功能的行星不建卫星，不伪造）。
+// 水星 = 最新 3 篇文章 + 全部文章；火星 = 最近项目 + 全部项目；
+// 土星 = 最近收藏（外链）+ 收藏分类；地球 = 关于/联系/更新日志/资源；
+// 天王星 = 全部工具；海王星 = 留言板/联系方式。金星、木星、太阳暂无子功能。
 const base = import.meta.env.BASE_URL;
+const planetSatellites: Record<string, { id: string; name: string; description: string; path: string; count?: number }[]> = {
+  mercury: [
+    ...posts.map(p => ({ id: `mercury-${p.slug}`, name: p.data.title, description: p.data.description || "最新文章", path: `${base}blog/${p.slug}/` })),
+    { id: "mercury-all", name: "全部文章", description: "文章中心，全部文章列表", path: `${base}blog/`, count: allPosts.length },
+  ],
+  earth: [
+    { id: "earth-about", name: "个人介绍", description: "关于我与 OUTAI", path: `${base}about/` },
+    { id: "earth-contact", name: "联系方式", description: "联系 outaidage", path: `${base}contact/` },
+    { id: "earth-changelog", name: "更新日志", description: "网站更新记录", path: `${base}changelog/` },
+    { id: "earth-links", name: "资源中心", description: "推荐链接", path: `${base}links/`, count: nodeCounts.resources },
+  ],
+  mars: [
+    ...recentProjects.map(p => ({ id: `mars-${p.id}`, name: p.name, description: p.description || "项目", path: `${base}projects/` })),
+    { id: "mars-all", name: "全部项目", description: "项目空间", path: `${base}projects/`, count: nodeCounts.projects },
+  ],
+  saturn: [
+    ...latestBookmarks.map(b => ({ id: `saturn-${b.id}`, name: b.title, description: b.category || "最近收藏", path: b.url })),
+    { id: "saturn-cats", name: "收藏分类", description: "书签分类", path: `${base}collection/`, count: categoryCount ?? undefined },
+  ],
+  uranus: [
+    { id: "uranus-all", name: "全部工具", description: "JSON、Base64、字符统计", path: `${base}toolbox/`, count: 3 },
+  ],
+  neptune: [
+    { id: "neptune-guestbook", name: "留言板", description: "留下你的话", path: `${base}guestbook/` },
+    { id: "neptune-contact", name: "联系方式", description: "联系 outaidage", path: `${base}contact/` },
+  ],
+};
+const lastUpdate = allPosts[0]?.data.pubDate;
 ---
 <MainLayout>
   <section class="hero-du">
@@ -73,8 +105,7 @@ const base = import.meta.env.BASE_URL;
   </section>
 
   <section class="core-stage glass-panel" aria-label="数字宇宙核心">
-    <SpaceCore client:idle nodes={planetNodes} />
-    <PlanetNodes client:load nodes={planetNodes} base={base} />
+    <SpaceCore client:idle planetSatellites={planetSatellites} />
     <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
   </section>
 

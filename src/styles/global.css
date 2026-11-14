@@ -303,27 +303,38 @@ html[data-motion="reduced"] .button:active { transform: none; }
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-.galaxy-panel-status { font: 9px 'DM Mono', monospace; letter-spacing: .18em; color: var(--text-faint); }
-.galaxy-panel-status .pulse { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--energy-green); margin-right: 5px; }
-.galaxy-panel-modes { display: flex; gap: 6px; }
-.galaxy-panel-modes button {
+.galaxy-status { font: 9px 'DM Mono', monospace; letter-spacing: .18em; color: var(--text-faint); }
+.galaxy-panel-row { display: flex; gap: 6px; }
+.galaxy-panel-row button {
   background: none; border: 1px solid #232c4a; border-radius: 8px;
   color: var(--text-dim); font: 10px 'DM Mono', monospace; letter-spacing: .08em;
   padding: 6px 9px; cursor: pointer; white-space: nowrap;
   transition: border-color .2s ease, color .2s ease, background .2s ease;
 }
-.galaxy-panel-modes button:hover { border-color: rgba(97, 237, 255, .5); color: var(--text); }
-.galaxy-panel-modes button.active {
+.galaxy-panel-row button:hover { border-color: rgba(97, 237, 255, .5); color: var(--text); }
+.galaxy-panel-row button.active {
   border-color: rgba(97, 237, 255, .65); color: var(--energy-cyan);
   background: rgba(97, 237, 255, .10);
   box-shadow: 0 0 16px rgba(97, 237, 255, .12);
 }
-.galaxy-panel-modes button.reset { padding: 6px 8px; }
+.galaxy-panel-controls button { padding: 5px 8px; font-size: 9px; }
 @media (max-width: 760px) {
   .galaxy-panel { right: 8px; top: 8px; bottom: auto; padding: 6px 8px; }
-  .galaxy-panel-status { display: none; }
-  .galaxy-panel-modes button { font-size: 9px; padding: 5px 7px; }
+  .galaxy-status { display: none; }
+  .galaxy-panel-row button { font-size: 9px; padding: 5px 7px; }
 }
+
+/* ---- 行星标签（Drei Html，始终面向相机，跟随行星） ---- */
+.planet-label {
+  display: flex; align-items: center; gap: 4px;
+  font: 10px 'DM Mono', monospace; letter-spacing: .06em; white-space: nowrap;
+  color: var(--text-dim);
+  background: rgba(3, 4, 11, .68);
+  border: 1px solid rgba(97, 237, 255, .25);
+  border-radius: 999px; padding: 2px 8px;
+  pointer-events: none;
+}
+.planet-label-icon { color: var(--energy-cyan); font-size: 11px; }
 
 /* ---- Orbital rings (CSS decoration behind the hero) ---- */
 .orbit-ring {
@@ -456,6 +467,17 @@ html[data-motion="reduced"] .button:active { transform: none; }
 .planet-info-count { flex: none; color: var(--text-faint); font-size: 11px; border: 1px solid rgba(97, 237, 255, .25); border-radius: 999px; padding: 1px 7px; }
 .planet-info-go { flex: none; color: #61edff; }
 .planet-info-hint { color: var(--text-faint); font-size: 11px; letter-spacing: .08em; }
+/* 信息面板里的链接与按钮可点（面板容器本身 pointer-events: none，避免遮挡画布拖拽）。 */
+.planet-info a, .planet-info button { pointer-events: auto; text-decoration: none; }
+.planet-info-panel { flex-wrap: wrap; align-items: flex-start; }
+.planet-info-sats { display: flex; flex-wrap: wrap; gap: 4px; }
+.planet-info-sats a {
+  border: 1px solid rgba(97, 237, 255, .25); border-radius: 999px; padding: 1px 7px;
+  font-size: 11px; color: var(--text-dim); white-space: nowrap;
+}
+.planet-info-sats a:hover { color: var(--energy-cyan); border-color: rgba(97, 237, 255, .6); }
+.planet-info-close { flex: none; background: none; border: 0; color: var(--text-faint); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+.planet-info-close:hover { color: var(--text); }
 /* 移动端节点条：默认隐藏，<760px 时显示；桌面节点隐藏 */
 .planet-nodes-mobile { display: none; }
 @media (max-width: 760px) {
