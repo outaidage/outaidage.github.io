@@ -94,6 +94,54 @@ export default function VideoSceneManager() {
     };
   }, []);
 
+  // ---- 后台改动后刷新（置顶/新增/删除）：长开的标签页与返回缓存
+  // 恢复的快照不会重新挂载本组件，初次加载的数据会一直旧下去
+  // （比如后台刚置顶了新背景，旧标签页还显示原来的）。切回可见
+  // 或回到首页时重新拉取：置顶变了就切过去，当前资源失效了就
+  // 重选，其余情况保持现状不打扰。
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (!isHomePath()) return;
+      const [assets, rotation] = await Promise.all([loadBackgroundAssets(), loadRotationSettings()]);
+      if (cancelled) return;
+      bgAssetsRef.current = assets;
+      bgRotationRef.current = rotation;
+      setBgAssets(assets);
+      setBgRotation(rotation);
+      const cur = bgAssetRef.current;
+      if (rotation.pinned_asset_id) {
+        const pinned = assets.find((a) => a.id === rotation.pinned_asset_id);
+        if (pinned && (!cur || cur.id !== pinned.id)) {
+          bgAssetRef.current = pinned;
+          setBgAsset(pinned);
+        }
+        return;
+      }
+      if (cur && !assets.some((a) => a.id === cur.id)) {
+        const next = pickNextBackground(assets, rotation, null, getLocalFavorites());
+        if (next) {
+          bgAssetRef.current = next;
+          setBgAsset(next);
+        }
+      }
+    };
+    const onVis = () => {
+      if (!document.hidden) void refresh();
+    };
+    const onPageLoad = () => {
+      void refresh();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    document.addEventListener("astro:page-load", onPageLoad);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("astro:page-load", onPageLoad);
+    };
+  }, []);
+
   // ---- 定时轮换（前端播放时钟；间隔来自轮换设置，默认 30 分钟） ----
   useEffect(() => {
     if (!bgRotation || bgRotation.mode !== "timed") return;
