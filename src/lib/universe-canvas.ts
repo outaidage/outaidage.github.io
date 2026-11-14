@@ -102,10 +102,10 @@ export function initUniverse(canvas: HTMLCanvasElement, opts: UniverseOptions = 
     last = t;
 
     // Smooth mouse parallax toward the pointer.
-    px += (mouseX - px) * 0.04;
-    py += (mouseY - py) * 0.04;
-    const ox = (px - 0.5) * 24;
-    const oy = (py - 0.5) * 24;
+    px += (mouseX - px) * 0.06;
+    py += (mouseY - py) * 0.06;
+    const ox = (px - 0.5) * 48;
+    const oy = (py - 0.5) * 48;
 
     ctx.clearRect(0, 0, w, h);
 
