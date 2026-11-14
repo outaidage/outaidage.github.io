@@ -1,6 +1,7 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection } from "astro:content";
+import Subscribe from "@/components/Subscribe";
 const posts = (await getCollection("blog", ({data}) => !data.draft)).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
 const categories = [
   {name:"AI & Tools",desc:"AI 模型、产品与效率工具"},
@@ -50,4 +51,5 @@ const categories = [
       <div class="card"><div class="card-kicker">FOCUS / 03</div><h3>Building</h3><p>把想法变成可以实际使用的小工具。</p></div>
     </div>
   </section>
+  <Subscribe client:load />
 </MainLayout>
