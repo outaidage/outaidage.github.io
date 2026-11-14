@@ -101,12 +101,23 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused
 }) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const glow = useMemo(glowTexture, []);
+  const camera = useThree((s) => s.camera);
+  // 相机离得近时隐藏标签（不只聚焦时）：distanceFactor 会把 10px 的
+  // 标签按 distanceFactor/距离放大，相机靠近时变成横贯全屏的横幅。
+  // 只在隐藏状态变化时才 setState，避免每帧重渲染。
+  const [labelHidden, setLabelHidden] = useState(false);
+  const labelHiddenRef = useRef(false);
   // 太阳固定在原点；把位置写入共享表，供相机聚焦读取。
   useEffect(() => {
     planetPositions.current.set("sun", new THREE.Vector3(0, 0, 0));
   }, [planetPositions]);
   useFrame((_, delta) => {
     if (matRef.current) matRef.current.uniforms.uTime.value += delta;
+    const hide = camera.position.length() < labelDistanceFactor * 0.4;
+    if (hide !== labelHiddenRef.current) {
+      labelHiddenRef.current = hide;
+      setLabelHidden(hide);
+    }
   });
   return (
     <group>
@@ -124,9 +135,9 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused
       <sprite scale={[def.radius * 5.2, def.radius * 5.2, 1]}>
         <spriteMaterial map={glow} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </sprite>
-      {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
+      {/* 聚焦或相机靠近时隐藏标签：distanceFactor 会把 10px 的标签
           放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
-      {labelsVisible && !isFocused && (
+      {labelsVisible && !isFocused && !labelHidden && (
         <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
           <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
         </Html>
@@ -137,11 +148,13 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused
 
 // ---------- 地球（最高精度模型；从 SpaceCore 迁移至此，成为太阳系的一员） ----------
 // 白天纹理：earth_atmos_2048.jpg 的海洋实测只有 RGB(24,35,60)（近乎黑色），
-// 即使提亮光照也发黑。这里用提亮版（gamma 0.55 + 饱和度 1.25，海洋约
-// RGB(67,85,122)），与原图同 UV，可与 normal/specular/clouds/lights 对齐。
-const EARTH_DAY = "textures/earth/earth_day_bright_2048.jpg";
+// 即使提亮光照也发黑；提亮版（67,85,122）仍被 Phong 材质压暗（第 4 轮）。
+// 这里用鲜艳版（海洋像素重映射为鲜艳蓝 (30,117,208)，按亮度缩放，海洋
+// 占比 0.648），与原图同 UV，可与 normal/clouds/lights 对齐。地球改用
+// MeshStandardMaterial（与渲染鲜艳的海王星同款），粗糙度 0.9，不再用
+// Phong 专属的 specularMap。
+const EARTH_DAY = "textures/earth/earth_day_vivid_2048.jpg";
 const EARTH_NORMAL = "textures/earth/earth_normal_2048.jpg";
-const EARTH_SPEC = "textures/earth/earth_specular_2048.jpg";
 const EARTH_CLOUDS = "textures/earth/earth_clouds_1024.png";
 const EARTH_LIGHTS = "textures/earth/earth_lights_2048.png";
 
@@ -189,8 +202,8 @@ function EarthModel({ radius, spinSpeed, motionPaused, earthSpinOn, low, earthPo
   low: boolean;
   earthPosRef: RefObject<THREE.Vector3>;
 }) {
-  const [day, normal, specular, cloudsTex, lightsTex] = useTexture([
-    `${BASE}${EARTH_DAY}`, `${BASE}${EARTH_NORMAL}`, `${BASE}${EARTH_SPEC}`,
+  const [day, normal, cloudsTex, lightsTex] = useTexture([
+    `${BASE}${EARTH_DAY}`, `${BASE}${EARTH_NORMAL}`,
     `${BASE}${EARTH_CLOUDS}`, `${BASE}${EARTH_LIGHTS}`,
   ]);
   useMemo(() => {
@@ -221,9 +234,9 @@ function EarthModel({ radius, spinSpeed, motionPaused, earthSpinOn, low, earthPo
     <group ref={groupRef}>
       <mesh>
         <sphereGeometry args={[radius, seg, seg]} />
-        <meshPhongMaterial map={day} normalMap={normal} specularMap={specular} specular={new THREE.Color("#4a4a4a")} shininess={18} toneMapped={false} />
+        <meshStandardMaterial map={day} normalMap={normal} roughness={0.9} metalness={0} toneMapped={false} />
       </mesh>
-      {/* 地球是主视觉：toneMapped={false} 让 NASA 白天纹理的蓝色直接呈现，不被 ACES 压暗 */}
+      {/* 地球是主视觉：Standard 材质 + 鲜艳纹理让海洋呈蓝色（Phong 会压暗）；toneMapped={false} 让纹理颜色直接呈现，不被 ACES 压暗 */}
       <mesh scale={1.004} renderOrder={1}>
         <sphereGeometry args={[radius, seg, seg]} />
         <shaderMaterial
@@ -346,6 +359,12 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
   const spinRef = useRef<THREE.Group>(null);
   // 悬停时行星停住公转（目标不再移动，点得中）；离开后继续。
   const [hovered, setHovered] = useState(false);
+  const camera = useThree((s) => s.camera);
+  // 相机离得近时隐藏标签（不只聚焦时）：distanceFactor 会把 10px 的
+  // 标签按 distanceFactor/距离放大，相机靠近时变成横贯全屏的横幅。
+  // 只在隐藏状态变化时才 setState，避免每帧重渲染。
+  const [labelHidden, setLabelHidden] = useState(false);
+  const labelHiddenRef = useRef(false);
   const orbitGeo = useMemo(() => orbitLineGeometry(def.orbitRadius), [def.orbitRadius]);
   const isEarth = def.id === "earth";
   const isSun = def.id === "sun";
@@ -363,6 +382,11 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
       let entry = planetPositions.current.get(def.id);
       if (!entry) { entry = new THREE.Vector3(); planetPositions.current.set(def.id, entry); }
       entry.copy(tmp);
+      const hide = camera.position.distanceTo(tmp) < labelDistanceFactor * 0.4;
+      if (hide !== labelHiddenRef.current) {
+        labelHiddenRef.current = hide;
+        setLabelHidden(hide);
+      }
     }
   });
 
@@ -421,7 +445,7 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
         ))}
         {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
             放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
-        {labelsVisible && !isFocused && (
+        {labelsVisible && !isFocused && !labelHidden && (
           <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
             <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
           </Html>

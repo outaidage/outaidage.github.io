@@ -539,6 +539,9 @@ html[data-motion="reduced"] .planet-node { transition: none; }
 
 /* ---- Background Studio 控制面板 ---- */
 .bg-controls { position: fixed; right: 16px; bottom: 16px; z-index: 40; }
+/* 宇宙全屏模式下，背景控制圆钮会上移到星系面板上方，避免遮住右下角的
+   “✕ 退出宇宙”按钮（第 4 轮复验：退出按钮标签被该圆钮盖住一半）。 */
+body.universe-open .bg-controls { bottom: 96px; }
 .bg-controls-dot {
   width: 40px; height: 40px; border-radius: 50%;
   border: 1px solid rgba(97, 237, 255, .35);
