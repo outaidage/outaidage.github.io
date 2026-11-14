@@ -113,9 +113,14 @@ const jsonLd = {
           nav.hidden = !open;
         }
         function isReduced() {
-          if (root.dataset.motion === "reduced") return true;
-          if (root.dataset.motion === "full") return false;
-          return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          // No stored preference means motion is ON. The OS
+          // reduced-motion setting alone must not silently disable the
+          // site: it differs between normal and incognito profiles on
+          // the same machine (incognito has no stored preference), so
+          // the same browser would show 3D in one window and hide it
+          // in the other. Only an explicit stored "reduced" (footer
+          // toggle) turns motion off.
+          return root.dataset.motion === "reduced";
         }
         function syncMotionLabel() {
           var btn = motionBtn();
