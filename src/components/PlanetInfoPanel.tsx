@@ -1,0 +1,61 @@
+// PlanetInfoPanel.tsx — 行星 / 卫星信息面板（HTML 覆盖层，位于 3D 舞台左下）。
+// 点击行星 → 聚焦该行星并显示此面板；面板里的「进入」是真实 <a> 链接，
+// 卫星列表每项也是真实链接（指向对应页面，数量来自真实数据）。
+
+import type { PlanetDef, Satellite } from "@/lib/planets";
+import { go } from "@/components/SolarSystem";
+
+export function PlanetInfoPanel({ planet, satellites, hoveredSatellite, onClose }: {
+  planet: PlanetDef | null;
+  satellites: Satellite[];
+  hoveredSatellite: Satellite | null;
+  onClose: () => void;
+}) {
+  // 卫星悬停时，面板临时显示该卫星的信息（不改变聚焦的行星）。
+  if (hoveredSatellite) {
+    const s = hoveredSatellite;
+    return (
+      <div className="planet-info visible" role="status">
+        <span className="planet-info-icon">✦</span>
+        <div className="planet-info-text">
+          <strong>{s.name}</strong>
+          <span>{s.description}</span>
+        </div>
+        {typeof s.count === "number" && <span className="planet-info-count">{s.count}条</span>}
+        <a className="planet-info-go" href={s.path} onClick={(e) => { e.preventDefault(); go(s.path); }}>打开 →</a>
+      </div>
+    );
+  }
+  if (!planet) {
+    return (
+      <div className="planet-info" aria-hidden="true">
+        <span className="planet-info-icon">✦</span>
+        <div className="planet-info-text">
+          <strong>OUTAI 宇宙</strong>
+          <span>点击一颗行星，查看它的功能与卫星</span>
+        </div>
+        <span className="planet-info-hint">DRAG · SCROLL</span>
+      </div>
+    );
+  }
+  return (
+    <div className="planet-info visible planet-info-panel" role="status">
+      <span className="planet-info-icon" style={{ color: planet.color }}>{planet.icon}</span>
+      <div className="planet-info-text">
+        <strong>{planet.name} · {planet.func}</strong>
+        <span>{planet.description}</span>
+        {satellites.length > 0 && (
+          <span className="planet-info-sats">
+            {satellites.map((s) => (
+              <a key={s.id} href={s.path} onClick={(e) => { e.preventDefault(); go(s.path); }}>
+                {s.name}{typeof s.count === "number" ? ` (${s.count})` : ""}
+              </a>
+            ))}
+          </span>
+        )}
+      </div>
+      <a className="planet-info-go" href={planet.path} onClick={(e) => { e.preventDefault(); go(planet.path); }}>进入 →</a>
+      <button className="planet-info-close" type="button" onClick={onClose} aria-label="返回全景">✕</button>
+    </div>
+  );
+}
