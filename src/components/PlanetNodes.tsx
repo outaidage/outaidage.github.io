@@ -1,19 +1,22 @@
-// PlanetNodes.tsx — 3D 星球周围的可交互功能节点（数字宇宙导航中心）。
+// PlanetNodes.tsx — 3D 地球周围的可交互功能节点（数字宇宙导航中心）。
 // 节点数据来自 home_modules（后台管理，不硬编码）；位置由轨道 + 角度计算，
 // 沿轨道缓慢移动（requestAnimationFrame 更新 transform，GPU 合成）。
 // 节点是 HTML <a>（不是 WebGL 内嵌文字）：文字清晰、可访问、点击可靠。
 // 悬停：节点放大 + 对应轨道增亮 + 底部信息面板显示名称/描述/数量。
 // 点击：聚焦光晕后直接跳转对应页面（<a> 天然导航，不只做视觉反馈）。
+// 轨道半径大于地球在屏幕上的半径，节点分布在地球外围，不贴在表面。
 // 减动效或动效关闭时节点静止；移动端（<760px）改为星球下方的横向节点条。
+// 观察模式：只在 UNIVERSE / NAVIGATION 模式显示节点（SpaceCore 发 galaxy-mode
+// 事件通知）；EARTH / GALAXY 模式下隐藏，让地球与银河独占画面。
 import { useEffect, useRef, useState } from "react";
 import type { PlanetNode } from "@/lib/home-modules";
 
-// 轨道半径（px，相对星球中心；core-stage 高 420px，取椭圆轨道 y 压缩 0.52）。
-const ORBIT_RADIUS: Record<number, number> = { 1: 128, 2: 172, 3: 212 };
+// 轨道半径（px，相对星球中心；地球在 UNIVERSE 视角约 108px 半径，轨道 1 留出空隙）。
+const ORBIT_RADIUS: Record<number, number> = { 1: 150, 2: 185, 3: 215 };
 // 每秒角速度（度），内快外慢。
 const ORBIT_SPEED: Record<number, number> = { 1: 6, 2: 4, 2.5: 2.5, 3: 2.5 };
-// 轨道椭圆 y 压缩比（模拟倾斜轨道平面）。
-const ELLIPSE_Y = 0.52;
+// 轨道椭圆 y 压缩比（模拟倾斜轨道平面；与 SpaceCore 内 3D 卫星的 0.62 一致）。
+const ELLIPSE_Y = 0.62;
 
 const SIZE_PX: Record<string, number> = { sm: 34, md: 42, lg: 52 };
 
@@ -25,6 +28,15 @@ export default function PlanetNodes({ nodes, base }: { nodes: PlanetNode[]; base
   });
   const [hovered, setHovered] = useState<PlanetNode | null>(null);
   const [reduced, setReduced] = useState(false);
+  // 观察模式（SpaceCore 发 galaxy-mode 事件；默认 UNIVERSE，节点显示）。
+  const [mode, setMode] = useState("universe");
+  useEffect(() => {
+    setMode(document.documentElement.dataset.galaxyMode || "universe");
+    const onMode = (e: Event) => setMode((e as CustomEvent<string>).detail || "universe");
+    window.addEventListener("galaxy-mode", onMode);
+    return () => window.removeEventListener("galaxy-mode", onMode);
+  }, []);
+  const nodesVisible = mode === "universe" || mode === "navigation";
   const rafRef = useRef<number>(0);
   const lastRef = useRef<number>(0);
   const anglesRef = useRef(angles);
@@ -59,8 +71,8 @@ export default function PlanetNodes({ nodes, base }: { nodes: PlanetNode[]; base
 
   return (
     <>
-      {/* 桌面端：环绕星球的轨道节点 */}
-      <div className="planet-nodes" aria-label="功能节点">
+      {/* 桌面端：环绕星球的轨道节点（EARTH / GALAXY 模式下隐藏） */}
+      <div className="planet-nodes" aria-label="功能节点" style={{ display: nodesVisible ? undefined : "none" }}>
         {nodes.map((n) => {
           const angle = ((angles[n.id] ?? n.computedAngle) * Math.PI) / 180;
           const r = ORBIT_RADIUS[n.orbit || 1] ?? 172;
@@ -114,7 +126,7 @@ export default function PlanetNodes({ nodes, base }: { nodes: PlanetNode[]; base
         </div>
       </div>
       {/* 移动端：星球下方的横向节点条（不缩小桌面布局）。绝对定位贴在舞台底部，3D 画布出现时也不被推出舞台。 */}
-      <div className="planet-nodes-mobile" aria-label="功能节点" style={{ position: "absolute", left: 8, right: 8, bottom: 8, zIndex: 4 }}>
+      <div className="planet-nodes-mobile" aria-label="功能节点" style={{ position: "absolute", left: 8, right: 8, bottom: 8, zIndex: 4, display: nodesVisible ? undefined : "none" }}>
         {nodes.map((n) => (
           <a
             key={n.id}
