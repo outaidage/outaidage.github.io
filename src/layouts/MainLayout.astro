@@ -70,6 +70,7 @@ const jsonLd = {
         </nav>
         <div class="top-actions">
           <span class="hud-label dim" aria-hidden="true">SYSTEM ONLINE</span>
+          <a class="universe-link" href={`${import.meta.env.BASE_URL}#universe`}>☉ 进入宇宙</a>
           <button class="terminal-btn" id="terminal-btn" type="button" aria-label="打开终端">⌘ TERMINAL</button>
           <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
           <a class="admin-link" id="admin-link" href={`${import.meta.env.BASE_URL}admin/`} hidden>管理后台 <span>↗</span></a>
@@ -79,6 +80,7 @@ const jsonLd = {
         </div>
       </header>
       <nav class="mobile-nav" id="mobile-nav" aria-label="移动导航" hidden>
+        <a href={`${import.meta.env.BASE_URL}#universe`}>☉ 进入宇宙</a>
         {navItems.map((item) => <a class:list={{ active: path.startsWith(item.href) }} href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${item.href}`}>{item.label}</a>)}
         <a href={`${import.meta.env.BASE_URL}search/`}>搜索 ⌕</a>
         <a id="admin-link-mobile" href={`${import.meta.env.BASE_URL}admin/`} hidden>管理后台 ↗</a>
@@ -90,6 +92,7 @@ const jsonLd = {
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
         <VideoControls client:load />
         <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">动效：开</button>
+        <button class="motion-toggle" id="replay-boot" type="button">重播开场</button>
       </footer>
     </div>
     <CommandTerminal client:load />
@@ -160,6 +163,13 @@ const jsonLd = {
             root.dataset.motion = next;
             try { localStorage.setItem("outai-motion", next); } catch (err) {}
             syncMotionLabel();
+            return;
+          }
+          if (t.closest("#replay-boot")) {
+            // 重播开场动画：回首页并一次性播放（覆盖"不再显示"，不覆盖减弱动效）。
+            try { sessionStorage.setItem("outai-boot-replay", "1"); } catch (err) {}
+            window.location.href = "/";
+            return;
           }
         });
         document.addEventListener("keydown", function (e) {

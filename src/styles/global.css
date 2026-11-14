@@ -282,6 +282,17 @@ html[data-motion="reduced"] .button:active { transform: none; }
   overflow: hidden;
 }
 .core-stage canvas { display: block; }
+/* 沉浸式宇宙模式：同一个 Canvas/场景全屏展开（不重建场景、不换页）。
+   页面内容被盖住，body 锁定滚动；退出时原样收回。 */
+.core-stage.universe-full {
+  position: fixed; inset: 0; z-index: 200;
+  height: 100dvh; max-height: none;
+  margin: 0; border-radius: 0; border: 0;
+  background: #03040b;
+  animation: universe-in .45s ease-out;
+}
+@keyframes universe-in { from { opacity: .55; } to { opacity: 1; } }
+body.universe-open { overflow: hidden; }
 .core-stage .core-fallback {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -318,6 +329,10 @@ html[data-motion="reduced"] .button:active { transform: none; }
   box-shadow: 0 0 16px rgba(97, 237, 255, .12);
 }
 .galaxy-panel-controls button { padding: 5px 8px; font-size: 9px; }
+.galaxy-panel-controls button.universe-exit {
+  border-color: rgba(166, 138, 255, .6); color: #e6dcff;
+  background: rgba(166, 138, 255, .12);
+}
 @media (max-width: 760px) {
   .galaxy-panel { right: 8px; top: 8px; bottom: auto; padding: 6px 8px; }
   .galaxy-status { display: none; }
@@ -381,6 +396,24 @@ html[data-motion="reduced"] .button:active { transform: none; }
   cursor: pointer;
 }
 .terminal-btn:hover { border-color: rgba(97, 237, 255, .5); }
+
+/* ---- 进入宇宙入口（顶栏，普通模式 → 沉浸式宇宙模式） ---- */
+.universe-link {
+  border: 1px solid rgba(166, 138, 255, .55);
+  border-radius: 999px;
+  color: #e6dcff;
+  background: rgba(166, 138, 255, .10);
+  font: 11px 'DM Mono', monospace;
+  letter-spacing: .08em;
+  padding: 8px 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color .2s ease, background .2s ease;
+}
+.universe-link:hover { border-color: rgba(166, 138, 255, .9); background: rgba(166, 138, 255, .22); }
+@media (max-width: 760px) {
+  .universe-link { padding: 7px 10px; font-size: 10px; }
+}
 
 /* ---- Command terminal overlay ---- */
 .cmd-terminal {

@@ -341,8 +341,32 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
   const [motionPaused, setMotionPaused] = useState(false);
   const [earthSpinOn, setEarthSpinOn] = useState(true);
   const [hoveredSatellite, setHoveredSatellite] = useState<Satellite | null>(null);
+  const [universeOpen, setUniverseOpen] = useState(false);
   const earthPosRef = useRef(new THREE.Vector3(6.4, 0, -6.4));
   const planetPositions = useRef(new Map<string, THREE.Vector3>());
+  const modeRef = useRef<Mode>("universe");
+  const prevModeRef = useRef<Mode>("universe");
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // 双形态切换：进入宇宙模式时相机拉远到太阳系视角，退出时恢复之前的模式。
+  // 同一个 Canvas / 同一个场景实例，只改模式与面板状态。
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const open = (e as CustomEvent<{ open: boolean }>).detail?.open;
+      if (open) {
+        prevModeRef.current = modeRef.current;
+        setMode("solar");
+        setFocus(null);
+        setUniverseOpen(true);
+      } else {
+        setMode(prevModeRef.current);
+        setFocus(null);
+        setUniverseOpen(false);
+      }
+    };
+    window.addEventListener("outai:universe", handler);
+    return () => window.removeEventListener("outai:universe", handler);
+  }, []);
 
   const low = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -415,7 +439,7 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
       />
 
       <div className="galaxy-panel" role="group" aria-label="观察模式">
-        <div className="galaxy-status">● OUTAI UNIVERSE{focusedPlanet ? ` · ${focusedPlanet.name}` : ""}</div>
+        <div className="galaxy-status">{universeOpen ? "● UNIVERSE MODE" : "● OUTAI UNIVERSE"}{focusedPlanet ? ` · ${focusedPlanet.name}` : ""}</div>
         <div className="galaxy-panel-row">
           {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
             <button
@@ -437,6 +461,11 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
           <button type="button" onClick={() => setEarthSpinOn((v) => !v)} aria-pressed={!earthSpinOn}>
             自转：{earthSpinOn ? "开" : "关"}
           </button>
+          {universeOpen && (
+            <button type="button" className="universe-exit" onClick={() => window.dispatchEvent(new CustomEvent("outai:universe-close"))}>
+              ✕ 退出宇宙
+            </button>
+          )}
         </div>
       </div>
     </div>
