@@ -87,6 +87,7 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
   const [statusFilter, setStatusFilter] = useState("all");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [preview, setPreview] = useState<BackgroundAsset | null>(null);
+  const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 12;
@@ -196,12 +197,18 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
 
   async function deleteAsset(id: string, title: string) {
     if (!supabase) return;
-    if (!window.confirm(`确定删除背景「${title}」吗？这会删除数据库记录（R2 上的文件需在 R2 控制台另行删除）。`)) return;
-    const { error } = await supabase.from("background_assets").delete().eq("id", id);
-    if (error) { say("err", `删除失败：${error.message}`); return; }
-    say("ok", `背景「${title}」已删除。`);
-    loadAssets();
-    loadStats();
+    // 应用内确认框（不用 window.confirm：自动化浏览器会自动关掉原生确认框，删除永远执行不了）。
+    setConfirm({
+      title: "确定删除？",
+      message: `确定删除背景「${title}」吗？这会删除数据库记录（R2 上的文件需在 R2 控制台另行删除）。`,
+      onConfirm: async () => {
+        const { error } = await supabase.from("background_assets").delete().eq("id", id);
+        if (error) { say("err", `删除失败：${error.message}`); return; }
+        say("ok", `背景「${title}」已删除。`);
+        loadAssets();
+        loadStats();
+      },
+    });
   }
 
   async function applyAsHome(id: string, title: string) {
@@ -228,13 +235,20 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
 
   async function batchDelete() {
     if (!supabase || selected.size === 0) return;
-    if (!window.confirm(`确定删除选中的 ${selected.size} 个背景吗？此操作不可撤销。`)) return;
-    const { error } = await supabase.from("background_assets").delete().in("id", Array.from(selected));
-    if (error) { say("err", `批量删除失败：${error.message}`); return; }
-    say("ok", `已删除 ${selected.size} 个背景。`);
-    setSelected(new Set());
-    loadAssets();
-    loadStats();
+    const count = selected.size;
+    const ids = Array.from(selected);
+    setConfirm({
+      title: "确定删除？",
+      message: `确定删除选中的 ${count} 个背景吗？此操作不可撤销。`,
+      onConfirm: async () => {
+        const { error } = await supabase.from("background_assets").delete().in("id", ids);
+        if (error) { say("err", `批量删除失败：${error.message}`); return; }
+        say("ok", `已删除 ${count} 个背景。`);
+        setSelected(new Set());
+        loadAssets();
+        loadStats();
+      },
+    });
   }
 
   async function checkUrl() {
@@ -348,11 +362,16 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
 
   async function deleteSource(id: string, name: string) {
     if (!supabase) return;
-    if (!window.confirm(`确定删除资源来源「${name}」吗？已同步的资源记录会保留（不会删除）。`)) return;
-    const { error } = await supabase.from("background_sources").delete().eq("id", id);
-    if (error) { say("err", `删除失败：${error.message}`); return; }
-    say("ok", `资源来源「${name}」已删除。`);
-    loadSources();
+    setConfirm({
+      title: "确定删除？",
+      message: `确定删除资源来源「${name}」吗？已同步的资源记录会保留（不会删除）。`,
+      onConfirm: async () => {
+        const { error } = await supabase.from("background_sources").delete().eq("id", id);
+        if (error) { say("err", `删除失败：${error.message}`); return; }
+        say("ok", `资源来源「${name}」已删除。`);
+        loadSources();
+      },
+    });
   }
 
   async function saveRotation() {
@@ -607,6 +626,19 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="button" className="button primary" onClick={() => { applyAsHome(preview.id, preview.title); setPreview(null); }}>设为首页背景</button>
               {preview.status === "pending_review" ? <button type="button" className="button secondary" onClick={() => { setAssetStatus(preview.id, "active"); setPreview(null); }}>通过审核</button> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirm ? (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(3,4,11,0.9)", display: "grid", placeItems: "center", zIndex: 100, padding: 16 }} onClick={() => setConfirm(null)}>
+          <div className="card" style={{ width: "min(440px, 94vw)", display: "grid", gap: 12, padding: 20 }} onClick={(e) => e.stopPropagation()}>
+            <strong style={{ fontSize: 15 }}>{confirm.title}</strong>
+            <p style={{ margin: 0, fontSize: 13, color: "#aab3c0" }}>{confirm.message}</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" className="button secondary" onClick={() => setConfirm(null)}>取消</button>
+              <button type="button" className="button primary" style={{ background: "#e5484d", borderColor: "#e5484d" }} onClick={() => { const fn = confirm.onConfirm; setConfirm(null); fn(); }}>确定删除</button>
             </div>
           </div>
         </div>
