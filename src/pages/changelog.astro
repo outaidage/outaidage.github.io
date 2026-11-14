@@ -1,0 +1,53 @@
+---
+// /changelog/ — 更新日志（数字宇宙门户）。
+// 从 Supabase changelog_entries 读取；构建时拉取，失败或无数据时显示空状态。
+import MainLayout from "@/layouts/MainLayout.astro";
+import { supabase } from "@/lib/supabase";
+
+type ChangelogEntry = {
+  id: string;
+  version: string;
+  title: string;
+  body: string;
+  published_at: string;
+};
+
+let entries: ChangelogEntry[] = [];
+let loadError = false;
+try {
+  const { data, error } = await supabase
+    .from("changelog_entries")
+    .select("id,version,title,body,published_at")
+    .order("published_at", { ascending: false });
+  if (error) loadError = true;
+  else entries = (data || []) as ChangelogEntry[];
+} catch {
+  loadError = true;
+}
+---
+
+<MainLayout title="更新日志 — OUTAI">
+  <header class="page-head">
+    <div class="eyebrow"><span class="pulse"></span> CHANGELOG</div>
+    <h1>更新日志<span style="color:#61edff">.</span></h1>
+    <p>网站版本更新和功能变化。</p>
+  </header>
+  {loadError ? (
+    <div class="card"><p>更新日志暂时无法加载，请稍后再试。</p></div>
+  ) : entries.length === 0 ? (
+    <div class="card"><p>还没有更新记录。</p></div>
+  ) : (
+    <div style="display:grid;gap:16px">
+      {entries.map((e) => (
+        <article class="card" style="display:grid;gap:8px">
+          <div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap">
+            <strong style="font-size:15px">{e.version}</strong>
+            <span style="font-size:12px;color:#929dab">{new Date(e.published_at).toLocaleDateString("zh-CN")}</span>
+          </div>
+          <h2 style="font-size:18px;margin:0">{e.title}</h2>
+          {e.body ? <p style="margin:0;color:#aab3c0;line-height:1.7;white-space:pre-wrap">{e.body}</p> : null}
+        </article>
+      ))}
+    </div>
+  )}
+</MainLayout>
