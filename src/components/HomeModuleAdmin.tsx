@@ -64,6 +64,9 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  // 应用内确认弹窗（不用 window.confirm：自动化浏览器会直接 dismiss 原生确认框，
+  // 且与文章/书签删除的弹窗体验一致）。
+  const [confirm, setConfirm] = useState<{ kind: "delete" | "restore"; id?: string; name?: string; message: string } | null>(null);
 
   async function load() {
     if (!supabase) return;
@@ -148,7 +151,6 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
 
   async function remove(id: string, name: string) {
     if (!supabase) return;
-    if (!window.confirm(`确定删除模块「${name}」吗？这只删除首页入口，不会删除该模块指向页面的内容。`)) return;
     const { error } = await supabase.from("home_modules").delete().eq("id", id);
     if (error) {
       say("err", `删除失败：${error.message}`);
@@ -215,7 +217,6 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
 
   async function restoreDefaults() {
     if (!supabase) return;
-    if (!window.confirm("确定恢复默认模块配置吗？这会删除现有模块并重建 10 个默认模块（不会删除任何文章、书签或页面内容）。")) return;
     const { error: delErr } = await supabase.from("home_modules").delete().neq("id", "__none__");
     if (delErr) {
       say("err", `恢复失败：${delErr.message}`);
@@ -254,7 +255,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button type="button" className="button primary" onClick={startNew}>新增模块</button>
         <button type="button" className="button secondary" onClick={load}>刷新列表</button>
-        <button type="button" className="button secondary" onClick={restoreDefaults}>恢复默认模块配置</button>
+        <button type="button" className="button secondary" onClick={() => setConfirm({ kind: "restore", message: "确定恢复默认模块配置吗？这会删除现有模块并重建 10 个默认模块（不会删除任何文章、书签或页面内容）。" })}>恢复默认模块配置</button>
         <span style={{ fontSize: 12, color: "#929dab" }}>模块只定义首页入口与跳转；删除模块不会删除文章、书签等内容。</span>
       </div>
 
@@ -333,7 +334,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
                 <button type="button" className="button secondary" onClick={() => setPreviewId(m.id)}>预览</button>
                 <button type="button" className="button secondary" onClick={() => startEdit(m)}>编辑</button>
                 <button type="button" className="button secondary" onClick={() => duplicate(m)}>复制</button>
-                <button type="button" className="button secondary" onClick={() => remove(m.id, m.name)} style={{ color: "#f28b82" }}>删除</button>
+                <button type="button" className="button secondary" onClick={() => setConfirm({ kind: "delete", id: m.id, name: m.name, message: `确定删除模块「${m.name}」吗？这只删除首页入口，不会删除该模块指向页面的内容。` })} style={{ color: "#f28b82" }}>删除</button>
               </span>
             </div>
             <p style={{ margin: 0, fontSize: 12, color: "#aab3c0" }}>{m.description || "（无描述）"}</p>
@@ -352,6 +353,29 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
           </div>
         ))}
       </div>
+      {confirm ? (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(3,4,11,0.8)", display: "grid", placeItems: "center", zIndex: 100 }} onClick={() => setConfirm(null)}>
+          <div className="card" style={{ width: "min(420px, 90vw)", display: "grid", gap: 12 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: 0 }}>确定删除？</h3>
+            <p style={{ margin: 0, fontSize: 13, color: "#aab3c0", lineHeight: 1.6 }}>{confirm.message}</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" className="button secondary" onClick={() => setConfirm(null)}>取消</button>
+              <button
+                type="button"
+                className="button primary"
+                onClick={async () => {
+                  const c = confirm;
+                  setConfirm(null);
+                  if (c.kind === "delete" && c.id && c.name) await remove(c.id, c.name);
+                  if (c.kind === "restore") await restoreDefaults();
+                }}
+              >
+                确定删除
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
