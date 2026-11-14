@@ -3,6 +3,7 @@ import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import VideoSceneAdmin from "@/components/VideoSceneAdmin";
 import ArticleVersionHistory, { type ArticleVersion } from "@/components/ArticleVersionHistory";
 import ArticlePreview from "@/components/ArticlePreview";
+import HomeModuleAdmin from "@/components/HomeModuleAdmin";
 
 type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
 type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
@@ -12,7 +13,7 @@ type TagRow = {id:string;name:string};
 type CategoryRow = {id:string;name:string;slug:string};
 type RecLink = {id:string;title:string;url:string;description:string|null;category:string|null;sort_order:number};
 type RecLinkForm = {title:string;url:string;description:string;category:string;sort_order:string};
-type GuestbookEntry = {id:string;name:string;message:string;created_at:string;approved:boolean};
+type GuestbookEntry = {id:string;name:string;message:string;created_at:string;approved:boolean;pinned?:boolean};
 type ArticleComment = {id:string;article_slug:string;name:string;message:string;created_at:string;approved:boolean};
 type AuditEntry = {id:string;admin_email:string|null;action:string;target_type:string|null;target_label:string|null;detail:string|null;created_at:string};
 const emptyRecLinkForm = (): RecLinkForm => ({title:"",url:"",description:"",category:"",sort_order:"0"});
@@ -86,7 +87,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media"|"modules">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -236,7 +237,7 @@ export default function AdminApp() {
   }
   async function loadGbEntries(){
     if(!supabase) return;
-    const {data,error}=await supabase.from("guestbook_entries").select("id,name,message,created_at,approved").order("approved",{ascending:true}).order("created_at",{ascending:false});
+    const {data,error}=await supabase.from("guestbook_entries").select("id,name,message,created_at,approved,pinned").order("approved",{ascending:true}).order("pinned",{ascending:false}).order("created_at",{ascending:false});
     if(error) { say("err",error.message); return; }
     setGbEntries((data||[]) as GuestbookEntry[]);
   }
@@ -246,6 +247,13 @@ export default function AdminApp() {
     if (error) { say("err",`操作失败：${error.message}`); return; }
     say("ok", approved ? "留言已通过审核，将公开显示。" : "留言已撤回，不再公开显示。");
     await logAudit(approved ? "guestbook_approve" : "guestbook_withdraw","guestbook",id);
+    loadGbEntries();
+  }
+  async function setGbPinned(id: string, pinned: boolean){
+    if(!supabase) return;
+    const {error} = await supabase.from("guestbook_entries").update({pinned}).eq("id",id);
+    if (error) { say("err",`操作失败：${error.message}`); return; }
+    say("ok", pinned ? "留言已置顶。" : "留言已取消置顶。");
     loadGbEntries();
   }
   async function deleteGbEntry(id: string){
@@ -615,6 +623,8 @@ export default function AdminApp() {
     const isEdit = editingSlug !== null;
     if (!isEdit && articles.some(a=>a.slug===slug)) { say("err",`slug “${slug}” 已存在，请换一个 slug，或先编辑已有文章。`); return; }
     const draft = draftOverride !== undefined ? draftOverride : article.draft;
+    // 发布草稿时提示"文章已发布"而不是"文章已更新"（草稿转发布是发布动作）。
+    const wasDraft = article.draft;
     const isFuture = new Date(article.pubDate).getTime() > Date.now();
     setSaving(true);say("ok","");
     const path = `src/content/blog/${slug}.md`;
@@ -623,7 +633,7 @@ export default function AdminApp() {
     setSaving(false);
     if (error) { say("err",`保存失败：${error.message}`); return; }
     const commit = (data as any)?.commit as string | undefined;
-    const statusText = draft ? "已保存为草稿" : isFuture ? `已保存，将于 ${article.pubDate} 自动发布` : (isEdit ? "文章已更新" : "文章已发布");
+    const statusText = draft ? "已保存为草稿" : isFuture ? `已保存，将于 ${article.pubDate} 自动发布` : (wasDraft || !isEdit ? "文章已发布" : "文章已更新");
     say("ok", `${statusText}${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
     await logAudit(isEdit ? "article_update" : "article_create","article",slug,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     // 3.0 P0：保存成功后存一条版本快照（失败不影响文章保存本身）。
@@ -935,7 +945,8 @@ export default function AdminApp() {
 
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:20}}>
-      <div style={{display:"flex",gap:8}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button className={`button ${tab==="modules"?"primary":"secondary"}`} onClick={()=>setTab("modules")}>首页模块</button>
         <button className={`button ${tab==="bookmarks"?"primary":"secondary"}`} onClick={()=>setTab("bookmarks")}>书签管理</button>
         <button className={`button ${tab==="articles"?"primary":"secondary"}`} onClick={()=>setTab("articles")}>文章管理</button>
         <button className={`button ${tab==="links"?"primary":"secondary"}`} onClick={()=>setTab("links")}>推荐链接</button>
@@ -945,7 +956,7 @@ export default function AdminApp() {
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
     </div>
-    {tab==="bookmarks" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+    {tab==="modules" ? <HomeModuleAdmin say={say} /> : tab==="bookmarks" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
       <form className="card" onSubmit={saveBookmark} style={{display:"grid",gap:10}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <h3>{editingBookmarkId ? "编辑书签" : "添加书签"}</h3>
@@ -1111,11 +1122,12 @@ export default function AdminApp() {
         <div style={{display:"grid",gap:12,marginTop:12}}>
           {gbEntries.map(en=><div key={en.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
-              <strong style={{fontSize:13}}>{en.name} {en.approved ? <span style={{color:"#61edff",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
+              <strong style={{fontSize:13}}>{en.name} {en.approved ? <span style={{color:"#61edff",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}{en.pinned ? <span style={{color:"#f2c94c",fontSize:11,marginLeft:6}}>置顶</span> : null}</strong>
               <span style={{display:"flex",gap:10}}>
                 {en.approved
                   ? <button onClick={()=>setGbApproved(en.id,false)} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>撤回</button>
                   : <button onClick={()=>setGbApproved(en.id,true)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>通过</button>}
+                {en.approved ? <button onClick={()=>setGbPinned(en.id,!en.pinned)} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>{en.pinned ? "取消置顶" : "置顶"}</button> : null}
                 <button onClick={()=>setConfirmTarget({kind:"guestbook",id:en.id,label:`${en.name} 的留言`})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
             </div>
