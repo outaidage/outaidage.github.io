@@ -1,0 +1,99 @@
+/* video-background.css — OUTAI 电影级动态视频背景样式。
+   层叠（由下到上）：视频层(z-0) → 2D 星空画布 DigitalUniverse(z-0, 后渲染故在上)
+   → 站点内容 .site-shell(z-1)。视频层 pointer-events:none，永不拦截点击。
+   视频仅在首页显示（VideoSceneManager 按路径控制外层透明度），
+   切页时元素不卸载，因此不会重新下载。 */
+
+/* ---- 视频层（固定全屏） ---- */
+.video-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition: opacity 0.6s ease;
+  background: #03040b;
+}
+
+.video-bg-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.8s ease;
+  /* 轻微的电影级暗角由遮罩层处理，这里只保证视频本身铺满 */
+}
+
+/* 静态回退：深空渐变（无视频 / 减动效 / 加载失败时显示） */
+.video-bg-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 70% 0%, rgba(97, 237, 255, 0.12), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 15% 90%, rgba(166, 138, 255, 0.08), transparent 60%),
+    linear-gradient(180deg, #03040b 0%, #070a1a 55%, #03040b 100%);
+}
+
+/* 封面图（有配置时，视频加载前与失败时显示） */
+.video-bg-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 场景遮罩：视频上方的深色渐变，保证前景文字清晰。
+   颜色与不透明度由场景配置通过内联样式传入。 */
+.video-bg-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---- 视频激活时，弱化 2D 宇宙的网格与辉光，避免与视频冲突 ----
+   （DigitalUniverse 的样式是组件作用域的，这里用 html[data-video-bg]
+   前缀提升优先级以覆盖它。） */
+html[data-video-bg="active"] .universe-grid {
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+html[data-video-bg="active"] .universe-glow {
+  opacity: 0.35;
+  transition: opacity 0.8s ease;
+}
+html[data-video-bg="fallback"] .universe-grid,
+html[data-video-bg="off"] .universe-grid {
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+/* ---- 减动效：隐藏视频，只留静态回退 ---- */
+@media (prefers-reduced-motion: reduce) {
+  .video-bg-video {
+    display: none;
+  }
+}
+html[data-motion="reduced"] .video-bg-video {
+  display: none;
+}
+
+/* ---- 前台控制按钮（复用页脚动效开关样式） ---- */
+.video-controls {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.video-bg-toggle {
+  white-space: nowrap;
+}
+
+/* ---- 移动端：视频同样铺满，遮罩略微加深以保证文字可读 ---- */
+@media (max-width: 760px) {
+  .video-bg-layer {
+    /* 移动端不做额外裁切，object-fit: cover 已处理 */
+  }
+}
