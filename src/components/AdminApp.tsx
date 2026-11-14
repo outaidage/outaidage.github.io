@@ -5,7 +5,9 @@ type Bookmark = {id:string;url:string;title:string;description:string|null;note:
 type BookmarkForm = {url:string;title:string;description:string;note:string;category:string;tags:string;is_public:boolean;is_favorite:boolean};
 type ArticleFile = {name:string;slug:string;path:string;sha:string;size:number};
 type ArticleForm = {slug:string;title:string;description:string;category:string;tags:string;cover:string;seoTitle:string;seoDescription:string;featured:boolean;draft:boolean;pubDate:string;body:string};
-type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch";label:string;path?:string;id?:string;ids?:string[]};
+type TagRow = {id:string;name:string};
+type CategoryRow = {id:string;name:string;slug:string};
+type ConfirmTarget = {kind:"article"|"bookmark"|"bookmarkBatch"|"tag"|"category";label:string;path?:string;id?:string;ids?:string[];oldName?:string};
 const emptyBookmarkForm = (): BookmarkForm => ({url:"",title:"",description:"",note:"",category:"AI & Tools",tags:"",is_public:true,is_favorite:false});
 const normalizeUrl = (u: string) => u.trim().replace(/\/+$/,"");
 const parseTagNames = (s: string) => Array.from(new Set(s.split(",").map(x=>x.trim().toLowerCase()).filter(Boolean)));
@@ -75,7 +77,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -85,6 +87,13 @@ export default function AdminApp() {
   const [articlesLoading,setArticlesLoading] = useState(false);
   const [confirmTarget,setConfirmTarget] = useState<ConfirmTarget|null>(null);
   const [saving,setSaving] = useState(false);
+  const [tags,setTags] = useState<TagRow[]>([]);
+  const [categories,setCategories] = useState<CategoryRow[]>([]);
+  const [newCategoryName,setNewCategoryName] = useState("");
+  const [editingTagId,setEditingTagId] = useState<string|null>(null);
+  const [editingTagName,setEditingTagName] = useState("");
+  const [editingCatId,setEditingCatId] = useState<string|null>(null);
+  const [editingCatName,setEditingCatName] = useState("");
 
   const say = (kind:"ok"|"err", text:string) => { setMsgKind(kind); setMessage(text); };
 
@@ -117,6 +126,21 @@ export default function AdminApp() {
     setItems(mapped);
   }
   useEffect(()=>{if(session) loadBookmarks()},[session]);
+
+  async function loadTags(){
+    if(!supabase) return;
+    const {data,error}=await supabase.from("tags").select("id,name").order("name");
+    if(error) { say("err",error.message); return; }
+    setTags((data||[]) as TagRow[]);
+  }
+  async function loadCategories(){
+    if(!supabase) return;
+    const {data,error}=await supabase.from("categories").select("id,name,slug").order("name");
+    if(error) { say("err",error.message); return; }
+    setCategories((data||[]) as CategoryRow[]);
+  }
+  useEffect(()=>{if(session){loadTags();loadCategories();}},[session]);
+  useEffect(()=>{if(session && tab==="data"){loadTags();loadCategories();loadArticles();}},[session,tab]);
 
   async function loadArticles(){
     setArticlesLoading(true);
@@ -206,6 +230,65 @@ export default function AdminApp() {
     const {error}=await supabase.from("bookmarks").update({status}).in("id",ids);
     if(error)say("err",error.message);else{say("ok",status==="archived"?`已归档 ${ids.length} 条书签。`:`已恢复 ${ids.length} 条书签。`);setSelected([]);loadBookmarks()}
   }
+  function tagUsage(name:string){ return items.filter(b=>b.tags.includes(name)).length; }
+  function categoryUsage(name:string){ return items.filter(b=>b.category===name).length; }
+  async function renameTag(id:string, newName:string){
+    if(!supabase)return;
+    const name = newName.trim().toLowerCase();
+    if (!name) { say("err","标签名不能为空。"); return; }
+    if (tags.some(t=>t.id!==id && t.name===name)) { say("err",`标签“${name}”已存在。`); return; }
+    const {error}=await supabase.from("tags").update({name}).eq("id",id);
+    if(error){ say("err",error.message); return; }
+    say("ok",`标签已重命名为“${name}”。`);
+    setEditingTagId(null); loadTags(); loadBookmarks();
+  }
+  async function deleteTag(id:string, name:string){
+    if(!supabase)return;
+    const {error}=await supabase.from("tags").delete().eq("id",id);
+    if(error){ say("err",error.message); return; }
+    say("ok",`标签“${name}”已删除（${tagUsage(name)} 条书签的该标签已移除）。`);
+    loadTags(); loadBookmarks();
+  }
+  function makeSlug(name:string){
+    return name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g,"-").replace(/^-+|-+$/g,"") || "category";
+  }
+  async function addCategory(){
+    if(!supabase)return;
+    const name = newCategoryName.trim();
+    if (!name) { say("err","分类名不能为空。"); return; }
+    if (categories.some(c=>c.name===name)) { say("err",`分类“${name}”已存在。`); return; }
+    const slug = makeSlug(name);
+    if (categories.some(c=>c.slug===slug)) { say("err",`分类 slug “${slug}” 已存在，请换一个名字。`); return; }
+    const {error}=await supabase.from("categories").insert({name,slug});
+    if(error){ say("err",error.message); return; }
+    say("ok",`分类“${name}”已添加。`);
+    setNewCategoryName(""); loadCategories();
+  }
+  async function renameCategory(id:string, oldName:string, newName:string){
+    if(!supabase)return;
+    const name = newName.trim();
+    if (!name) { say("err","分类名不能为空。"); return; }
+    if (name === oldName) { setEditingCatId(null); return; }
+    if (categories.some(c=>c.id!==id && c.name===name)) { say("err",`分类“${name}”已存在。`); return; }
+    const slug = makeSlug(name);
+    if (categories.some(c=>c.id!==id && c.slug===slug)) { say("err",`分类 slug “${slug}” 已存在，请换一个名字。`); return; }
+    const {error: bErr} = await supabase.from("bookmarks").update({category:name}).eq("category",oldName);
+    if (bErr) { say("err",`书签分类更新失败：${bErr.message}`); return; }
+    const {error} = await supabase.from("categories").update({name,slug}).eq("id",id);
+    if (error) { say("err",error.message); return; }
+    say("ok",`分类已重命名为“${name}”（${categoryUsage(oldName)} 条书签已同步）。`);
+    setEditingCatId(null); loadCategories(); loadBookmarks();
+  }
+  async function deleteCategory(id:string, name:string){
+    if(!supabase)return;
+    const used = categoryUsage(name);
+    const {error: bErr} = await supabase.from("bookmarks").update({category:null}).eq("category",name);
+    if (bErr) { say("err",`书签分类清空失败：${bErr.message}`); return; }
+    const {error} = await supabase.from("categories").delete().eq("id",id);
+    if (error) { say("err",error.message); return; }
+    say("ok",`分类“${name}”已删除${used ? `（${used} 条书签已设为未分类）` : ""}。`);
+    loadCategories(); loadBookmarks();
+  }
   function newArticle(){
     setEditingSlug(null);
     setArticle(emptyArticle());
@@ -257,6 +340,8 @@ export default function AdminApp() {
     if (t.kind === "article" && t.path) await deleteArticle(t.path);
     if (t.kind === "bookmark" && t.id) await deleteBookmark(t.id);
     if (t.kind === "bookmarkBatch" && t.ids?.length) await batchDeleteBookmarks(t.ids);
+    if (t.kind === "tag" && t.id) await deleteTag(t.id, t.label);
+    if (t.kind === "category" && t.id) await deleteCategory(t.id, t.label);
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
@@ -271,11 +356,19 @@ export default function AdminApp() {
     <p style={{color:"#929dab",fontSize:12}}>请在 Supabase 后台手动创建管理员用户，并关闭公开注册。</p>
   </div>;
 
+  const statPublic = items.filter(b=>b.is_public && b.status==="active").length;
+  const statPrivate = items.filter(b=>!b.is_public).length;
+  const statArchived = items.filter(b=>b.status==="archived").length;
+  const statFav = items.filter(b=>b.is_favorite).length;
+  const topCategories = [...categories].map(c=>({name:c.name,count:categoryUsage(c.name)})).sort((a,b)=>b.count-a.count).slice(0,5);
+  const topTags = [...tags].map(t=>({name:t.name,count:tagUsage(t.name)})).sort((a,b)=>b.count-a.count).slice(0,10);
+
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:20}}>
       <div style={{display:"flex",gap:8}}>
         <button className={`button ${tab==="bookmarks"?"primary":"secondary"}`} onClick={()=>setTab("bookmarks")}>书签管理</button>
         <button className={`button ${tab==="articles"?"primary":"secondary"}`} onClick={()=>setTab("articles")}>文章管理</button>
+        <button className={`button ${tab==="data"?"primary":"secondary"}`} onClick={()=>setTab("data")}>数据管理</button>
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
     </div>
@@ -291,7 +384,7 @@ export default function AdminApp() {
         <textarea className={inputClass} placeholder="个人备注" rows={3} value={form.note} onChange={e=>setForm({...form,note:e.target.value})}/>
         <input className={inputClass} placeholder="标签，逗号分隔" value={form.tags} onChange={e=>setForm({...form,tags:e.target.value})}/>
         <select className={inputClass} value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>
-          {["AI & Tools","Development","Networking","Design","Productivity","Resources","Interesting"].map(x=><option key={x}>{x}</option>)}
+          {(categories.length ? categories.map(c=>c.name) : ["AI & Tools","Development","Networking","Design","Productivity","Resources","Interesting"]).map(x=><option key={x}>{x}</option>)}
         </select>
         <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={form.is_public} onChange={e=>setForm({...form,is_public:e.target.checked})}/> 公开书签</label>
         <label style={{fontSize:12,color:"#aab3c0"}}><input type="checkbox" checked={form.is_favorite} onChange={e=>setForm({...form,is_favorite:e.target.checked})}/> 精选书签</label>
@@ -331,7 +424,7 @@ export default function AdminApp() {
           {!items.length&&<p style={{color:"#929dab",fontSize:12}}>还没有书签。</p>}
         </div>
       </div>
-    </div> : <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+    </div> : tab==="articles" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
       <div className="card">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
           <h3>文章列表 ({articles.length})</h3>
@@ -375,11 +468,92 @@ export default function AdminApp() {
         <button className="button primary" disabled={saving}>{saving?"提交中…":(editingSlug?"保存修改":"提交到 GitHub 并发布")}</button>
         <p style={{color:"#929dab",fontSize:12}}>保存通过 Supabase Edge Function 调用 GitHub API，服务端会校验 frontmatter，非法内容会被拒绝。</p>
       </form>
+    </div> : <div style={{display:"grid",gap:16}}>
+      <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))"}}>
+        {[
+          {label:"书签总数",value:items.length},
+          {label:"公开书签",value:statPublic},
+          {label:"私人书签",value:statPrivate},
+          {label:"已归档",value:statArchived},
+          {label:"精选",value:statFav},
+          {label:"文章",value:articles.length},
+          {label:"分类",value:categories.length},
+          {label:"标签",value:tags.length},
+        ].map(s=><div key={s.label} className="card" style={{textAlign:"center",padding:"18px 10px"}}>
+          <div style={{fontSize:26,fontWeight:700,color:"#b5f36b"}}>{s.value}</div>
+          <div style={{fontSize:11,color:"#929dab",marginTop:6}}>{s.label}</div>
+        </div>)}
+      </div>
+      <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+        <div className="card">
+          <h3>标签管理 ({tags.length})</h3>
+          <p style={{color:"#929dab",fontSize:12}}>重命名会同步到所有使用该标签的书签；删除标签会移除它在所有书签上的关联。</p>
+          <div style={{display:"grid",gap:10,marginTop:12}}>
+            {tags.map(t=><div key={t.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
+              {editingTagId===t.id ? <div style={{display:"flex",gap:8}}>
+                <input className={inputClass} value={editingTagName} onChange={e=>setEditingTagName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();renameTag(t.id,editingTagName);}}} style={{flex:1}}/>
+                <button className="button primary" onClick={()=>renameTag(t.id,editingTagName)}>保存</button>
+                <button className="button secondary" onClick={()=>setEditingTagId(null)}>取消</button>
+              </div> : <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+                <span><strong style={{fontSize:13}}>{t.name}</strong><span style={{fontSize:11,color:"#929dab",marginLeft:8}}>用在 {tagUsage(t.name)} 条书签</span></span>
+                <span style={{display:"flex",gap:10}}>
+                  <button onClick={()=>{setEditingTagId(t.id);setEditingTagName(t.name);}} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>重命名</button>
+                  <button onClick={()=>setConfirmTarget({kind:"tag",id:t.id,label:t.name})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
+                </span>
+              </div>}
+            </div>)}
+            {!tags.length&&<p style={{color:"#929dab",fontSize:12}}>还没有标签，添加书签时填写标签即可创建。</p>}
+          </div>
+        </div>
+        <div className="card">
+          <h3>分类管理 ({categories.length})</h3>
+          <p style={{color:"#929dab",fontSize:12}}>重命名会同步更新使用该分类的书签；删除分类会把相关书签设为未分类。</p>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <input className={inputClass} placeholder="新分类名，例如 学习" value={newCategoryName} onChange={e=>setNewCategoryName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addCategory();}}} style={{flex:1}}/>
+            <button className="button primary" onClick={addCategory}>添加分类</button>
+          </div>
+          <div style={{display:"grid",gap:10,marginTop:12}}>
+            {categories.map(c=><div key={c.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
+              {editingCatId===c.id ? <div style={{display:"flex",gap:8}}>
+                <input className={inputClass} value={editingCatName} onChange={e=>setEditingCatName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();renameCategory(c.id,c.name,editingCatName);}}} style={{flex:1}}/>
+                <button className="button primary" onClick={()=>renameCategory(c.id,c.name,editingCatName)}>保存</button>
+                <button className="button secondary" onClick={()=>setEditingCatId(null)}>取消</button>
+              </div> : <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
+                <span><strong style={{fontSize:13}}>{c.name}</strong><span style={{fontSize:11,color:"#929dab",marginLeft:8}}>用在 {categoryUsage(c.name)} 条书签 · slug {c.slug}</span></span>
+                <span style={{display:"flex",gap:10}}>
+                  <button onClick={()=>{setEditingCatId(c.id);setEditingCatName(c.name);}} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>重命名</button>
+                  <button onClick={()=>setConfirmTarget({kind:"category",id:c.id,label:c.name})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
+                </span>
+              </div>}
+            </div>)}
+            {!categories.length&&<p style={{color:"#929dab",fontSize:12}}>还没有分类。</p>}
+          </div>
+        </div>
+      </div>
+      <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+        <div className="card">
+          <h3>热门分类</h3>
+          <div style={{display:"grid",gap:8,marginTop:12}}>
+            {topCategories.map(c=><div key={c.name} style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span>{c.name}</span><span style={{color:"#b5f36b"}}>{c.count}</span></div>)}
+            {!topCategories.length&&<p style={{color:"#929dab",fontSize:12}}>暂无数据。</p>}
+          </div>
+        </div>
+        <div className="card">
+          <h3>热门标签</h3>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:12}}>
+            {topTags.map(t=><span key={t.name} className="tag">{t.name} · {t.count}</span>)}
+            {!topTags.length&&<p style={{color:"#929dab",fontSize:12}}>暂无数据。</p>}
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <button className="button secondary" onClick={()=>{loadBookmarks();loadTags();loadCategories();loadArticles();}}>刷新全部数据</button>
+      </div>
     </div>}
     {confirmTarget&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:50}} onClick={()=>setConfirmTarget(null)}>
       <div className="card" style={{maxWidth:420,width:"90%"}} onClick={e=>e.stopPropagation()}>
         <h3>确定删除？</h3>
-        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="bookmarkBatch"?"":"书签"}「{confirmTarget.label}」，此操作不可撤销。</p>
+        <p style={{color:"#aab3c0",fontSize:13}}>即将删除{confirmTarget.kind==="article"?"文章":confirmTarget.kind==="tag"?"标签":confirmTarget.kind==="category"?"分类":"书签"}「{confirmTarget.label}」{confirmTarget.kind==="category"?"，相关书签将设为未分类":""}{confirmTarget.kind==="tag"?"，该标签将从所有书签上移除":""}，此操作不可撤销。</p>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
           <button className="button secondary" onClick={()=>setConfirmTarget(null)}>取消</button>
           <button className="button primary" style={{background:"#f28b82",borderColor:"#f28b82",color:"#1a1d21"}} onClick={runConfirmedDelete}>确定删除</button>
