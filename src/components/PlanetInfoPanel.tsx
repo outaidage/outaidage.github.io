@@ -1,9 +1,14 @@
 // PlanetInfoPanel.tsx — 行星 / 卫星信息面板（HTML 覆盖层，位于 3D 舞台左下）。
-// 点击行星 → 聚焦该行星并显示此面板；面板里的「进入」是真实 <a> 链接，
-// 卫星列表每项也是真实链接（指向对应页面，数量来自真实数据）。
+// 点击行星 → 聚焦该行星并显示此面板；面板里的「进入」与卫星列表都是
+// 真实 <a> 链接（指向对应页面，数量来自真实数据），由 Astro 原生处理跳转
+// （不 preventDefault、不走编程式 navigate，避免移动端转场卡住黑屏）。
+// 外链（收藏的书签 URL）在新标签页打开。
 
 import type { PlanetDef, Satellite } from "@/lib/planets";
-import { go } from "@/components/SolarSystem";
+
+function isExternal(path: string): boolean {
+  return /^https?:\/\//.test(path);
+}
 
 export function PlanetInfoPanel({ planet, satellites, hoveredSatellite, onClose }: {
   planet: PlanetDef | null;
@@ -22,7 +27,7 @@ export function PlanetInfoPanel({ planet, satellites, hoveredSatellite, onClose 
           <span>{s.description}</span>
         </div>
         {typeof s.count === "number" && <span className="planet-info-count">{s.count}条</span>}
-        <a className="planet-info-go" href={s.path} onClick={(e) => { e.preventDefault(); go(s.path); }}>打开 →</a>
+        <a className="planet-info-go" href={s.path} {...(isExternal(s.path) ? { target: "_blank", rel: "noopener noreferrer" } : {})}>打开 →</a>
       </div>
     );
   }
@@ -47,14 +52,14 @@ export function PlanetInfoPanel({ planet, satellites, hoveredSatellite, onClose 
         {satellites.length > 0 && (
           <span className="planet-info-sats">
             {satellites.map((s) => (
-              <a key={s.id} href={s.path} onClick={(e) => { e.preventDefault(); go(s.path); }}>
+              <a key={s.id} href={s.path} {...(isExternal(s.path) ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
                 {s.name}{typeof s.count === "number" ? ` (${s.count})` : ""}
               </a>
             ))}
           </span>
         )}
       </div>
-      <a className="planet-info-go" href={planet.path} onClick={(e) => { e.preventDefault(); go(planet.path); }}>进入 →</a>
+      <a className="planet-info-go" href={planet.path}>进入 →</a>
       <button className="planet-info-close" type="button" onClick={onClose} aria-label="返回全景">✕</button>
     </div>
   );
