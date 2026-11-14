@@ -102,6 +102,7 @@ export default function AdminApp() {
   const [editingRecId,setEditingRecId] = useState<string|null>(null);
   const fileRef = useRef<HTMLInputElement|null>(null);
   const coverFileRef = useRef<HTMLInputElement|null>(null);
+  const raindropFileRef = useRef<HTMLInputElement|null>(null);
 
   const say = (kind:"ok"|"err", text:string) => { setMsgKind(kind); setMessage(text); };
 
@@ -521,6 +522,168 @@ export default function AdminApp() {
   }
 
   if(!hasSupabaseConfig)return <div className="empty-state">尚未配置 Supabase。请先复制 <code>.env.example</code> 为 <code>.env</code>，填写公开项目 URL 和 anon key，再重新启动网站。</div>;
+  function parseCSV(text: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = "";
+    let inQuotes = false;
+    for (let i=0; i<text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i+1] === '"') { field += '"'; i++; }
+          else inQuotes = false;
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(field); field = ""; }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+        else if (c === '\r') { /* skip */ }
+        else field += c;
+      }
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r=>r.some(cell=>cell.trim()!==""));
+  }
+  function toCSVCell(v: string): string {
+    if (/[",\n\r]/.test(v)) return '"' + v.replace(/"/g,'""') + '"';
+    return v;
+  }
+  function toCSV(rows: string[][]): string {
+    return rows.map(r=>r.map(toCSVCell).join(",")).join("\r\n");
+  }
+  function slugifyCategory(name: string): string {
+    const s = name.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
+    return s || ("collection-" + Math.random().toString(36).slice(2,8));
+  }
+  async function importRaindrop(file: File){
+    if(!supabase) return;
+    const text = await file.text();
+    type RDItem = {url:string;title:string;description:string;note:string;tags:string[];category:string;is_favorite:boolean};
+    const items: RDItem[] = [];
+    const isCSV = file.name.toLowerCase().endsWith(".csv") || /^\s*"?id"?\s*,/i.test(text.slice(0,200)) || text.slice(0,500).includes(",url,");
+    const isHTML = text.includes("NETSCAPE-Bookmark-file-1") || file.name.toLowerCase().endsWith(".html") || file.name.toLowerCase().endsWith(".htm");
+    if (isCSV) {
+      const rows = parseCSV(text);
+      if (!rows.length) { say("err","CSV 文件为空。"); return; }
+      const header = rows[0].map(h=>h.trim().toLowerCase());
+      const idx = (name: string) => header.indexOf(name);
+      const urlIdx = idx("url");
+      if (urlIdx < 0) { say("err","CSV 里没有 url 列。请上传 Raindrop 导出的 CSV 文件。"); return; }
+      const titleIdx = idx("title"), noteIdx = idx("note"), excerptIdx = idx("excerpt"),
+            folderIdx = idx("folder"), tagsIdx = idx("tags"), favIdx = idx("favorite");
+      for (let i=1;i<rows.length;i++){
+        const r = rows[i];
+        const url = (r[urlIdx]||"").trim();
+        if (!/^https?:\/\/.+/.test(url)) continue;
+        items.push({
+          url: normalizeUrl(url),
+          title: (titleIdx>=0 ? (r[titleIdx]||"") : "").trim() || url,
+          description: (excerptIdx>=0 ? (r[excerptIdx]||"") : "").trim(),
+          note: (noteIdx>=0 ? (r[noteIdx]||"") : "").trim(),
+          tags: parseTagNames((tagsIdx>=0 ? (r[tagsIdx]||"") : "").replace(/;/g,",")),
+          category: (folderIdx>=0 ? (r[folderIdx]||"") : "").trim() || "AI & Tools",
+          is_favorite: favIdx>=0 ? ["true","1","yes"].includes((r[favIdx]||"").trim().toLowerCase()) : false,
+        });
+      }
+    } else if (isHTML) {
+      const doc = new DOMParser().parseFromString(text, "text/html");
+      const links = doc.querySelectorAll("a[href]");
+      links.forEach(a=>{
+        const url = (a.getAttribute("href")||"").trim();
+        if (!/^https?:\/\/.+/.test(url)) return;
+        let folder = "AI & Tools";
+        let parent: Element | null = a.parentElement;
+        while (parent && folder === "AI & Tools") {
+          let sib: Element | null = parent.previousElementSibling;
+          while (sib) {
+            if (sib.tagName === "H3") { folder = sib.textContent?.trim() || folder; break; }
+            sib = sib.previousElementSibling;
+          }
+          parent = parent.parentElement;
+        }
+        items.push({
+          url: normalizeUrl(url),
+          title: (a.textContent||"").trim() || url,
+          description: "",
+          note: "",
+          tags: parseTagNames(a.getAttribute("tags")||""),
+          category: folder,
+          is_favorite: false,
+        });
+      });
+    } else {
+      say("err","无法识别的文件格式。请上传 Raindrop 导出的 CSV 或 HTML 书签文件。");
+      return;
+    }
+    if (!items.length) { say("err","文件里没有找到有效的书签。"); return; }
+    setSaving(true); say("ok",`正在导入 ${items.length} 条书签…`);
+    let imported = 0, skipped = 0;
+    try {
+      for (const it of items) {
+        const catName = it.category;
+        const {data: cat} = await supabase.from("categories").select("id").eq("name",catName).single();
+        if (!cat) {
+          await supabase.from("categories").insert({name:catName, slug: slugifyCategory(catName)});
+        }
+        const payload = {
+          url: it.url,
+          title: it.title,
+          description: it.description || null,
+          note: it.note || null,
+          category: catName,
+          is_public: true,
+          is_favorite: it.is_favorite,
+          status: "active",
+        };
+        const res = await supabase.from("bookmarks").upsert(payload, {onConflict:"url"}).select("id").single();
+        if (res.error) { skipped++; continue; }
+        const bookmarkId = (res.data as any).id as string;
+        await syncBookmarkTags(bookmarkId, it.tags);
+        imported++;
+      }
+      await cleanupOrphanTags();
+      say("ok",`Raindrop 导入完成：${imported} 条已导入${skipped?`，${skipped} 条失败`:""}。导入的书签默认为公开，如需设为私人请在书签管理里修改。`);
+      loadBookmarks(); loadTags(); loadCategories();
+    } catch (err:any) {
+      say("err",`导入失败：${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function exportRaindrop(){
+    if(!supabase) return;
+    const {data,error} = await supabase.from("bookmarks").select("id,url,title,description,note,category,is_favorite,created_at,bookmark_tags(tags(name))").order("created_at",{ascending:true});
+    if (error) { say("err",`导出失败：${error.message}`); return; }
+    const rows: string[][] = [["id","title","note","excerpt","url","folder","tags","created","cover","highlights","favorite"]];
+    ((data||[]) as any[]).forEach((b,i)=>{
+      const tags = ((b.bookmark_tags||[]) as any[]).map(bt=>bt.tags?.name).filter(Boolean).join(",");
+      rows.push([
+        String(b.id || i+1),
+        b.title || "",
+        b.note || "",
+        b.description || "",
+        b.url || "",
+        b.category || "",
+        tags,
+        b.created_at ? new Date(b.created_at).toISOString() : "",
+        "",
+        "",
+        b.is_favorite ? "true" : "false",
+      ]);
+    });
+    const csv = toCSV(rows);
+    const blob = new Blob(["\uFEFF" + csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `raindrop-export-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    say("ok",`已导出 ${rows.length-1} 条书签为 Raindrop CSV，可直接导入 Raindrop。`);
+  }
   async function uploadCoverImage(file: File){
     if(!supabase) return;
     if(!file.type.startsWith("image/")) { say("err","请选择图片文件。"); return; }
@@ -777,6 +940,15 @@ export default function AdminApp() {
             {topTags.map(t=><span key={t.name} className="tag">{t.name} · {t.count}</span>)}
             {!topTags.length&&<p style={{color:"#929dab",fontSize:12}}>暂无数据。</p>}
           </div>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Raindrop 导入/导出</h3>
+        <p style={{color:"#929dab",fontSize:12}}>从 Raindrop 导入：在 Raindrop 里导出备份（CSV 或 HTML 书签文件），上传到这里即可导入。文件夹会变成分类，标签会保留，导入的书签默认为公开。导出：把本站书签导出为 Raindrop 格式的 CSV，可直接导入 Raindrop。</p>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
+          <button className="button primary" onClick={exportRaindrop} disabled={saving}>导出为 Raindrop CSV</button>
+          <input type="file" accept=".csv,.html,.htm,text/csv,text/html" ref={raindropFileRef} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) importRaindrop(f); e.target.value="";}}/>
+          <button className="button secondary" onClick={()=>raindropFileRef.current?.click()} disabled={saving}>选择 Raindrop 文件导入</button>
         </div>
       </div>
       <div className="card">
