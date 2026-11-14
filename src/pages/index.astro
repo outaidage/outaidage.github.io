@@ -1,5 +1,6 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
+import BootIntro from "@/components/BootIntro.astro";
 import { getCollection } from "astro:content";
 import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
@@ -91,6 +92,7 @@ const planetSatellites: Record<string, { id: string; name: string; description: 
 const lastUpdate = allPosts[0]?.data.pubDate;
 ---
 <MainLayout>
+  <BootIntro />
   <section class="hero-du">
     <div class="hero-ghost" aria-hidden="true">Explore</div>
     <div class="eyebrow"><span class="pulse"></span> DIGITAL UNIVERSE · EST. 2026</div>
@@ -99,12 +101,13 @@ const lastUpdate = allPosts[0]?.data.pubDate;
     <div class="hero-actions">
       <a class="button primary" href={`${base}blog/`}>探索文章 ↗</a>
       <a class="button secondary" href={`${base}collection/`}>打开资源库 ⌁</a>
+      <a class="button secondary" href="#universe">进入宇宙 ☉</a>
     </div>
     <div class="ticker" aria-hidden="true"><span><b>⌁</b> AI &amp; TECHNOLOGY</span><span><b>⌁</b> DIGITAL LIFE</span><span><b>⌁</b> OPEN SOURCE</span><span><b>⌁</b> BUILD IN PUBLIC</span></div>
     <Terminal client:load />
   </section>
 
-  <section class="core-stage glass-panel" aria-label="数字宇宙核心">
+  <section class="core-stage glass-panel" id="core-stage" aria-label="数字宇宙核心">
     <SpaceCore client:idle planetSatellites={planetSatellites} />
     <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
   </section>
@@ -172,3 +175,61 @@ const lastUpdate = allPosts[0]?.data.pubDate;
   </section>
   <Subscribe client:load />
 </MainLayout>
+
+<script>
+  // 双形态切换（普通模式 ⇄ 沉浸式宇宙模式）。
+  // 同一个 Canvas、同一个场景实例：全屏只是把首页的 .core-stage 固定到视口
+  // 并让相机拉远到太阳系视角；退出时原样收回，不重建场景、不重新加载页面。
+  // 状态用 #universe hash 表达：打开时 pushState，浏览器返回键可退出；
+  // 从其他页面点"进入宇宙"会导航到 /#universe，首页加载后自动打开。
+  (function () {
+    const stage = document.getElementById("core-stage");
+    if (!stage) return;
+    let pushed = false;
+    const isOpen = () => document.body.classList.contains("universe-open");
+    function open() {
+      if (isOpen()) return;
+      stage.classList.add("universe-full");
+      document.body.classList.add("universe-open");
+      if (window.location.hash !== "#universe") {
+        history.pushState({}, "", "#universe");
+        pushed = true;
+      }
+      window.dispatchEvent(new CustomEvent("outai:universe", { detail: { open: true } }));
+    }
+    function close() {
+      if (!isOpen()) return;
+      stage.classList.remove("universe-full");
+      document.body.classList.remove("universe-open");
+      window.dispatchEvent(new CustomEvent("outai:universe", { detail: { open: false } }));
+      if (pushed && window.location.hash === "#universe") {
+        pushed = false;
+        history.back();
+      } else {
+        pushed = false;
+      }
+    }
+    document.addEventListener("click", (e) => {
+      const t = e.target as Element | null;
+      const a = t?.closest?.('a[href="#universe"], a[href="/#universe"]') as HTMLAnchorElement | null;
+      if (a) { e.preventDefault(); open(); return; }
+    });
+    window.addEventListener("outai:universe-close", () => close());
+    window.addEventListener("popstate", () => {
+      if (window.location.hash !== "#universe") close();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && isOpen()) close();
+    });
+    // 开场动画播完后再打开（无开场时立即打开）。
+    const maybeOpenFromHash = () => { if (window.location.hash === "#universe") open(); };
+    const boot = (window as unknown as { __outaiBoot?: { play?: boolean } }).__outaiBoot;
+    if (boot && boot.play) {
+      window.addEventListener("outai:boot-done", maybeOpenFromHash, { once: true });
+    } else {
+      maybeOpenFromHash();
+    }
+    // 视图切换后（Astro view transitions）若 hash 仍在，重新打开。
+    document.addEventListener("astro:page-load", maybeOpenFromHash);
+  })();
+</script>
