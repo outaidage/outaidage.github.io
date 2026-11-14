@@ -4,9 +4,14 @@
 # 写库、记日志），这里只负责定时触发。
 # 需要在仓库 Settings → Secrets and variables → Actions 里配置：
 #   SUPABASE_URL（与部署用的 PUBLIC_SUPABASE_URL 相同）
+#   SUPABASE_ANON_KEY（Supabase 项目的 anon public key；只用于通过函数网关的 JWT 校验）
 #   SUPABASE_SYNC_TRIGGER_SECRET（与 Edge Function 的 SYNC_TRIGGER_SECRET 相同，随机字符串）
 # 注意：同步不需要 GitHub Token（用 raw.githubusercontent.com 取 manifest，不计 API 限流）。
 # 定时同步是服务端任务，不依赖访客打开网页。
+# 认证说明：Supabase 函数网关要求 Authorization 是合法 JWT，所以触发密钥不能直接
+# 当 Bearer 用——网关会先以 Invalid JWT 拒绝，函数根本收不到请求。正确做法：
+# Authorization Bearer 用 anon key（合法 JWT，仅过网关），真正的触发鉴权走
+# x-sync-trigger 头，由函数代码自己比对 SYNC_TRIGGER_SECRET。
 name: Background Sync
 
 on:
@@ -27,28 +32,27 @@ jobs:
       - name: Trigger background sync
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SYNC_TRIGGER_SECRET: ${{ secrets.SUPABASE_SYNC_TRIGGER_SECRET }}
           SOURCE_ID: ${{ inputs.source_id }}
         run: |
           set -euo pipefail
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SYNC_TRIGGER_SECRET" ]; then
-            echo "Missing SUPABASE_URL or SUPABASE_SYNC_TRIGGER_SECRET; skipping."
-            exit 0
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$SYNC_TRIGGER_SECRET" ]; then
+            echo "Missing SUPABASE_URL, SUPABASE_ANON_KEY or SUPABASE_SYNC_TRIGGER_SECRET."
+            exit 1
           fi
-          # 先取来源列表（用 anon key + service role 不行，这里直接调函数时不传 source_id
-          # 会让函数同步全部启用的来源；指定 source_id 时只同步该来源）。
           if [ -n "$SOURCE_ID" ]; then
             BODY="{\"source_id\": \"$SOURCE_ID\"}"
           else
             BODY="{}"
           fi
-          # 注意：background-sync 需要 source_id；全部同步时由函数内部枚举来源。
-          # 这里先用一个占位调用——函数在 source_id 为空时返回错误并记录日志。
-          # 实际部署时如需“同步全部”，应在函数里加枚举逻辑；当前版本请用 workflow_dispatch 指定 source_id，
-          # 或在 Supabase 里为每个来源单独建一个定时任务。
-          curl -sS -X POST "$SUPABASE_URL/functions/v1/background-sync" \
-            -H "Authorization: Bearer $SYNC_TRIGGER_SECRET" \
+          # --fail 让 HTTP 非 2xx 直接失败（之前没加，网关 401 也显示绿灯）。
+          # 响应体打印出来，方便在日志里确认同步结果。
+          RESP=$(curl -sS --fail -X POST "$SUPABASE_URL/functions/v1/background-sync" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
             -H "x-sync-trigger: $SYNC_TRIGGER_SECRET" \
             -H "Content-Type: application/json" \
-            -d "$BODY" | head -c 2000
-          echo
+            -d "$BODY")
+          echo "$RESP"
+          echo "$RESP" | grep -q '"ok":true' || { echo "Sync did not return ok:true"; exit 1; }
