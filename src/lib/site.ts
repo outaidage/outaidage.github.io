@@ -6,8 +6,10 @@ export const SITE = {
   nav: [
     { label: "文章", href: "/blog/" },
     { label: "书签", href: "/collection/" },
+    { label: "推荐", href: "/links/" },
     { label: "项目", href: "/projects/" },
     { label: "关于", href: "/about/" },
-    { label: "Now", href: "/now/" }
+    { label: "Now", href: "/now/" },
+    { label: "联系", href: "/contact/" }
   ]
 };
