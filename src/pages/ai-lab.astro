@@ -1,0 +1,23 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+const base = import.meta.env.BASE_URL;
+---
+
+<MainLayout title="AI 实验室 — OUTAI" description="OUTAI 的 AI 实验空间：正在建设中。">
+  <header class="page-head">
+    <div class="eyebrow"><span class="pulse"></span> AI LAB</div>
+    <h1>AI 实验室<span style="color:#61edff">.</span></h1>
+    <p>AI 相关的实验、工具与记录。</p>
+  </header>
+  <div class="card" style="display:grid;gap:12px">
+    <h2 style="margin:0;font-size:16px">建设中</h2>
+    <p style="margin:0;color:#aab3c0;line-height:1.7">
+      AI 实验室正在规划中。这里将来会放 AI 实验、提示词记录、模型试用笔记等内容。
+      现在还没有可展示的实验——等内容准备好之后，这里会陆续更新。
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="button primary" href={`${base}blog/`}>先看看文章 ↗</a>
+      <a class="button secondary" href={`${base}toolbox/`}>在线工具箱 ↗</a>
+    </div>
+  </div>
+</MainLayout>
