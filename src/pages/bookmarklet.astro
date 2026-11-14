@@ -1,0 +1,16 @@
+---
+import MainLayout from "@/layouts/MainLayout.astro";
+const bookmarklet = "javascript:(function(){var u=encodeURIComponent(location.href);var t=encodeURIComponent(document.title);window.open('https://outaidage.xyz/admin/?url='+u+'&title='+t,'_blank');})();";
+---
+<MainLayout title="Bookmarklet — OUTAI">
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> BOOKMARKLET</div><h1>一键收藏<span style="color:#b5f36b">.</span></h1><p>在任何网页上点一下，就把当前页面存进书签。</p></header>
+  <div class="article-body">
+    <h2>怎么用</h2>
+    <p>把下面这个链接拖到浏览器书签栏。以后在任何想收藏的网页上点它，就会打开管理后台的书签表单，链接和标题已经自动填好，选个分类、加个标签，点保存就行。</p>
+    <p><a class="button primary" href={bookmarklet}>＋ 收藏到 OUTAI</a></p>
+    <p style="color:#929dab;font-size:12px">如果拖不动，可以右键这个链接，复制链接地址，再手动新建一个书签，把地址粘贴进去。</p>
+    <h2>它做了什么</h2>
+    <p>这个小书签只做一件事：读取当前页面的地址和标题，打开本站管理后台并把它们填进新建书签的表单。它不会读取页面内容，也不会把任何信息发给第三方。</p>
+    <p>首次使用需要先登录管理后台。</p>
+  </div>
+</MainLayout>
