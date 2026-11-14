@@ -6,13 +6,12 @@
 :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#090b0f;color:#eef1f5;font-synthesis:none;text-rendering:optimizeLegibility}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;min-width:320px;background:radial-gradient(ellipse at 75% 0%,rgba(45,69,45,.13),transparent 36%),#090b0f;color:#eef1f5}
+body{margin:0;min-width:320px;background:#090b0f;color:#eef1f5}
 a{color:inherit;text-decoration:none}
 button,input,textarea,select{font:inherit}
 .site-shell{width:min(1120px,calc(100% - 48px));margin:0 auto}
 .topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #202630}
 .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.12em;font-size:15px}
-.brand-mark{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#b5f36b;color:#0a0d08;font-size:19px;font-weight:800}
 .brand-dot{color:#b5f36b}
 .desktop-nav{display:flex;gap:34px;color:#9ba4b1;font-size:13px}
 .desktop-nav a:hover,.desktop-nav a.active{color:#b5f36b}
@@ -116,3 +115,60 @@ html[data-motion="reduced"] .hero,html[data-motion="reduced"] .page-head,html[da
 html[data-motion="reduced"]{scroll-behavior:auto}
 html[data-motion="full"] .hero,html[data-motion="full"] .page-head,html[data-motion="full"] .section{animation:fadeUp .6s ease both}
 html[data-motion="full"]{scroll-behavior:smooth}
+
+/* ---- View Transitions (Astro ClientRouter) ---- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: ease;
+}
+::view-transition-old(root) { animation-name: vt-fade-out; }
+::view-transition-new(root) { animation-name: vt-fade-in; }
+@keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+}
+html[data-motion="reduced"] ::view-transition-old(root),
+html[data-motion="reduced"] ::view-transition-new(root) { animation: none; }
+
+/* ---- Hero terminal ---- */
+.hero-terminal {
+  margin-top: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font: 12px 'DM Mono', monospace;
+  color: #9ba4b1;
+  line-height: 1.8;
+}
+.hero-terminal-prompt { color: #b5f36b; }
+.hero-terminal-cmd { color: #dce2e9; }
+.hero-terminal-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 13px;
+  background: #b5f36b;
+  vertical-align: -2px;
+  animation: term-blink 1s steps(1) infinite;
+}
+@keyframes term-blink { 50% { opacity: 0; } }
+.hero-terminal-out { color: #9ba4b1; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-terminal-cursor { animation: none; }
+}
+html[data-motion="reduced"] .hero-terminal-cursor { animation: none; }
+
+/* ---- Button micro-feedback ---- */
+.button { transition: transform .15s ease, border-color .2s, background-color .2s; }
+.button:hover { transform: translateY(-1px); }
+.button:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+  .button:hover, .button:active { transform: none; }
+}
+html[data-motion="reduced"] .button { transition: none; }
+html[data-motion="reduced"] .button:hover,
+html[data-motion="reduced"] .button:active { transform: none; }
