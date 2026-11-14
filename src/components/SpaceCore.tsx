@@ -278,6 +278,7 @@ const BOOT_SKIP = "outai:boot-skip";
 const BOOT_CORE = "outai:boot-core"; // 到达能量核心 → 品牌淡入
 const BOOT_ENTER = "outai:boot-enter"; // 进入主场景 → 品牌淡出 + 舞台收回
 const BOOT_CAMERA_DONE = "outai:boot-camera-done"; // 相机到达总览
+const SCENE_READY = "outai:scene-ready"; // Canvas 渲染出第一帧 → BootIntro 再全屏+起飞（避免黑屏起手）
 // 深空起点：相机初始位置。Boot 播放时 Canvas 直接用此位置创建相机，
 // 第一帧就是深空，不会先出现总览再跳变。
 const FLIGHT_START: [number, number, number] = [0, 16, 120];
@@ -293,18 +294,24 @@ function tangentialOffset(planetPos: THREE.Vector3, dist: number, up: number): T
   return planetPos.clone().add(tangent.multiplyScalar(dist)).add(new THREE.Vector3(0, up, 0));
 }
 
-// 构建飞行航线（Catmull-Rom 样条，连续平滑）。行星位置取飞行开始时的
-// 实时位置（它们公转很慢，7 秒内几乎不动，飞越点准确）；若位置尚未就绪，
-// 用轨道半径处的默认点兜底。
-function buildFlightCurve(
-  planetPositions: Map<string, THREE.Vector3>,
-  earthPos: THREE.Vector3,
-): THREE.CatmullRomCurve3 {
-  const jupiter = planetPositions.get("jupiter");
-  const saturn = planetPositions.get("saturn");
+// 构建飞行航线（Catmull-Rom 样条，连续平滑）。巨行星位置直接按
+// PLANET_MAP 的轨道参数算（orbitRadius + initialAngle，x = r·cos a，
+// z = r·sin a，与行星实际位置公式一致）：飞行在挂载后立刻开始，行星
+// 公转很慢，起飞时它们基本还在初始角附近；用配置算比等 planetPositions
+// 更可靠（第一帧时 planetPositions 可能还没写入，兜底点又不在行星附近，
+// 会导致镜头掠过空无一物的深空、看不到木星/土星）。
+function buildFlightCurve(earthPos: THREE.Vector3): THREE.CatmullRomCurve3 {
+  const planetPos = (id: PlanetId): THREE.Vector3 => {
+    const def = PLANET_MAP[id];
+    return new THREE.Vector3(
+      Math.cos(def.initialAngle) * def.orbitRadius,
+      0,
+      Math.sin(def.initialAngle) * def.orbitRadius,
+    );
+  };
   const pts: THREE.Vector3[] = [new THREE.Vector3(...FLIGHT_START)];
-  pts.push(jupiter ? tangentialOffset(jupiter, JUPITER_FLYBY, 2.5) : new THREE.Vector3(16, 8, 55));
-  pts.push(saturn ? tangentialOffset(saturn, SATURN_FLYBY, 2) : new THREE.Vector3(24, 4, 28));
+  pts.push(tangentialOffset(planetPos("jupiter"), JUPITER_FLYBY, 2.5));
+  pts.push(tangentialOffset(planetPos("saturn"), SATURN_FLYBY, 2));
   // 接近能量核心（太阳）
   pts.push(new THREE.Vector3(9, 3, 16));
   pts.push(new THREE.Vector3(4, 1.5, 8.5));
@@ -327,7 +334,7 @@ function lookBlend(t: number): number {
 }
 
 // 关键时刻（按缓动后的进度 e 计）
-const CORE_AT = 0.55; // 到达能量核心附近 → 品牌淡入
+const CORE_AT = 0.48; // 到达能量核心附近 → 品牌淡入（早一点，太阳还在画面中央时）
 const ENTER_AT = 0.85; // 进入主场景 → 品牌淡出 + 舞台收回
 
 // ---------- 相机 ----------
@@ -362,6 +369,7 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
   }>({ active: false, t: 0, dur: 6.5, curve: null, coreFired: false, enterFired: false });
   const sunPos = useMemo(() => new THREE.Vector3(0, 0, 0), []);
   const lookTarget = useMemo(() => new THREE.Vector3(), []);
+  const sceneReadyRef = useRef(false);
   const bootPlay = useMemo(() => {
     if (typeof window === "undefined") return false;
     return (window as unknown as { __outaiBoot?: { play?: boolean } }).__outaiBoot?.play === true;
@@ -493,11 +501,17 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
 
   useFrame((_, delta) => {
     if (!controls) return;
+    // 场景就绪：第一帧已渲染，通知 BootIntro 可以全屏+起飞（避免黑屏起手）。
+    // 只发一次。BootIntro 若 2.5 秒内没收到也会超时继续，不会卡住。
+    if (!sceneReadyRef.current) {
+      sceneReadyRef.current = true;
+      window.dispatchEvent(new CustomEvent(SCENE_READY));
+    }
     // ---- 电影级开场飞行（优先于普通过渡与跟随） ----
     const f = flightRef.current;
     if (f.active) {
-      // 首次帧：行星位置已就绪（行星每帧写 planetPositions），构建航线。
-      if (!f.curve) f.curve = buildFlightCurve(planetPositions.current, earthPosRef.current);
+      // 首次帧：构建航线（行星位置按配置算，不依赖 planetPositions 的写入时机）。
+      if (!f.curve) f.curve = buildFlightCurve(earthPosRef.current);
       f.t += delta / f.dur;
       const t = Math.min(1, f.t);
       const e = easeFlight(t);
