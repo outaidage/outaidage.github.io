@@ -109,8 +109,9 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPos
   });
   return (
     <group>
-      {/* 太阳光：场景唯一主光源，行星昼夜由此产生 */}
-      <pointLight position={[0, 0, 0]} intensity={2.4} distance={0} decay={0} color="#fff2d8" />
+      {/* 太阳光：场景唯一主光源，行星昼夜由此产生。强度 3.4：让地球
+          白昼面的海洋呈现真实的蓝色（2.4 时叠加 ACES 色调映射会偏黑）。 */}
+      <pointLight position={[0, 0, 0]} intensity={3.4} distance={0} decay={0} color="#fff2d8" />
       <mesh
         onClick={(e) => { e.stopPropagation(); onSelect("sun"); }}
         onPointerOver={() => { document.body.style.cursor = "pointer"; }}
@@ -214,8 +215,9 @@ function EarthModel({ radius, spinSpeed, motionPaused, earthSpinOn, low, earthPo
     <group ref={groupRef}>
       <mesh>
         <sphereGeometry args={[radius, seg, seg]} />
-        <meshPhongMaterial map={day} normalMap={normal} specularMap={specular} specular={new THREE.Color("#4a4a4a")} shininess={18} />
+        <meshPhongMaterial map={day} normalMap={normal} specularMap={specular} specular={new THREE.Color("#4a4a4a")} shininess={18} toneMapped={false} />
       </mesh>
+      {/* 地球是主视觉：toneMapped={false} 让 NASA 白天纹理的蓝色直接呈现，不被 ACES 压暗 */}
       <mesh scale={1.004} renderOrder={1}>
         <sphereGeometry args={[radius, seg, seg]} />
         <shaderMaterial
@@ -275,13 +277,14 @@ function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, paused, o
         <torusGeometry args={[0.13, 0.008, 8, 32]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {/* 放大的透明命中球：卫星本体太小，直接点很难命中 */}
+      {/* 放大的透明命中球：卫星本体太小，直接点很难命中。
+          半径 0.32：配合卫星轨道间距 0.75，相邻命中球不再重叠。 */}
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); onHover(sat); document.body.style.cursor = "pointer"; }}
         onPointerOut={() => { setHovered(false); onHover(null); document.body.style.cursor = ""; }}
         onClick={(e) => { e.stopPropagation(); onClick(sat); }}
       >
-        <sphereGeometry args={[0.35, 8, 8]} />
+        <sphereGeometry args={[0.32, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
