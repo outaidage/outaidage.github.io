@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Html, useTexture } from "@react-three/drei";
 import { PLANETS, PLANET_MAP, satelliteOrbitRadius, type PlanetDef, type PlanetId, type Satellite } from "@/lib/planets";
 import { getProceduralTexture, getSaturnRingTexture } from "@/lib/planet-textures";
