@@ -10,9 +10,11 @@
 // The canvas is transparent — the page's own 2D universe background shows
 // through behind it.
 // Performance: DPR capped at 1.5, ~600 starfield points, rendering pauses
-// when the tab is hidden, and the whole scene returns null on mobile
-// (<760px), reduced-motion, or when the site motion toggle is off (the
-// lightweight 2D canvas fallback covers those cases instead).
+// when the tab is hidden, and the whole scene returns null only when the
+// site motion toggle is explicitly off or this browser has no WebGL (the
+// lightweight 2D canvas fallback covers those cases instead). It renders
+// on mobile too — the scene is light and the mobile node strip overlays
+// the bottom of the stage.
 // Palette: #03040B / #10102B / #61EDFF / #A68AFF / #7DFFCE.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
@@ -176,16 +178,13 @@ export default function SpaceCore() {
   const [frameloop, setFrameloop] = useState<"always" | "never">("always");
 
   useEffect(() => {
-    // Respect the site's own motion toggle first (same rule as MainLayout's
-    // isReduced): an explicit "full" overrides the OS reduced-motion
-    // preference; an explicit "reduced" forces it off; otherwise fall back
-    // to the OS preference.
+    // Same rule as MainLayout's isReduced: no stored preference means
+    // motion is ON; only an explicit stored "reduced" turns the core
+    // off. The OS reduced-motion setting is not consulted, because
+    // incognito has no stored preference and would otherwise disagree
+    // with the normal profile on the same machine.
     const stored = document.documentElement.dataset.motion;
-    const reducedMotion =
-      stored === "reduced" ||
-      (stored !== "full" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const isMobile = window.innerWidth < 760;
+    const reducedMotion = stored === "reduced";
     // WebGL pre-check: if this browser cannot create a WebGL context,
     // three.js cannot render at all — stay in lightweight mode and say so.
     let webglOk = false;
@@ -197,17 +196,17 @@ export default function SpaceCore() {
     } catch {
       webglOk = false;
     }
-    const ok = !reducedMotion && !isMobile && webglOk;
+    const ok = !reducedMotion && webglOk;
     setEnabled(ok);
     // Show the lightweight-mode note only when the core is actually off,
-    // with a reason that matches why (motion / mobile / no WebGL).
+    // with the reason that matches why (motion off / no WebGL).
     if (!ok) {
       const el = document.getElementById("core-fallback");
       if (el) {
         el.removeAttribute("hidden");
-        if (!webglOk) {
-          el.textContent = "WEBGL UNAVAILABLE · 使用轻量模式";
-        }
+        el.textContent = !webglOk
+          ? "WEBGL UNAVAILABLE · 使用轻量模式"
+          : "3D 核心已关闭 · 动效已关，页脚可开启";
       }
     }
   }, []);
