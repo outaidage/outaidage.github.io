@@ -38,7 +38,7 @@ export default function Guestbook(){
       <input className="field" placeholder="你的名字" value={name} onChange={e=>setName(e.target.value)} maxLength={50}/>
       <textarea className="field" rows={4} placeholder="写点什么…" value={message} onChange={e=>setMessage(e.target.value)} maxLength={1000}/>
       <button className="button primary" disabled={submitting}>{submitting?"提交中…":"提交留言"}</button>
-      {notice && <p style={{color:"#b5f36b",fontSize:12}}>{notice}</p>}
+      {notice && <p style={{color:"#61edff",fontSize:12}}>{notice}</p>}
       <p style={{color:"#929dab",fontSize:12}}>留言需要管理员审核后才会公开显示。请不要留下敏感个人信息。</p>
     </form>
     {loading ? <div className="card">正在加载留言…</div>

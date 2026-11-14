@@ -2,7 +2,7 @@
 // DigitalUniverse.astro — OUTAI digital universe background.
 // Fixed behind all content (z-index 0; .site-shell sits above at z-index 1),
 // pointer-events none, never covers text or navigation. Layers, back to front:
-//   1. radial glow (CSS, brand green, very low opacity)
+//   1. radial glow (CSS, energy cyan, very low opacity)
 //   2. flat grid (CSS linear-gradient, slow drift, subtle)
 //   3. particle canvas (src/lib/universe-canvas.ts, vanilla 2D canvas)
 // The canvas is initialised from MainLayout (module script, astro:page-load),
@@ -30,15 +30,15 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse 60% 45% at 75% 0%, rgba(181, 243, 107, 0.10), transparent 60%),
-      radial-gradient(ellipse 45% 35% at 12% 85%, rgba(181, 243, 107, 0.05), transparent 60%);
+      radial-gradient(ellipse 60% 45% at 75% 0%, rgba(97, 237, 255, 0.10), transparent 60%),
+      radial-gradient(ellipse 45% 35% at 12% 85%, rgba(166, 138, 255, 0.06), transparent 60%);
   }
   .universe-grid {
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(rgba(181, 243, 107, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(181, 243, 107, 0.06) 1px, transparent 1px);
+      linear-gradient(rgba(97, 237, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(97, 237, 255, 0.06) 1px, transparent 1px);
     background-size: 56px 56px;
     mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, rgba(0, 0, 0, 0.9), transparent 100%);
     -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, rgba(0, 0, 0, 0.9), transparent 100%);

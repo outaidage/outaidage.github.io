@@ -27,7 +27,7 @@ export default function RecommendedLinks(){
   if (!links.length) return <div className="empty-state">还没有推荐链接。<br/>管理员可以在后台的「推荐链接」里添加。</div>;
   return <div>
     {cats.length>1 && <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-      {cats.map(c=><button key={c} className="button secondary" style={cat===c?{borderColor:"#b5f36b",color:"#b5f36b"}:{}} onClick={()=>setCat(c)}>{c}</button>)}
+      {cats.map(c=><button key={c} className="button secondary" style={cat===c?{borderColor:"#61edff",color:"#61edff"}:{}} onClick={()=>setCat(c)}>{c}</button>)}
     </div>}
     <div className="card-grid">
       {shown.map(l=><a key={l.id} className="card" href={l.url} target="_blank" rel="noopener noreferrer">

@@ -30,7 +30,7 @@ interface Particle {
   depth: number; // 0..1 — parallax depth (far particles move less)
 }
 
-const BRAND = "#b5f36b";
+const BRAND = "#61edff";
 
 function motionReduced(): boolean {
   if (document.documentElement.dataset.motion === "reduced") return true;

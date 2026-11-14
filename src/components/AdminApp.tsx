@@ -866,7 +866,7 @@ export default function AdminApp() {
       <input className={inputClass} type="password" required placeholder="密码" value={password} onChange={e=>setPassword(e.target.value)}/>
       <button className="button primary" type="submit">登录后台 ↗</button>
     </form>
-    {message&&<p style={{color:msgKind==="err"?"#f28b82":"#b5f36b"}}>{message}</p>}
+    {message&&<p style={{color:msgKind==="err"?"#f28b82":"#61edff"}}>{message}</p>}
     <p style={{color:"#929dab",fontSize:12}}>请在 Supabase 后台手动创建管理员用户，并关闭公开注册。</p>
   </div>;
 
@@ -925,13 +925,13 @@ export default function AdminApp() {
                 <span>
                   <strong style={{fontSize:13}}>{x.title}</strong>
                   {x.status==="archived"&&<span style={{fontSize:11,color:"#f2c94c",marginLeft:6}}>已归档</span>}
-                  {x.is_favorite&&<span style={{fontSize:11,color:"#b5f36b",marginLeft:6}}>精选</span>}
+                  {x.is_favorite&&<span style={{fontSize:11,color:"#61edff",marginLeft:6}}>精选</span>}
                   <div style={{fontSize:11,color:"#929dab",marginTop:5}}>{x.is_public?"公开":"私人"} · {x.category} · {x.url}</div>
                   {x.tags.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>{x.tags.map(t=><span className="tag" key={t}>{t}</span>)}</div>}
                 </span>
               </span>
               <span style={{display:"flex",gap:10,whiteSpace:"nowrap"}}>
-                <button onClick={()=>editBookmark(x)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
+                <button onClick={()=>editBookmark(x)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>编辑</button>
                 <button onClick={()=>setBookmarkStatus(x.id,x.status==="archived"?"active":"archived")} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>{x.status==="archived"?"恢复":"归档"}</button>
                 <button onClick={()=>setConfirmTarget({kind:"bookmark",id:x.id,label:x.title})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
@@ -953,7 +953,7 @@ export default function AdminApp() {
               <strong style={{fontSize:13}}>{a.slug}</strong>
               <span style={{display:"flex",gap:10}}>
                 <button onClick={()=>exportArticleMarkdown(a.slug)} style={{background:"none",border:0,color:"#aab3c0",cursor:"pointer"}}>下载 .md</button>
-                <button onClick={()=>editArticle(a)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
+                <button onClick={()=>editArticle(a)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>编辑</button>
                 <button onClick={()=>setConfirmTarget({kind:"article",path:a.path,label:a.slug})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
             </div>
@@ -1016,7 +1016,7 @@ export default function AdminApp() {
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
               <strong style={{fontSize:13}}>{l.title}</strong>
               <span style={{display:"flex",gap:10}}>
-                <button onClick={()=>editRecLink(l)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>编辑</button>
+                <button onClick={()=>editRecLink(l)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>编辑</button>
                 <button onClick={()=>setConfirmTarget({kind:"reclink",id:l.id,label:l.title})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
             </div>
@@ -1034,11 +1034,11 @@ export default function AdminApp() {
         <div style={{display:"grid",gap:12,marginTop:12}}>
           {gbEntries.map(en=><div key={en.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
-              <strong style={{fontSize:13}}>{en.name} {en.approved ? <span style={{color:"#b5f36b",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
+              <strong style={{fontSize:13}}>{en.name} {en.approved ? <span style={{color:"#61edff",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
               <span style={{display:"flex",gap:10}}>
                 {en.approved
                   ? <button onClick={()=>setGbApproved(en.id,false)} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>撤回</button>
-                  : <button onClick={()=>setGbApproved(en.id,true)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>通过</button>}
+                  : <button onClick={()=>setGbApproved(en.id,true)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>通过</button>}
                 <button onClick={()=>setConfirmTarget({kind:"guestbook",id:en.id,label:`${en.name} 的留言`})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
             </div>
@@ -1055,11 +1055,11 @@ export default function AdminApp() {
         <div style={{display:"grid",gap:12,marginTop:12}}>
           {comments.map(c=><div key={c.id} style={{borderBottom:"1px solid #29313c",paddingBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
-              <strong style={{fontSize:13}}>{c.name} {c.approved ? <span style={{color:"#b5f36b",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
+              <strong style={{fontSize:13}}>{c.name} {c.approved ? <span style={{color:"#61edff",fontSize:11}}>已公开</span> : <span style={{color:"#f2c94c",fontSize:11}}>待审核</span>}</strong>
               <span style={{display:"flex",gap:10}}>
                 {c.approved
                   ? <button onClick={()=>setCommentApproved(c.id,false)} style={{background:"none",border:0,color:"#f2c94c",cursor:"pointer"}}>撤回</button>
-                  : <button onClick={()=>setCommentApproved(c.id,true)} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>通过</button>}
+                  : <button onClick={()=>setCommentApproved(c.id,true)} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>通过</button>}
                 <button onClick={()=>setConfirmTarget({kind:"comment",id:c.id,label:`${c.name} 的评论`})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
               </span>
             </div>
@@ -1083,7 +1083,7 @@ export default function AdminApp() {
           {label:"分类",value:categories.length},
           {label:"标签",value:tags.length},
         ].map(s=><div key={s.label} className="card" style={{textAlign:"center",padding:"18px 10px"}}>
-          <div style={{fontSize:26,fontWeight:700,color:"#b5f36b"}}>{s.value}</div>
+          <div style={{fontSize:26,fontWeight:700,color:"#61edff"}}>{s.value}</div>
           <div style={{fontSize:11,color:"#929dab",marginTop:6}}>{s.label}</div>
         </div>)}
       </div>
@@ -1100,7 +1100,7 @@ export default function AdminApp() {
               </div> : <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
                 <span><strong style={{fontSize:13}}>{t.name}</strong><span style={{fontSize:11,color:"#929dab",marginLeft:8}}>用在 {tagUsage(t.name)} 条书签</span></span>
                 <span style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{setEditingTagId(t.id);setEditingTagName(t.name);}} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>重命名</button>
+                  <button onClick={()=>{setEditingTagId(t.id);setEditingTagName(t.name);}} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>重命名</button>
                   <button onClick={()=>setConfirmTarget({kind:"tag",id:t.id,label:t.name})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
                 </span>
               </div>}
@@ -1124,7 +1124,7 @@ export default function AdminApp() {
               </div> : <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center"}}>
                 <span><strong style={{fontSize:13}}>{c.name}</strong><span style={{fontSize:11,color:"#929dab",marginLeft:8}}>用在 {categoryUsage(c.name)} 条书签 · slug {c.slug}</span></span>
                 <span style={{display:"flex",gap:10}}>
-                  <button onClick={()=>{setEditingCatId(c.id);setEditingCatName(c.name);}} style={{background:"none",border:0,color:"#b5f36b",cursor:"pointer"}}>重命名</button>
+                  <button onClick={()=>{setEditingCatId(c.id);setEditingCatName(c.name);}} style={{background:"none",border:0,color:"#61edff",cursor:"pointer"}}>重命名</button>
                   <button onClick={()=>setConfirmTarget({kind:"category",id:c.id,label:c.name})} style={{background:"none",border:0,color:"#f28b82",cursor:"pointer"}}>删除</button>
                 </span>
               </div>}
@@ -1137,7 +1137,7 @@ export default function AdminApp() {
         <div className="card">
           <h3>热门分类</h3>
           <div style={{display:"grid",gap:8,marginTop:12}}>
-            {topCategories.map(c=><div key={c.name} style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span>{c.name}</span><span style={{color:"#b5f36b"}}>{c.count}</span></div>)}
+            {topCategories.map(c=><div key={c.name} style={{display:"flex",justifyContent:"space-between",fontSize:13}}><span>{c.name}</span><span style={{color:"#61edff"}}>{c.count}</span></div>)}
             {!topCategories.length&&<p style={{color:"#929dab",fontSize:12}}>暂无数据。</p>}
           </div>
         </div>
@@ -1174,7 +1174,7 @@ export default function AdminApp() {
         <div style={{display:"grid",gap:8,marginTop:12}}>
           {auditLog.map(en=><div key={en.id} style={{borderBottom:"1px solid #29313c",paddingBottom:8,fontSize:12}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
-              <span><strong style={{color:"#b5f36b"}}>{en.action}</strong>{en.target_label ? ` · ${en.target_label}` : ""}</span>
+              <span><strong style={{color:"#61edff"}}>{en.action}</strong>{en.target_label ? ` · ${en.target_label}` : ""}</span>
               <span style={{color:"#929dab",whiteSpace:"nowrap"}}>{new Date(en.created_at).toLocaleString("zh-CN")}</span>
             </div>
             {(en.detail || en.admin_email) && <div style={{color:"#aab3c0",marginTop:4}}>{en.detail}{en.admin_email ? ` — ${en.admin_email}` : ""}</div>}
@@ -1197,6 +1197,6 @@ export default function AdminApp() {
         </div>
       </div>
     </div>}
-    {message&&<div className="empty-state" style={{marginTop:18,color:msgKind==="err"?"#f28b82":"#b5f36b"}}>{message}</div>}
+    {message&&<div className="empty-state" style={{marginTop:18,color:msgKind==="err"?"#f28b82":"#61edff"}}>{message}</div>}
   </div>;
 }
