@@ -90,9 +90,11 @@ const sunFragment = /* glsl */ `
   }
 `;
 
-function Sun({ def, labelsVisible, planetPositions, onSelect }: {
+function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPositions, onSelect }: {
   def: PlanetDef;
   labelsVisible: boolean;
+  labelDistanceFactor: number;
+  compactLabels: boolean;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
   onSelect: (id: PlanetId) => void;
 }) {
@@ -121,8 +123,8 @@ function Sun({ def, labelsVisible, planetPositions, onSelect }: {
         <spriteMaterial map={glow} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </sprite>
       {labelsVisible && (
-        <Html center distanceFactor={10} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
-          <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{def.name} · {def.func}</div>
+        <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
+          <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
         </Html>
       )}
     </group>
@@ -239,12 +241,14 @@ function EarthModel({ radius, spinSpeed, motionPaused, earthSpinOn, low, earthPo
 }
 
 // ---------- 卫星 ----------
-function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, onHover, onClick }: {
+// 聚焦所属行星时卫星停住（否则绕行太快点不中）；平时随行星公转、绕行星运行。
+function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, paused, onHover, onClick }: {
   sat: Satellite;
   orbitRadius: number;
   speed: number;
   color: string;
   motionPaused: boolean;
+  paused: boolean;
   onHover: (sat: Satellite | null) => void;
   onClick: (sat: Satellite) => void;
 }) {
@@ -252,7 +256,7 @@ function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, onHover, 
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   useFrame((_, delta) => {
-    if (!motionPaused) angle.current += speed * delta;
+    if (!motionPaused && !paused) angle.current += speed * delta;
     const a = angle.current;
     groupRef.current?.position.set(Math.cos(a) * orbitRadius, Math.sin(a) * orbitRadius * 0.3, Math.sin(a) * orbitRadius);
   });
@@ -264,7 +268,7 @@ function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, onHover, 
         onPointerOut={() => { setHovered(false); onHover(null); document.body.style.cursor = ""; }}
         onClick={(e) => { e.stopPropagation(); onClick(sat); }}
       >
-        <octahedronGeometry args={[0.07]} />
+        <octahedronGeometry args={[0.09]} />
         <meshStandardMaterial color={color} emissive={color} emissiveIntensity={hovered ? 0.9 : 0.35} toneMapped={false} />
       </mesh>
       <mesh rotation={[Math.PI / 3, 0, 0]}>
@@ -277,7 +281,7 @@ function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, onHover, 
         onPointerOut={() => { setHovered(false); onHover(null); document.body.style.cursor = ""; }}
         onClick={(e) => { e.stopPropagation(); onClick(sat); }}
       >
-        <sphereGeometry args={[0.22, 8, 8]} />
+        <sphereGeometry args={[0.35, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
@@ -311,13 +315,16 @@ function ProceduralPlanetMesh({ def, seg }: { def: PlanetDef; seg: number }) {
     </mesh>
   );
 }
-function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
+function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, labelDistanceFactor, compactLabels, isFocused, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
   def: PlanetDef;
   satellites: Satellite[];
   motionPaused: boolean;
   earthSpinOn: boolean;
   labelsVisible: boolean;
   orbitsVisible: boolean;
+  labelDistanceFactor: number;
+  compactLabels: boolean;
+  isFocused: boolean;
   low: boolean;
   earthPosRef: RefObject<THREE.Vector3>;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
@@ -328,6 +335,8 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
   const angle = useRef(def.initialAngle);
   const carrierRef = useRef<THREE.Group>(null);
   const spinRef = useRef<THREE.Group>(null);
+  // 悬停时行星停住公转（目标不再移动，点得中）；离开后继续。
+  const [hovered, setHovered] = useState(false);
   const orbitGeo = useMemo(() => orbitLineGeometry(def.orbitRadius), [def.orbitRadius]);
   const isEarth = def.id === "earth";
   const isSun = def.id === "sun";
@@ -336,7 +345,7 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
   const tmp = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((_, delta) => {
-    if (!isSun && !motionPaused) angle.current += def.orbitSpeed * delta;
+    if (!isSun && !motionPaused && !hovered) angle.current += def.orbitSpeed * delta;
     const a = angle.current;
     carrierRef.current?.position.set(Math.cos(a) * def.orbitRadius, 0, Math.sin(a) * def.orbitRadius);
     if (spinRef.current && !isEarth && !motionPaused) spinRef.current.rotation.y += def.spinSpeed * delta;
@@ -348,13 +357,15 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
     }
   });
 
-  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} planetPositions={planetPositions} onSelect={onSelect} />;
+  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} labelDistanceFactor={labelDistanceFactor} compactLabels={compactLabels} planetPositions={planetPositions} onSelect={onSelect} />;
 
   const seg = low ? 28 : 48;
+  // 透明命中球：小行星（水星 r=0.45）在默认视角只有约 8px，靠它才点得中。
+  const hitRadius = Math.max(def.radius * 1.6, 0.8);
   return (
     <group rotation={[def.orbitInclination, 0, 0]}>
       {orbitsVisible && (
-        <lineLoop geometry={orbitGeo}>
+        <lineLoop geometry={orbitGeo} raycast={() => null}>
           <lineBasicMaterial color="#61edff" transparent opacity={0.16} />
         </lineLoop>
       )}
@@ -363,8 +374,8 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
           ref={spinRef}
           rotation={[0, 0, def.axialTilt]}
           onClick={(e) => { e.stopPropagation(); onSelect(def.id); }}
-          onPointerOver={() => { document.body.style.cursor = "pointer"; }}
-          onPointerOut={() => { document.body.style.cursor = ""; }}
+          onPointerOver={() => { setHovered(true); document.body.style.cursor = "pointer"; }}
+          onPointerOut={() => { setHovered(false); document.body.style.cursor = ""; }}
         >
           {isEarth ? (
             <EarthModel radius={def.radius} spinSpeed={def.spinSpeed} motionPaused={motionPaused} earthSpinOn={earthSpinOn} low={low} earthPosRef={earthPosRef} />
@@ -379,6 +390,11 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
               <meshBasicMaterial map={ringTex} transparent side={THREE.DoubleSide} depthWrite={false} />
             </mesh>
           )}
+          {/* 透明命中球：扩大可点区域（点击事件冒泡到本组） */}
+          <mesh>
+            <sphereGeometry args={[hitRadius, 8, 8]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
         </group>
         {/* 卫星：行星组的子对象，随行星公转、绕行星运行 */}
         {satellites.map((sat, i) => (
@@ -389,13 +405,14 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
             speed={0.35 + i * 0.18}
             color={def.color}
             motionPaused={motionPaused}
+            paused={isFocused}
             onHover={onSatelliteHover}
             onClick={onSatelliteClick}
           />
         ))}
         {labelsVisible && (
-          <Html center distanceFactor={10} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
-            <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{def.name} · {def.func}</div>
+          <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
+            <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
           </Html>
         )}
       </group>
@@ -404,12 +421,15 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
 }
 
 // ---------- 太阳系 ----------
-export function SolarSystem({ planetSatellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
+export function SolarSystem({ planetSatellites, motionPaused, earthSpinOn, labelsVisible, orbitsVisible, labelDistanceFactor, compactLabels, focusedId, low, earthPosRef, planetPositions, onSelect, onSatelliteHover, onSatelliteClick }: {
   planetSatellites: Record<string, Satellite[]>;
   motionPaused: boolean;
   earthSpinOn: boolean;
   labelsVisible: boolean;
   orbitsVisible: boolean;
+  labelDistanceFactor: number;
+  compactLabels: boolean;
+  focusedId: PlanetId | null;
   low: boolean;
   earthPosRef: RefObject<THREE.Vector3>;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
@@ -428,6 +448,9 @@ export function SolarSystem({ planetSatellites, motionPaused, earthSpinOn, label
           earthSpinOn={earthSpinOn}
           labelsVisible={labelsVisible}
           orbitsVisible={orbitsVisible}
+          labelDistanceFactor={labelDistanceFactor}
+          compactLabels={compactLabels}
+          isFocused={focusedId === def.id}
           low={low}
           earthPosRef={earthPosRef}
           planetPositions={planetPositions}
