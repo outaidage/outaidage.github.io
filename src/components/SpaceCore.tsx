@@ -474,27 +474,35 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions }: {
 
   // 返回首页复位：浏览器返回键 / 视图切换恢复页面时，相机可能仍停在
   // 之前放大的行星上，而模式与焦点状态已回到默认（面板消失），看起来
-  // 就像界面点不动。resetKey 变化时强制过渡回当前模式的总览。
+  // 就像界面点不动。resetKey 变化时直接贴合回宇宙总览（不经过渡动画，
+  // 过渡可能因状态已是默认而不触发——第 4 轮证实过渡版复位无效）。
   useEffect(() => {
-    if (resetKey > 0) startTransition();
+    if (resetKey <= 0) return;
+    const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+    computeGoal("universe", null, goal);
+    camera.position.copy(goal.pos);
+    if (controls) (controls.target as THREE.Vector3).copy(goal.tgt);
+    transRef.current.active = false;
+    if (controls) { controls.enabled = true; controls.update(); }
+    prevTracked.current.copy(earthPosRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
-  // 挂载兜底：若恢复后的相机被异常地拉近到行星附近（返回导航的旧视角），
-  // 且当前是默认总览、无聚焦，直接贴到总览。首次加载时相机离地球约 20
-  // 单位，不会触发；只有返回后残留的放大视角会触发。
+  // 挂载兜底：若恢复后的相机远离总览（返回导航的旧视角），且当前是默认
+  // 总览、无聚焦，直接贴到总览。首次加载时相机离总览约 9 单位，不触发；
+  // 只有返回后残留的放大视角（离总览 12 单位以上）会触发。开场飞行期间
+  // 不兜底（飞行接管相机）。
   useEffect(() => {
+    if (bootPlay) return;
     if (mode !== "universe" || focus) return;
-    const tracked = earthPosRef.current;
-    if (!tracked) return;
-    if (camera.position.distanceTo(tracked) < 6) {
-      const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
-      computeGoal("universe", null, goal);
+    const goal = { pos: new THREE.Vector3(), tgt: new THREE.Vector3() };
+    computeGoal("universe", null, goal);
+    if (camera.position.distanceTo(goal.pos) > 12) {
       camera.position.copy(goal.pos);
       if (controls) (controls.target as THREE.Vector3).copy(goal.tgt);
       transRef.current.active = false;
-      if (controls) controls.enabled = true;
-      prevTracked.current.copy(tracked);
+      if (controls) { controls.enabled = true; controls.update(); }
+      prevTracked.current.copy(earthPosRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -733,7 +741,7 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
           ))}
         </div>
         <div className="galaxy-panel-row galaxy-panel-controls">
-          <button type="button" onClick={() => { setMode("universe"); setFocus(null); }} aria-label="回到宇宙总览">⟲</button>
+          <button type="button" onClick={() => { setMode("universe"); setFocus(null); setResetKey((k) => k + 1); }} aria-label="回到宇宙总览">⟲</button>
           <button type="button" onClick={() => setMotionPaused((v) => !v)} aria-pressed={motionPaused}>
             {motionPaused ? "▶ 运动" : "⏸ 运动"}
           </button>
