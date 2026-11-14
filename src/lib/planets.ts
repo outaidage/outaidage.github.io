@@ -135,7 +135,9 @@ export const PLANET_MAP: Record<PlanetId, PlanetDef> = Object.fromEntries(
 /** 太阳系最外层轨道半径（SOLAR SYSTEM 模式取景用）。 */
 export const SYSTEM_RADIUS = 26;
 
-/** 卫星绕行星的轨道半径（行星半径 + 间隙）。 */
+/** 卫星绕行星的轨道半径（行星半径 + 间隙）。
+ * 间距 0.75：相邻卫星的透明命中球（半径 0.32）不再重叠，
+ * 避免点一颗卫星命中了旁边的那颗（水星卫星曾误触到“全部文章”）。 */
 export function satelliteOrbitRadius(planetRadius: number, index: number): number {
-  return planetRadius + 0.55 + index * 0.35;
+  return planetRadius + 0.6 + index * 0.75;
 }
