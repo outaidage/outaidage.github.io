@@ -9,9 +9,9 @@
 import gsap from "gsap";
 
 function motionReduced(): boolean {
-  if (document.documentElement.dataset.motion === "reduced") return true;
-  if (document.documentElement.dataset.motion === "full") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // No stored preference means motion is ON (same rule as MainLayout):
+  // only an explicit stored "reduced" skips the transition.
+  return document.documentElement.dataset.motion === "reduced";
 }
 
 export function initWormhole(): () => void {

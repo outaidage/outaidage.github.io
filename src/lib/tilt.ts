@@ -4,10 +4,8 @@
 // Returns a cleanup function; re-run after each Astro view-transition
 // navigation because the card DOM is replaced.
 export function initTilt(): () => void {
-  const reduced =
-    document.documentElement.dataset.motion === "reduced" ||
-    (document.documentElement.dataset.motion !== "full" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  // No stored preference means tilt is ON; only explicit "reduced" disables it.
+  const reduced = document.documentElement.dataset.motion === "reduced";
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   if (reduced || coarse) return () => {};
 
