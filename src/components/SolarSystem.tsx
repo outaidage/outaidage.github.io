@@ -90,11 +90,12 @@ const sunFragment = /* glsl */ `
   }
 `;
 
-function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPositions, onSelect }: {
+function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, isFocused, planetPositions, onSelect }: {
   def: PlanetDef;
   labelsVisible: boolean;
   labelDistanceFactor: number;
   compactLabels: boolean;
+  isFocused: boolean;
   planetPositions: RefObject<Map<string, THREE.Vector3>>;
   onSelect: (id: PlanetId) => void;
 }) {
@@ -109,8 +110,9 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPos
   });
   return (
     <group>
-      {/* 太阳光：场景唯一主光源，行星昼夜由此产生 */}
-      <pointLight position={[0, 0, 0]} intensity={2.4} distance={0} decay={0} color="#fff2d8" />
+      {/* 太阳光：场景唯一主光源，行星昼夜由此产生。强度 3.4：让地球
+          白昼面的海洋呈现真实的蓝色（2.4 时叠加 ACES 色调映射会偏黑）。 */}
+      <pointLight position={[0, 0, 0]} intensity={3.4} distance={0} decay={0} color="#fff2d8" />
       <mesh
         onClick={(e) => { e.stopPropagation(); onSelect("sun"); }}
         onPointerOver={() => { document.body.style.cursor = "pointer"; }}
@@ -122,7 +124,9 @@ function Sun({ def, labelsVisible, labelDistanceFactor, compactLabels, planetPos
       <sprite scale={[def.radius * 5.2, def.radius * 5.2, 1]}>
         <spriteMaterial map={glow} transparent opacity={0.85} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </sprite>
-      {labelsVisible && (
+      {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
+          放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
+      {labelsVisible && !isFocused && (
         <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
           <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
         </Html>
@@ -214,8 +218,9 @@ function EarthModel({ radius, spinSpeed, motionPaused, earthSpinOn, low, earthPo
     <group ref={groupRef}>
       <mesh>
         <sphereGeometry args={[radius, seg, seg]} />
-        <meshPhongMaterial map={day} normalMap={normal} specularMap={specular} specular={new THREE.Color("#4a4a4a")} shininess={18} />
+        <meshPhongMaterial map={day} normalMap={normal} specularMap={specular} specular={new THREE.Color("#4a4a4a")} shininess={18} toneMapped={false} />
       </mesh>
+      {/* 地球是主视觉：toneMapped={false} 让 NASA 白天纹理的蓝色直接呈现，不被 ACES 压暗 */}
       <mesh scale={1.004} renderOrder={1}>
         <sphereGeometry args={[radius, seg, seg]} />
         <shaderMaterial
@@ -275,13 +280,14 @@ function SatelliteMesh({ sat, orbitRadius, speed, color, motionPaused, paused, o
         <torusGeometry args={[0.13, 0.008, 8, 32]} />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {/* 放大的透明命中球：卫星本体太小，直接点很难命中 */}
+      {/* 放大的透明命中球：卫星本体太小，直接点很难命中。
+          半径 0.32：配合卫星轨道间距 0.75，相邻命中球不再重叠。 */}
       <mesh
         onPointerOver={(e) => { e.stopPropagation(); setHovered(true); onHover(sat); document.body.style.cursor = "pointer"; }}
         onPointerOut={() => { setHovered(false); onHover(null); document.body.style.cursor = ""; }}
         onClick={(e) => { e.stopPropagation(); onClick(sat); }}
       >
-        <sphereGeometry args={[0.35, 8, 8]} />
+        <sphereGeometry args={[0.32, 8, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
@@ -357,7 +363,7 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
     }
   });
 
-  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} labelDistanceFactor={labelDistanceFactor} compactLabels={compactLabels} planetPositions={planetPositions} onSelect={onSelect} />;
+  if (isSun) return <Sun def={def} labelsVisible={labelsVisible} labelDistanceFactor={labelDistanceFactor} compactLabels={compactLabels} isFocused={isFocused} planetPositions={planetPositions} onSelect={onSelect} />;
 
   const seg = low ? 28 : 48;
   // 透明命中球：小行星（水星 r=0.45）在默认视角只有约 8px，靠它才点得中。
@@ -410,7 +416,9 @@ function Planet({ def, satellites, motionPaused, earthSpinOn, labelsVisible, orb
             onClick={onSatelliteClick}
           />
         ))}
-        {labelsVisible && (
+        {/* 聚焦时隐藏标签：相机离得近，distanceFactor 会把 10px 的标签
+            放大数倍，变成横贯全屏的横幅；左下角信息面板已显示该行星信息。 */}
+        {labelsVisible && !isFocused && (
           <Html center distanceFactor={labelDistanceFactor} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
             <div className="planet-label"><span className="planet-label-icon">{def.icon}</span>{compactLabels ? def.name : `${def.name} · ${def.func}`}</div>
           </Html>
