@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 
 type Bookmark = {id:string;url:string;title:string;description:string|null;note:string|null;category:string|null;is_public:boolean;is_favorite:boolean;status:string;tags:string[]};
@@ -94,6 +94,7 @@ export default function AdminApp() {
   const [editingTagName,setEditingTagName] = useState("");
   const [editingCatId,setEditingCatId] = useState<string|null>(null);
   const [editingCatName,setEditingCatName] = useState("");
+  const fileRef = useRef<HTMLInputElement|null>(null);
 
   const say = (kind:"ok"|"err", text:string) => { setMsgKind(kind); setMessage(text); };
 
@@ -217,6 +218,106 @@ export default function AdminApp() {
     const {data: all} = await supabase.from("tags").select("id");
     const orphans = ((all||[]) as any[]).map(x=>x.id).filter(id=>!usedIds.has(id));
     if (orphans.length) await supabase.from("tags").delete().in("id", orphans);
+  }
+  async function exportBackup(){
+    if(!supabase) return;
+    say("ok","正在生成备份…");
+    const articleContents: {slug:string;content:string}[] = [];
+    for (const a of articles) {
+      const {data,error} = await callFunction({action:"get", path:a.path});
+      if (error) { say("err",`备份失败：文章 ${a.slug} 读取失败：${error.message}`); return; }
+      const content = (data as any)?.content as string;
+      if (typeof content !== "string") { say("err",`备份失败：文章 ${a.slug} 内容异常。`); return; }
+      articleContents.push({slug:a.slug, content});
+    }
+    const backup = {
+      version: 1,
+      app: "OUTAI",
+      exportedAt: new Date().toISOString(),
+      categories: categories.map(c=>({name:c.name, slug:c.slug})),
+      tags: tags.map(t=>({name:t.name})),
+      bookmarks: items.map(b=>({
+        url:b.url, title:b.title, description:b.description, note:b.note,
+        category:b.category, is_public:b.is_public, is_favorite:b.is_favorite,
+        status:b.status, tags:b.tags,
+      })),
+      articles: articleContents,
+    };
+    const blob = new Blob([JSON.stringify(backup,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `outai-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    say("ok",`备份已导出：${items.length} 条书签、${categories.length} 个分类、${tags.length} 个标签、${articleContents.length} 篇文章。`);
+  }
+  async function importBackup(file: File){
+    if(!supabase) return;
+    let parsed: any;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      say("err","备份文件不是有效的 JSON。");
+      return;
+    }
+    if (parsed?.app !== "OUTAI" || parsed?.version !== 1 || !Array.isArray(parsed.bookmarks)) {
+      say("err","这不是有效的 OUTAI 备份文件。");
+      return;
+    }
+    setSaving(true); say("ok","正在导入备份…");
+    let catCount = 0, tagCount = 0, bmCount = 0, artCount = 0;
+    try {
+      for (const c of (parsed.categories||[])) {
+        if (typeof c?.name !== "string" || typeof c?.slug !== "string") continue;
+        const {error} = await supabase.from("categories").upsert({name:c.name, slug:c.slug}, {onConflict:"slug"});
+        if (error) throw new Error(`分类“${c.name}”导入失败：${error.message}`);
+        catCount++;
+      }
+      for (const t of (parsed.tags||[])) {
+        if (typeof t?.name !== "string") continue;
+        const {error} = await supabase.from("tags").upsert({name:t.name}, {onConflict:"name"});
+        if (error) throw new Error(`标签“${t.name}”导入失败：${error.message}`);
+        tagCount++;
+      }
+      for (const b of parsed.bookmarks) {
+        if (typeof b?.url !== "string" || !/^https?:\/\/.+/.test(b.url)) continue;
+        const url = normalizeUrl(b.url);
+        const payload = {
+          url,
+          title: typeof b.title === "string" && b.title.trim() ? b.title.trim() : url,
+          description: typeof b.description === "string" ? b.description : null,
+          note: typeof b.note === "string" ? b.note : null,
+          category: typeof b.category === "string" ? b.category : null,
+          is_public: b.is_public !== false,
+          is_favorite: b.is_favorite === true,
+          status: b.status === "archived" ? "archived" : "active",
+        };
+        const res = await supabase.from("bookmarks").upsert(payload, {onConflict:"url"}).select("id").single();
+        if (res.error) throw new Error(`书签 ${url} 导入失败：${res.error.message}`);
+        const bookmarkId = (res.data as any).id as string;
+        const tagNames = parseTagNames(Array.isArray(b.tags) ? b.tags.join(",") : "");
+        await syncBookmarkTags(bookmarkId, tagNames);
+        bmCount++;
+      }
+      for (const a of (parsed.articles||[])) {
+        if (typeof a?.slug !== "string" || typeof a?.content !== "string") continue;
+        if (!SLUG_RE.test(a.slug)) continue;
+        const path = `src/content/blog/${a.slug}.md`;
+        const {error} = await callFunction({action:"upsert", path, content:a.content});
+        if (error) throw new Error(`文章 ${a.slug} 导入失败：${error.message}`);
+        artCount++;
+      }
+      await cleanupOrphanTags();
+      say("ok",`备份导入完成：${catCount} 个分类、${tagCount} 个标签、${bmCount} 条书签、${artCount} 篇文章。`);
+      loadBookmarks(); loadTags(); loadCategories(); loadArticles();
+    } catch (err:any) {
+      say("err",`导入失败：${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   }
   async function deleteBookmark(id:string){
     if(!supabase)return;
@@ -552,6 +653,15 @@ export default function AdminApp() {
             {topTags.map(t=><span key={t.name} className="tag">{t.name} · {t.count}</span>)}
             {!topTags.length&&<p style={{color:"#929dab",fontSize:12}}>暂无数据。</p>}
           </div>
+        </div>
+      </div>
+      <div className="card">
+        <h3>备份与恢复</h3>
+        <p style={{color:"#929dab",fontSize:12}}>导出会把全部书签（含标签）、分类、标签和文章全文打包成一个 JSON 文件下载到本地。导入会按 URL 和 slug 去重合并，不会删除备份文件里没有的内容。</p>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:12}}>
+          <button className="button primary" onClick={exportBackup} disabled={saving}>导出备份 (JSON)</button>
+          <input type="file" accept="application/json,.json" ref={fileRef} style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0]; if(f) importBackup(f); e.target.value="";}}/>
+          <button className="button secondary" onClick={()=>fileRef.current?.click()} disabled={saving}>选择备份文件导入</button>
         </div>
       </div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
