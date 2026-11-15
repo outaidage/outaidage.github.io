@@ -1,7 +1,10 @@
 // Toolbox.tsx — 在线工具箱（数字宇宙门户）。
 // 3 个真实可用的小工具，全部在浏览器本地运行，不上传任何数据：
 // JSON 格式化与验证、Base64 编解码、字数统计。
+// 工具的名称/说明/排序/启用由后台「工具箱」管理（toolbox_tools 表），
+// 通过 tools prop 传入；工具逻辑按 id（json / base64 / chars）在代码里实现。
 import { useState } from "react";
+import { DEFAULT_TOOLS, type ToolboxToolMeta } from "@/lib/toolbox-tools";
 
 function ToolCard({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
@@ -127,18 +130,20 @@ function WordCountTool() {
   );
 }
 
-export default function Toolbox() {
+export default function Toolbox({ tools = DEFAULT_TOOLS }: { tools?: ToolboxToolMeta[] }) {
+  const byId: Record<string, React.ReactNode> = {
+    json: <JsonTool />,
+    base64: <Base64Tool />,
+    chars: <WordCountTool />,
+  };
+  const visible = tools.filter((t) => t.enabled && byId[t.id]);
   return (
     <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))" }}>
-      <ToolCard title="JSON 格式化" desc="验证并格式化 JSON，或压缩为单行。数据只在你的浏览器里处理。">
-        <JsonTool />
-      </ToolCard>
-      <ToolCard title="Base64 编解码" desc="文本与 Base64 互转。点击结果可全选复制。">
-        <Base64Tool />
-      </ToolCard>
-      <ToolCard title="字数统计" desc="实时统计字符、单词、行数与段落。">
-        <WordCountTool />
-      </ToolCard>
+      {visible.map((t) => (
+        <ToolCard key={t.id} title={t.name} desc={t.description}>
+          {byId[t.id]}
+        </ToolCard>
+      ))}
     </div>
   );
 }
