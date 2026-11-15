@@ -77,7 +77,6 @@ const jsonLd = {
           <a class="universe-link" href={`${import.meta.env.BASE_URL}#universe`}>☉ 进入宇宙</a>
           <button class="terminal-btn" id="terminal-btn" type="button" aria-label="打开终端">⌘ TERMINAL</button>
           <a class="icon-link" href={`${import.meta.env.BASE_URL}search/`} aria-label="搜索">⌕</a>
-          <a class="admin-link" id="admin-link" href={`${import.meta.env.BASE_URL}admin/`} hidden>管理后台 <span>↗</span></a>
           <button class="menu-button" type="button" aria-expanded="false" aria-controls="mobile-nav" aria-label="打开菜单">
             <span></span><span></span><span></span>
           </button>
@@ -203,8 +202,6 @@ const jsonLd = {
                 }
               }
             }
-            var d = document.getElementById("admin-link");
-            if (d) d.hidden = !show;
             var m = document.getElementById("admin-link-mobile");
             if (m) m.hidden = !show;
           } catch (err) {}
