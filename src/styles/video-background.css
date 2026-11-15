@@ -71,16 +71,11 @@ html[data-video-bg="off"] .universe-grid {
   transition: opacity 0.8s ease;
 }
 
-/* ---- 减动效：隐藏视频，只留静态回退 ----
-   注意：这里只认站内动效开关（html[data-motion="reduced"]），不认操作系统
-   的 prefers-reduced-motion。因为站内开关才是用户明确的选择：用户把动效
-   设为“开”，视频就该放。之前这里还有一条 @media (prefers-reduced-motion:
-   reduce) 规则，会在 Windows 开启“减弱动效”时直接 display:none 掉视频，
-   导致用户明明把站内动效设为开、Edge 和 Chrome 都不放视频（手机没开系统
-   减弱动效所以能放），2026-11-15 11:15 JST 用户反馈后已删掉该条。 */
-html[data-motion="reduced"] .video-bg-video {
-  display: none;
-}
+/* ---- 动效开关不再影响背景视频 ---- */
+/* 视频背景只由背景开关（outai-video-bg 播放/暂停）控制，与动效开关解耦。
+   之前这里有一条 html[data-motion="reduced"] .video-bg-video { display:none }
+   规则，动效一关就直接藏掉视频（PR #45 只去掉了 JS 里的判断，漏了这条 CSS），
+   导致用户动效关了背景也跟着没了；2026-11-15 12:27 JST 用户反馈后删掉。 */
 
 /* ---- 前台控制按钮（复用页脚动效开关样式） ---- */
 .video-controls {
