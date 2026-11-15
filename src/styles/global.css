@@ -641,38 +641,56 @@ body.universe-open { overflow: hidden; }
 html[data-motion="reduced"] .space-node { transition: none; }
 html[data-motion="reduced"] .planet-node { transition: none; }
 
-/* ---- Background Studio 控制面板 ---- */
-.bg-controls { position: fixed; right: 16px; bottom: 16px; z-index: 40; }
-/* 宇宙全屏模式下，背景控制圆钮会上移到星系面板上方，避免遮住右下角的
-   “✕ 退出宇宙”按钮（第 4 轮复验：退出按钮标签被该圆钮盖住一半）。 */
-body.universe-open .bg-controls { bottom: 96px; }
-.bg-controls-dot {
+/* ---- Background Studio 散花式轮子菜单 ---- */
+/* 主轮子 ◐ 固定右下角；点一下，功能轮子扇形弹开（回弹 + 依次错开，
+   像标题逐字蹦出来）。每个轮子独立控制一个功能，加功能只要往
+   BackgroundControls 的 WHEELS 里加一行。 */
+.radial-controls { position: fixed; right: 16px; bottom: 16px; z-index: 40; }
+/* 宇宙全屏模式下，轮子上移到星系面板上方，避免遮住右下角的
+   “✕ 退出宇宙”按钮（第 4 轮复验：退出按钮标签被圆钮盖住一半）。 */
+body.universe-open .radial-controls { bottom: 96px; }
+.radial-main {
+  position: relative; z-index: 2;
   width: 40px; height: 40px; border-radius: 50%;
   border: 1px solid rgba(97, 237, 255, .35);
   background: rgba(3, 4, 11, .72); color: #61edff;
   font-size: 18px; cursor: pointer;
   display: grid; place-items: center;
   backdrop-filter: blur(4px);
+  transition: box-shadow .25s ease;
 }
-.bg-controls-dot:hover { box-shadow: 0 0 16px rgba(97, 237, 255, .35); }
-.bg-controls-panel {
-  display: grid; gap: 8px;
-  min-width: 280px; max-width: calc(100vw - 32px);
-  padding: 12px;
-  border: 1px solid rgba(97, 237, 255, .25);
-  border-radius: 12px;
-  background: rgba(3, 4, 11, .85);
-  backdrop-filter: blur(6px);
+.radial-main:hover { box-shadow: 0 0 16px rgba(97, 237, 255, .35); }
+/* 功能轮子：平时缩在主轮子中心（看不见、点不到）；打开时沿扇形
+   弹到 --tx/--ty 的位置，带回弹，依次错开 calc(var(--i) * 45ms)。 */
+.radial-wheel {
+  position: absolute; right: 0; bottom: 0; z-index: 1;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(97, 237, 255, .35);
+  background: rgba(3, 4, 11, .82); color: #aab3c0;
+  font-size: 18px; cursor: pointer;
+  display: grid; place-items: center;
+  backdrop-filter: blur(4px);
+  opacity: 0; pointer-events: none;
+  transform: translate(0, 0) scale(.2);
+  transition:
+    transform .38s cubic-bezier(.34, 1.56, .64, 1),
+    opacity .22s ease;
+  transition-delay: calc(var(--i, 0) * 45ms), calc(var(--i, 0) * 45ms);
 }
-.bg-controls-info { display: grid; gap: 2px; }
-.bg-controls-name { font-size: 13px; color: #e6edf3; }
-.bg-controls-meta { font-size: 11px; color: #929dab; }
-.bg-controls-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-.bg-controls-buttons button {
-  min-width: 34px; height: 34px; padding: 0 8px;
-  border: 1px solid rgba(97, 237, 255, .25); border-radius: 8px;
-  background: rgba(16, 16, 43, .7); color: #aab3c0;
-  font-size: 15px; cursor: pointer;
+.radial-open .radial-wheel {
+  opacity: 1; pointer-events: auto;
+  transform: translate(var(--tx, 0), var(--ty, 0)) scale(1);
 }
-.bg-controls-buttons button:hover { color: #61edff; border-color: rgba(97, 237, 255, .5); }
-.bg-controls-buttons button.active { color: #f28b82; border-color: rgba(242, 139, 130, .5); }
+.radial-wheel:hover { color: #61edff; border-color: rgba(97, 237, 255, .6); box-shadow: 0 0 14px rgba(97, 237, 255, .3); }
+.radial-wheel.active { color: #61edff; border-color: rgba(97, 237, 255, .6); }
+/* 当前背景信息：打开时淡入，悬在扇形上方。 */
+.radial-info {
+  position: absolute; right: 0; bottom: 196px;
+  display: grid; gap: 2px; text-align: right;
+  max-width: 220px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s ease .2s;
+}
+.radial-open .radial-info { opacity: 1; }
+.radial-info-name { font-size: 13px; color: #e6edf3; }
+.radial-info-meta { font-size: 11px; color: #929dab; }
