@@ -1,9 +1,10 @@
-// BackgroundControls.tsx — 首页背景控制面板（可收起）。
-// 功能：上一张 / 下一张 / 随机 / 喜欢 / 收藏 / 暂停背景；显示当前背景名称 + 作者 + 来源。
-// 与 VideoSceneManager 通过自定义事件通信（outai:bg-next / outai:bg-prev / outai:bg-random /
-// outai:bg-toggle-pause），不直接操作播放器内部状态。
-// 喜欢/收藏状态存在 localStorage（访客）并同步到 Supabase；不强制注册。
-import { useEffect, useState } from "react";
+// BackgroundControls.tsx — 右下角散花式轮子菜单（取代原来的大面板）。
+// 主轮子 ◐ 固定在右下角；点一下，功能轮子像散花一样扇形弹开，
+// 每个轮子独立控制一个功能，以后加功能只要往 WHEELS 里加一行，
+// 不用改结构。弹出带回弹 + 依次错开（像标题逐字蹦出来那种感觉）。
+// 轮子：动态背景开关 / 动效开关 / 重播开场 / 下一张背景 / 喜欢 / 收藏。
+// 没有背景素材时只显示前三个全局轮子（背景、动效、重播）。
+import { useEffect, useRef, useState } from "react";
 import {
   getLocalFavorites,
   getLocalLikes,
@@ -12,11 +13,61 @@ import {
   type BackgroundAsset,
 } from "@/lib/background-player";
 
-export default function BackgroundControls({ asset }: { asset: BackgroundAsset | null }) {
+const MOTION_KEY = "outai-motion";
+const VIDEO_BG_KEY = "outai-video-bg";
+const FAN_RADIUS = 150;
+
+type WheelDef = {
+  id: string;
+  label: string;
+  icon: string;
+  active?: boolean;
+  needsAsset?: boolean;
+  onClick: () => void | Promise<void>;
+};
+
+function readMotionOn(): boolean {
+  try {
+    if (typeof document !== "undefined") {
+      return document.documentElement.dataset.motion !== "reduced";
+    }
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function readVideoPaused(): boolean {
+  try {
+    return localStorage.getItem(VIDEO_BG_KEY) === "paused";
+  } catch {
+    return false;
+  }
+}
+
+// 扇形位置：从正上方（90°）到正左方（180°）均匀排开，半径 FAN_RADIUS。
+// 轮子少时自动拉开角度，不留空缺。
+function fanPosition(index: number, total: number): { x: number; y: number } {
+  if (total <= 1) return { x: 0, y: -FAN_RADIUS };
+  const angle = 90 + (90 * index) / (total - 1);
+  const rad = (angle * Math.PI) / 180;
+  return {
+    x: Math.round(FAN_RADIUS * Math.cos(rad)),
+    y: Math.round(-FAN_RADIUS * Math.sin(rad)),
+  };
+}
+
+export default function BackgroundControls({
+  asset,
+}: {
+  asset: BackgroundAsset | null;
+}) {
   const [open, setOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
-  const [likeCount, setLikeCount] = useState<number | null>(null);
+  const [motionOn, setMotionOn] = useState(true);
+  const [videoPaused, setVideoPaused] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!asset) return;
@@ -24,67 +75,154 @@ export default function BackgroundControls({ asset }: { asset: BackgroundAsset |
     setFavorited(getLocalFavorites().includes(asset.id));
   }, [asset]);
 
-  if (!asset) return null;
+  // 每次打开时重新读取最新状态（避免与页脚旧开关或其它入口改动后不一致）。
+  useEffect(() => {
+    if (!open) return;
+    setMotionOn(readMotionOn());
+    setVideoPaused(readVideoPaused());
+  }, [open ]);
+
+  // 点到菜单外面就收起来。
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open ]);
 
   const dispatch = (type: string) => {
     window.dispatchEvent(new CustomEvent(type));
   };
 
+  const toggleMotion = () => {
+    const next = !motionOn;
+    setMotionOn(next);
+    try {
+      document.documentElement.dataset.motion = next ? "full" : "reduced";
+      localStorage.setItem(MOTION_KEY, next ? "full" : "reduced");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleVideo = () => {
+    const next = !videoPaused;
+    setVideoPaused(next);
+    dispatch("outai:toggle-video-bg");
+  };
+
+  const replayBoot = () => {
+    try {
+      sessionStorage.setItem("outai-boot-replay", "1");
+    } catch {
+      /* ignore */
+    }
+    window.location.href = "/";
+  };
+
+  const wheels: WheelDef[] = [
+    {
+      id: "bg",
+      label: videoPaused ? "恢复动态背景" : "暂停动态背景",
+      icon: videoPaused ? "▶" : "⏸",
+      active: !videoPaused,
+      onClick: toggleVideo,
+    },
+    {
+      id: "motion",
+      label: motionOn ? "关闭动效" : "开启动效",
+      icon: "✦",
+      active: motionOn,
+      onClick: toggleMotion,
+    },
+    { id: "replay", label: "重播开场", icon: "↻", onClick: replayBoot },
+    {
+      id: "next",
+      label: "下一个背景",
+      icon: "›",
+      needsAsset: true,
+      onClick: () => dispatch("outai:bg-next"),
+    },
+    {
+      id: "like",
+      label: liked ? "取消喜欢" : "喜欢此背景",
+      icon: "♥",
+      active: liked,
+      needsAsset: true,
+      onClick: async () => {
+        if (!asset) return;
+        setLiked(await toggleLike(asset.id));
+      },
+    },
+    {
+      id: "fav",
+      label: favorited ? "取消收藏" : "收藏此背景",
+      icon: "★",
+      active: favorited,
+      needsAsset: true,
+      onClick: async () => {
+        if (!asset) return;
+        setFavorited(await toggleFavorite(asset.id));
+      },
+    },
+  ];
+  const visible = wheels.filter((w) => !w.needsAsset || asset);
+
   return (
-    <div className="bg-controls" aria-label="背景控制">
-      {open ? (
-        <div className="bg-controls-panel">
-          <div className="bg-controls-info">
-            <span className="bg-controls-name">{asset.title}</span>
-            <span className="bg-controls-meta">
-              {asset.author ? `${asset.author} · ` : ""}
-              {asset.source || "OUTAI"}
-              {likeCount !== null ? ` · ♥ ${likeCount}` : ""}
-            </span>
-          </div>
-          <div className="bg-controls-buttons">
-            <button type="button" onClick={() => dispatch("outai:bg-prev")} title="上一张" aria-label="上一张背景">‹</button>
-            <button type="button" onClick={() => dispatch("outai:bg-next")} title="下一张" aria-label="下一张背景">›</button>
-            <button type="button" onClick={() => dispatch("outai:bg-random")} title="随机" aria-label="随机背景">⚄</button>
-            <button
-              type="button"
-              className={liked ? "active" : ""}
-              onClick={async () => {
-                const next = await toggleLike(asset.id);
-                setLiked(next);
-              }}
-              title={liked ? "取消喜欢" : "喜欢"}
-              aria-label={liked ? "取消喜欢" : "喜欢此背景"}
-            >
-              ♥
-            </button>
-            <button
-              type="button"
-              className={favorited ? "active" : ""}
-              onClick={async () => {
-                const next = await toggleFavorite(asset.id);
-                setFavorited(next);
-              }}
-              title={favorited ? "取消收藏" : "收藏"}
-              aria-label={favorited ? "取消收藏" : "收藏此背景"}
-            >
-              ★
-            </button>
-            <button type="button" onClick={() => dispatch("outai:toggle-video-bg")} title="暂停/恢复背景" aria-label="暂停或恢复背景">⏸</button>
-            <button type="button" onClick={() => setOpen(false)} title="收起" aria-label="收起控制面板">✕</button>
-          </div>
+    <div
+      ref={rootRef}
+      className={`radial-controls${open ? " radial-open" : ""}`}
+      aria-label="背景控制"
+    >
+      {asset && open ? (
+        <div className="radial-info" aria-hidden="true">
+          <span className="radial-info-name">{asset.title}</span>
+          {asset.author ? (
+            <span className="radial-info-meta">{asset.author}</span>
+          ) : null}
         </div>
-      ) : (
-        <button
-          type="button"
-          className="bg-controls-dot"
-          onClick={() => setOpen(true)}
-          title={`背景：${asset.title}（点击展开控制）`}
-          aria-label={`背景控制：当前 ${asset.title}，点击展开`}
-        >
-          <span aria-hidden="true">◐</span>
-        </button>
-      )}
+      ) : null}
+      {visible.map((w, i) => {
+        const pos = fanPosition(i, visible.length);
+        return (
+          <button
+            key={w.id}
+            type="button"
+            className={`radial-wheel${w.active ? " active" : ""}`}
+            style={
+              {
+                "--tx": `${pos.x}px`,
+                "--ty": `${pos.y}px`,
+                "--i": i,
+              } as React.CSSProperties
+            }
+            onClick={w.onClick}
+            title={w.label}
+            aria-label={w.label}
+            tabIndex={open ? 0 : -1}
+          >
+            <span aria-hidden="true">{w.icon}</span>
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        className="radial-main"
+        onClick={() => setOpen((v) => !v)}
+        title={
+          open
+            ? "收起"
+            : `背景：${asset ? asset.title : "动态背景"}（点击展开）`
+        }
+        aria-label={open ? "收起背景控制" : "展开背景控制"}
+        aria-expanded={open}
+      >
+        <span aria-hidden="true">{open ? "✕" : "◐"}</span>
+      </button>
     </div>
   );
 }
