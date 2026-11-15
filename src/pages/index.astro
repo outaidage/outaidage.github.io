@@ -14,6 +14,13 @@ import HeroText from "@/components/HeroText.astro";
 
 // 首页 Hero（Supabase hero_content 驱动，失败时回退内置默认文案）。
 const hero = await getHeroContent();
+// 文字样式（migration 020）：只输出非默认的值，默认走 CSS 本身的样式。
+const heroStyle = [
+  hero.title_color ? `--hero-title-color:${hero.title_color}` : "",
+  hero.subtitle_color ? `--hero-subtitle-color:${hero.subtitle_color}` : "",
+  hero.title_scale !== 1 ? `--hero-title-scale:${hero.title_scale}` : "",
+  hero.text_opacity !== 1 ? `--hero-text-opacity:${hero.text_opacity}` : "",
+].filter(Boolean).join(";");
 // 逐字动画时序（毫秒）：眉题先蹦，标题跟上，副标题随后，按钮/标签淡入。
 const eyebrowStart = 0;
 const titleStart = 150;
@@ -105,10 +112,10 @@ const planetSatellites: Record<string, { id: string; name: string; description: 
 const lastUpdate = allPosts[0]?.data.pubDate;
 ---
 <MainLayout>
-  <section class="hero-du">
+  <section class="hero-du" style={heroStyle || undefined}>
     <div class="hero-ghost" aria-hidden="true">Explore</div>
     <div class="eyebrow"><span class="pulse"></span> <HeroText text={hero.eyebrow} start={eyebrowStart} step={25} /></div>
-    <h1><HeroText text={hero.title_plain} start={titleStart} step={titleStep} /><HeroText text={hero.title_grad} start={titleStart + hero.title_plain.length * titleStep} step={titleStep} cls="grad" /></h1>
+    <h1 class={hero.title_color ? "hero-solid" : undefined}><HeroText text={hero.title_plain} start={titleStart} step={titleStep} /><HeroText text={hero.title_grad} start={titleStart + hero.title_plain.length * titleStep} step={titleStep} cls="grad" /></h1>
     <p><HeroText text={hero.subtitle} start={subStart} step={subStep} /></p>
     <div class="hero-actions hero-fade" style={`--d:${actionsDelay}ms`}>
       {hero.buttons.map((b) => {
