@@ -17,7 +17,7 @@ export type PageContent = {
 export const DEFAULT_PAGES: Record<string, PageContent> = {
   about: {
     id: "about",
-    title: "关于这里.",
+    title: "关于这里",
     subtitle: "一个持续生长的个人数字空间。",
     sections: [
       { heading: "你好，我是 OUTAI。", text: "我关注 AI、互联网、开发工具、网络技术与数字生活，也喜欢把遇到的问题整理成可复用的经验。" },
@@ -27,7 +27,7 @@ export const DEFAULT_PAGES: Record<string, PageContent> = {
   },
   now: {
     id: "now",
-    title: "最近在做什么.",
+    title: "最近在做什么",
     subtitle: "这是一份持续更新的当前状态记录。",
     sections: [],
     items: [
@@ -38,7 +38,7 @@ export const DEFAULT_PAGES: Record<string, PageContent> = {
   },
   contact: {
     id: "contact",
-    title: "联系我.",
+    title: "联系我",
     subtitle: "有问题、建议，或者只是想打个招呼，都可以写邮件。",
     sections: [],
     items: [
