@@ -9,6 +9,7 @@ import VideoSceneManager from "@/components/background/VideoSceneManager";
 import VideoControls from "@/components/background/VideoControls";
 import { SITE } from "@/lib/site";
 import { getNavModules } from "@/lib/home-modules";
+import BootIntro from "@/components/BootIntro.astro";
 // 导航由首页模块驱动（show_in_nav=true 的已发布模块）；失败时回退到 SITE.nav。
 const navItems = (await getNavModules()).map((m) => ({ label: m.name, href: m.path }));
 const { title = SITE.title, description = SITE.description, type = "website", image, noindex = false } = Astro.props as {
@@ -58,6 +59,7 @@ const jsonLd = {
     </script>
   </head>
   <body>
+    {path === "/" && <BootIntro />}
     <VideoSceneManager client:load />
     <DigitalUniverse />
     <div class="site-shell">

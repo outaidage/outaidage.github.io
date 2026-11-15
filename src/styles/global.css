@@ -20,13 +20,13 @@ button,input,textarea,select{font:inherit}
 .admin-link{font:11px 'DM Mono',monospace;color:#61edff;border:1px solid #1e3a52;border-radius:999px;padding:9px 13px}
 .footer{display:flex;justify-content:space-between;gap:20px;padding:32px 0 38px;margin-top:75px;border-top:1px solid #1a2038;color:#717c8b;font:10px 'DM Mono',monospace;letter-spacing:.08em}
 .footer i{color:#61edff;font-style:normal}
-.eyebrow{display:flex;align-items:center;gap:10px;color:#a9b3c0;font:10px 'DM Mono',monospace;letter-spacing:.16em;text-transform:uppercase}
+.eyebrow{display:flex;align-items:center;justify-content:center;gap:10px;color:#a9b3c0;font:10px 'DM Mono',monospace;letter-spacing:.16em;text-transform:uppercase}
 .pulse{width:7px;height:7px;border-radius:50%;background:#61edff;box-shadow:0 0 14px #61edff}
 .hero{padding:112px 0 82px;max-width:850px}
 .hero h1{font-size:clamp(42px,7vw,78px);line-height:1.08;letter-spacing:-.065em;margin:24px 0 18px;font-weight:700}
 .hero h1 em{font-style:normal;color:#61edff}
 .hero p{max-width:610px;color:#9ba4b1;font-size:16px;line-height:1.9;margin:0}
-.hero-actions{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
+.hero-actions{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap;justify-content:center}
 .button{display:inline-flex;align-items:center;gap:10px;border-radius:7px;padding:12px 16px;font-size:12px;font-weight:600;border:1px solid #2a3352}
 .button.primary{background:#61edff;color:#03040b;border-color:#61edff}
 .button.secondary{color:#dce2e9;background:#0d1128}
@@ -140,6 +140,7 @@ html[data-motion="reduced"] ::view-transition-new(root) { animation: none; }
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  justify-content: center;
   gap: 8px;
   font: 12px 'DM Mono', monospace;
   color: #9ba4b1;
@@ -207,10 +208,11 @@ html[data-motion="reduced"] .button:active { transform: none; }
 }
 
 /* ---- Hero: gradient headline + ghost word ---- */
-.hero-du { position: relative; padding: 96px 0 64px; max-width: 880px; overflow: hidden; }
+/* 居中排版：整块 hero 内容（眉题、标题、副标题、按钮、标签、终端行）全部居中。 */
+.hero-du { position: relative; padding: 96px 0 64px; max-width: 880px; margin: 0 auto; text-align: center; overflow: hidden; }
 .hero-ghost {
   position: absolute;
-  top: 18px; left: -6px;
+  top: 18px; left: 50%; transform: translateX(-50%);
   font-size: clamp(90px, 16vw, 190px);
   font-weight: 800;
   letter-spacing: -.05em;
@@ -235,11 +237,44 @@ html[data-motion="reduced"] .button:active { transform: none; }
   background-clip: text;
   color: transparent;
 }
-.hero-du p { max-width: 620px; color: var(--text-dim); font-size: 16px; line-height: 1.9; margin: 0; }
+.hero-du p { max-width: 620px; color: var(--text-dim); font-size: 16px; line-height: 1.9; margin: 0 auto; }
+
+/* ---- Hero 逐字动画：眉题/标题/副标题一个字一个字蹦出来 ---- */
+/* 每个字是一个 inline-block span，CSS 动画按 --d 延迟依次弹出；减弱动效
+   （只认站内动效开关 html[data-motion="reduced"]，不认操作系统设置——
+   与视频背景 PR #41、开场 PR #42 同一个原则）时直接显示全部。 */
+.hero-char {
+  display: inline-block;
+  opacity: 0;
+  animation: hero-char-in .45s cubic-bezier(.2, .9, .3, 1.4) forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes hero-char-in {
+  from { opacity: 0; transform: translateY(10px) scale(.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hero-char.grad {
+  background: linear-gradient(92deg, var(--energy-cyan), var(--holo-purple));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* 按钮与标签：等文字蹦完后淡入。 */
+.hero-fade {
+  opacity: 0;
+  animation: hero-fade-in .6s ease forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes hero-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+html[data-motion="reduced"] .hero-char,
+html[data-motion="reduced"] .hero-fade { opacity: 1; animation: none; }
 
 /* ---- Ticker ---- */
 .ticker {
-  display: flex; gap: 18px; flex-wrap: wrap;
+  display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
   margin-top: 30px;
   font: 10px 'DM Mono', monospace;
   letter-spacing: .16em;

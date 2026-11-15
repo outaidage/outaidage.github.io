@@ -1,0 +1,15 @@
+---
+// HeroText.astro — 把一段文字按字拆成 span，逐字蹦出来（纯 CSS 动画）。
+// start: 起始延迟（毫秒）；step: 每字间隔（毫秒）；cls: 额外 class（渐变段传 "grad"）。
+// 文字本身就在 HTML 里（SEO、无 JS 也可见）；减弱动效（站内开关）时 CSS
+// 直接显示全部，不做动画。
+interface Props {
+  text: string;
+  start?: number;
+  step?: number;
+  cls?: string;
+}
+const { text, start = 0, step = 40, cls = "" } = Astro.props;
+const chars = [...text];
+---
+<span class={`hero-chars ${cls}`} aria-label={text}>{chars.map((c, i) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${start + i * step}ms`} aria-hidden="true">{c === " " ? "\u00a0" : c}</span>)}</span>
