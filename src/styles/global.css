@@ -133,6 +133,15 @@ button,input,textarea,select{font:inherit}
 .article-body pre{position:relative}
 .code-copy{position:absolute;top:8px;right:8px;background:#0d1128;border:1px solid #232c4a;border-radius:6px;color:#aab3c0;font-size:11px;padding:5px 9px;cursor:pointer}
 .code-copy:hover{color:#61edff;border-color:#2e7d9e}
+/* 文章详情页：居中阅读布局（仅文章页；其他页面的 .page-head 保持左对齐）。
+   标题/分类日期/简介/标签居中；正文、封面、目录、上下篇收进 760px 阅读栏并居中，栏内文字左对齐。 */
+.article-head{text-align:center}
+.article-head p{margin-left:auto;margin-right:auto}
+.article-head .article-tags{justify-content:center}
+.article-body{margin-left:auto;margin-right:auto}
+.article-cover{max-width:760px;margin-left:auto;margin-right:auto}
+.toc{max-width:760px;margin:6px auto 30px}
+.prev-next{max-width:760px;margin:56px auto 10px}
 @media(prefers-reduced-motion:reduce){.read-progress{transition:none}}
 #search{--pagefind-ui-scale:1;--pagefind-ui-primary:#61edff;--pagefind-ui-text:#eef1f5;--pagefind-ui-background:#0a0d20;--pagefind-ui-border:#232c4a;--pagefind-ui-tag:#0d1128;--pagefind-ui-border-width:1px;--pagefind-ui-border-radius:8px;--pagefind-ui-font:Inter,system-ui,sans-serif}
 #search .pagefind-ui__search-input{background:#0a0d20;color:#eef1f5}

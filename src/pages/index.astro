@@ -6,6 +6,7 @@ import Subscribe from "@/components/Subscribe";
 import Terminal from "@/components/Terminal";
 import SpaceCore from "@/components/SpaceCore";
 import HomeModules from "@/components/HomeModules";
+import LatestBookmarks from "@/components/LatestBookmarks";
 import { supabase } from "@/lib/supabase";
 import { getHomeModules } from "@/lib/home-modules";
 import { getHeroContent } from "@/lib/hero-content";
@@ -140,7 +141,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
     <div class="section-head"><h2>SITE DATA / 真实数据</h2></div>
     <div class="stats-row">
       <div class="stat-cell glass-panel" data-reveal style="--i:0"><div class="stat-num">{allPosts.length}</div><div class="stat-key">Total Articles</div><div class="stat-sub">已发布文章</div></div>
-      <div class="stat-cell glass-panel" data-reveal style="--i:1"><div class="stat-num purple">{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
+      <div class="stat-cell glass-panel" data-reveal style="--i:1"><div class="stat-num purple" id="stat-bookmarks-num">{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
       <div class="stat-cell glass-panel" data-reveal style="--i:2"><div class="stat-num green">{modules.length}</div><div class="stat-key">Modules</div><div class="stat-sub">首页模块</div></div>
       <div class="stat-cell glass-panel" data-reveal style="--i:3"><div class="stat-num">{lastUpdate ? lastUpdate.toLocaleDateString("zh-CN") : "—"}</div><div class="stat-key">Last Update</div><div class="stat-sub">最近更新</div></div>
     </div>
@@ -168,12 +169,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
 
   <section class="section reveal-group">
     <div class="section-head"><h2>03 / LATEST BOOKMARKS</h2><a href={`${base}collection/`}>EXPLORE ALL ↗</a></div>
-    {latestBookmarks.length ? <div class="card-grid">
-      {latestBookmarks.map((b, i) => <a class="card" data-tilt data-reveal style={`--i:${i}`} href={b.url} target="_blank" rel="noopener noreferrer">
-        <div class="card-kicker">{b.category || "书签"}</div>
-        <h3>{b.title}</h3><p style="word-break:break-all">{b.url}</p>
-      </a>)}
-    </div> : <div class="empty-state">还没有公开书签。<br/>在后台 → 书签管理中添加。</div>}
+    <LatestBookmarks client:load initial={latestBookmarks} />
   </section>
 
   <section class="section reveal-group">
