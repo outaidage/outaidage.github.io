@@ -37,14 +37,15 @@ export default function HomeModules({ initial, base }: { initial: HomeModule[]; 
   }
 
   return (
-    <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
-      {modules.map((m) => (
+    <div className="card-grid reveal-group" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
+      {modules.map((m, i) => (
         <a
           key={m.id}
           className="card"
           data-tilt
+          data-reveal
+          style={{ textDecoration: "none", borderTop: `2px solid ${m.theme_color}`, ["--i" as string]: i } as React.CSSProperties}
           href={`${base.replace(/\/$/, "")}${m.path}`}
-          style={{ textDecoration: "none", borderTop: `2px solid ${m.theme_color}` }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span
