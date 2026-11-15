@@ -6,7 +6,6 @@ import DigitalUniverse from "@/components/DigitalUniverse.astro";
 import OutaiLogo from "@/components/OutaiLogo.astro";
 import CommandTerminal from "@/components/CommandTerminal";
 import VideoSceneManager from "@/components/background/VideoSceneManager";
-import VideoControls from "@/components/background/VideoControls";
 import { SITE } from "@/lib/site";
 import { getNavModules } from "@/lib/home-modules";
 import BootIntro from "@/components/BootIntro.astro";
@@ -93,9 +92,6 @@ const jsonLd = {
         <span>© {new Date().getFullYear()} OUTAI</span>
         <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a href={`${import.meta.env.BASE_URL}bookmarklet/`}>Bookmarklet</a></span>
         <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
-        <VideoControls client:load />
-        <button class="motion-toggle" id="motion-toggle" type="button" aria-pressed="false">动效：开</button>
-        <button class="motion-toggle" id="replay-boot" type="button">重播开场</button>
       </footer>
     </div>
     <CommandTerminal client:load />
