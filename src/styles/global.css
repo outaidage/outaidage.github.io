@@ -271,12 +271,14 @@ html[data-motion="reduced"] .button:active { transform: none; }
   white-space: nowrap;
 }
 .hero-du h1 {
-  font-size: clamp(46px, 7.5vw, 84px);
+  font-size: calc(clamp(46px, 7.5vw, 84px) * var(--hero-title-scale, 1));
   line-height: 1.04;
   letter-spacing: -.06em;
   margin: 22px 0 18px;
   font-weight: 800;
   position: relative;
+  color: var(--hero-title-color, inherit);
+  opacity: var(--hero-text-opacity, 1);
 }
 .hero-du h1 .grad {
   background: linear-gradient(92deg, var(--energy-cyan), var(--holo-purple));
@@ -284,7 +286,15 @@ html[data-motion="reduced"] .button:active { transform: none; }
   background-clip: text;
   color: transparent;
 }
-.hero-du p { max-width: 620px; color: var(--text-dim); font-size: 16px; line-height: 1.9; margin: 0 auto; }
+/* 标题纯色（后台设置 title_color 时）：关掉渐变，整段标题用纯色。 */
+.hero-du h1.hero-solid .grad {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: inherit;
+}
+.hero-du p { max-width: 620px; color: var(--hero-subtitle-color, var(--text-dim)); font-size: 16px; line-height: 1.9; margin: 0 auto; opacity: var(--hero-text-opacity, 1); }
+.hero-du .eyebrow { opacity: var(--hero-text-opacity, 1); }
 
 /* ---- Hero 逐字动画：眉题/标题/副标题一个字一个字蹦出来 ---- */
 /* 每个字是一个 inline-block span，CSS 动画按 --d 延迟依次弹出；减弱动效
@@ -645,7 +655,11 @@ html[data-motion="reduced"] .planet-node { transition: none; }
 /* 主轮子 ◐ 固定右下角；点一下，功能轮子扇形弹开（回弹 + 依次错开，
    像标题逐字蹦出来）。每个轮子独立控制一个功能，加功能只要往
    BackgroundControls 的 WHEELS 里加一行。 */
-.radial-controls { position: fixed; right: 16px; bottom: 16px; z-index: 40; }
+.radial-controls { position: fixed; right: 16px; bottom: 16px; z-index: 40; transition: bottom .3s ease; }
+/* 打开时整体上移：扇形最左边的轮子贴着视口底部，会压到页脚文字
+   （复验发现 ★ 轮子盖住了页脚 “EXPLORE / COLLECT / BUILD” 的 C）。
+   上移到 100px 后整个扇形都在页脚上方。 */
+.radial-controls.radial-open { bottom: 100px; }
 /* 宇宙全屏模式下，轮子上移到星系面板上方，避免遮住右下角的
    “✕ 退出宇宙”按钮（第 4 轮复验：退出按钮标签被圆钮盖住一半）。 */
 body.universe-open .radial-controls { bottom: 96px; }
@@ -689,7 +703,7 @@ body.universe-open .radial-controls { bottom: 96px; }
   display: grid; gap: 2px; text-align: right;
   max-width: 220px;
   opacity: 0; pointer-events: none;
-  transition: opacity .25s ease .2s;
+  transition: opacity .2s ease .05s;
 }
 .radial-open .radial-info { opacity: 1; }
 .radial-info-name { font-size: 13px; color: #e6edf3; }
