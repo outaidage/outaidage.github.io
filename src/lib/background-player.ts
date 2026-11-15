@@ -220,16 +220,20 @@ export function pickNextBackground(
   settings: RotationSettings,
   currentId: string | null,
   favorites: string[],
+  manual = false,
 ): BackgroundAsset | null {
   if (assets.length === 0) return null;
-  // 手动固定 + 已锁定：不换。
-  if (settings.mode === "manual" && settings.pinned_asset_id) {
-    const pinned = assets.find((a) => a.id === settings.pinned_asset_id);
-    if (pinned) return pinned;
-  }
-  if (isLocked() && currentId) {
-    const cur = assets.find((a) => a.id === currentId);
-    if (cur) return cur;
+  // 固定与锁定只约束自动轮换；用户手动点“下一张”是明确要换，必须忽略。
+  if (!manual) {
+    // 手动固定 + 已锁定：不换。
+    if (settings.mode === "manual" && settings.pinned_asset_id) {
+      const pinned = assets.find((a) => a.id === settings.pinned_asset_id);
+      if (pinned) return pinned;
+    }
+    if (isLocked() && currentId) {
+      const cur = assets.find((a) => a.id === currentId);
+      if (cur) return cur;
+    }
   }
   // 池子：按模式筛选。
   let pool = assets;
