@@ -432,10 +432,10 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
           ) : null}
           <div style={view === "grid" ? { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 } : { display: "grid", gap: 8 }}>
             {pageItems.map((a) => (
-              <div key={a.id} className="card" style={{ padding: view === "grid" ? 10 : 8, display: "grid", gap: 8 }}>
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11, color: "#929dab" }}>
-                  <input type="checkbox" checked={selected.has(a.id)} onChange={(e) => { const s = new Set(selected); if (e.target.checked) s.add(a.id); else s.delete(a.id); setSelected(s); }} />
-                  {a.id}
+              <div key={a.id} className="card" style={{ padding: view === "grid" ? 10 : 8, display: "grid", gap: 8, minWidth: 0, overflow: "hidden" }}>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11, color: "#929dab", minWidth: 0, overflow: "hidden" }}>
+                  <input type="checkbox" checked={selected.has(a.id)} onChange={(e) => { const s = new Set(selected); if (e.target.checked) s.add(a.id); else s.delete(a.id); setSelected(s); }} style={{ flexShrink: 0 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.id}>{a.id}</span>
                 </label>
                 <button type="button" onClick={() => setPreview(a)} style={{ border: 0, padding: 0, background: "none", cursor: "pointer", textAlign: "left" }}>
                   {a.media_kind === "video" ? (
@@ -444,13 +444,13 @@ export default function BackgroundStudio({ say }: { say: (kind: "ok" | "err", ms
                     <img src={a.thumbnail_url || a.url} alt={a.title} loading="lazy" style={{ width: "100%", aspectRatio: "16/9", objectFit: "cover", borderRadius: 8, background: "#0a0d20" }} />
                   )}
                 </button>
-                <div>
-                  <strong style={{ fontSize: 13 }}>{a.title}</strong>
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
+                  <strong style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={a.title}>{a.title}</strong>
                   <span style={{ fontSize: 11, color: a.status === "active" ? "#7dffce" : a.status === "broken" ? "#f28b82" : "#f2c94c", marginLeft: 6 }}>{STATUS_LABEL[a.status] || a.status}</span>
                   {a.is_featured ? <span style={{ fontSize: 11, color: "#f2c94c", marginLeft: 6 }}>★ 首页背景</span> : null}
                 </div>
-                <div style={{ fontSize: 11, color: "#929dab" }}>{a.category} · {a.media_kind === "video" ? "视频" : "图片"} · {formatBytes(a.file_size_bytes)}{a.width ? ` · ${a.width}×${a.height}` : ""}{a.duration_seconds ? ` · ${Math.round(a.duration_seconds)}s` : ""}</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 11, color: "#929dab", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.category} · {a.media_kind === "video" ? "视频" : "图片"} · {formatBytes(a.file_size_bytes)}{a.width ? ` · ${a.width}×${a.height}` : ""}{a.duration_seconds ? ` · ${Math.round(a.duration_seconds)}s` : ""}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", minWidth: 0 }}>
                   <button type="button" className="button secondary" onClick={() => setPreview(a)}>预览</button>
                   <button type="button" className="button secondary" onClick={() => applyAsHome(a.id, a.title)}>设为首页背景</button>
                   {a.status === "pending_review" ? <button type="button" className="button secondary" onClick={() => setAssetStatus(a.id, "active")}>通过审核</button> : null}
