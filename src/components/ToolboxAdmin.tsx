@@ -1,10 +1,12 @@
 // ToolboxAdmin.tsx — 工具箱管理（后台「工具箱」标签页）。
 // 编辑在线工具箱 3 个内置工具的元数据：名称、说明、排序、启用。
 // 工具逻辑仍在代码里按 id（json / base64 / chars）实现，后台只改元数据，
-// 不新增工具类型。保存后需下次部署才生效（每日自动重建，或手动触发部署）。
+// 不新增工具类型。保存后自动触发一次部署，约 2 分钟上线；若触发失败，
+// 改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。
 import { useEffect, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { DEFAULT_TOOLS, type ToolboxToolMeta } from "@/lib/toolbox-tools";
+import { triggerDeploy } from "@/lib/trigger-deploy";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -80,7 +82,13 @@ export default function ToolboxAdmin({ say }: { say: (kind: "ok" | "err", msg: s
       return;
     }
     setSaved(tools.map((t) => ({ ...t })));
-    say("ok", "工具箱已保存。页面是静态构建，改动在下次部署后生效（每日自动重建，或手动触发部署）。");
+    // 保存后自动触发一次部署（与文章保存后自动部署一致），约 2 分钟上线。
+    const dep = await triggerDeploy();
+    if (dep.ok) {
+      say("ok", "工具箱已保存，正在重新部署，约 2 分钟后上线。");
+    } else {
+      say("err", `工具箱已保存，但自动部署触发失败：${dep.error}。改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。`);
+    }
   }
 
   if (!configured) {
@@ -103,7 +111,7 @@ export default function ToolboxAdmin({ say }: { say: (kind: "ok" | "err", msg: s
         </div>
         <p style={{ color: "#929dab", fontSize: 12, margin: "8px 0 0", lineHeight: 1.7 }}>
           编辑 3 个内置工具的名称、说明、排序与启用状态。工具本身的功能由代码实现，这里不新增工具类型。
-          保存后需下次部署才生效（每日自动重建，或手动触发部署）。
+          保存后自动触发一次部署，约 2 分钟后上线。
           {dirty ? " 当前有未保存的改动。" : ""}
           {loading ? " 加载中…" : ""}
         </p>
