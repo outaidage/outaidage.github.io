@@ -20,7 +20,7 @@ export type HeroContent = {
 export const DEFAULT_HERO: HeroContent = {
   eyebrow: "DIGITAL UNIVERSE · EST. 2026",
   title_plain: "Explore ",
-  title_grad: "Beyond.",
+  title_grad: "Beyond",
   subtitle: "这里是 OUTAI 的数字空间。记录技术、探索 AI、收藏灵感，把想法变成现实。",
   buttons: [
     { label: "探索文章 ↗", href: "/blog/", style: "primary" },

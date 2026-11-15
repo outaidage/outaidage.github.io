@@ -14,7 +14,7 @@ function noteParts(note: string): { before: string; url: string } {
 }
 ---
 <MainLayout title="联系 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> CONTACT</div><h1>{page.title.replace(/\.$/, "")}<span style="color:#61edff">.</span></h1><p>{page.subtitle}</p></header>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> CONTACT</div><h1>{page.title.replace(/\.$/, "")}</h1><p>{page.subtitle}</p></header>
   <div class="article-body">
     {page.items.map((it) => {
       const note = noteParts(it.note ?? "");

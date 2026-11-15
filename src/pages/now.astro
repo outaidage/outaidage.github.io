@@ -7,7 +7,7 @@ import { getPageContent } from "@/lib/page-content";
 const page = await getPageContent("now");
 ---
 <MainLayout title="Now — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> NOW / CURRENTLY</div><h1>{page.title.replace(/\.$/, "")}<span style="color:#61edff">.</span></h1><p>{page.subtitle}</p></header>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> NOW / CURRENTLY</div><h1>{page.title.replace(/\.$/, "")}</h1><p>{page.subtitle}</p></header>
   <div class="card-grid">
     {page.items.map((it) => (
       <div class="card"><div class="card-kicker">{it.kicker ?? ""}</div><h3>{it.title ?? ""}</h3><p>{it.description ?? ""}</p></div>

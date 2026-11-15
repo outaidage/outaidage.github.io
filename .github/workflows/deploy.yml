@@ -5,9 +5,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  # 3.0 P0 定时发布：每天 00:00 UTC 重建一次，让发布日期到达的文章自动上线。
+  # 3.0 P0 定时发布 + 静态内容刷新：每天 10:00 / 15:00 / 22:00 JST
+  # （UTC 01:00 / 06:00 / 13:00）各重建一次，让后台改的静态页内容
+  #（Hero、关于我、Now、联系方式、工具箱）与发布日期到达的文章自动上线。
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 1,6,13 * * *"
 
 permissions:
   contents: read
