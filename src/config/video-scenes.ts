@@ -226,12 +226,12 @@ export function resolveSceneVideo(scene: VideoScene): {
   return { webm, mp4, poster: scene.fallbackImage?.trim() || "" };
 }
 
-/** 是否应使用静态背景（减动效 / 省流量 / 用户已暂停）。 */
+/** 是否应使用静态背景（省流量 / 用户已暂停）。
+ * 注意：动效开关（outai-motion）不再影响背景——动效只管动效（3D、Hero、
+ * 开场、滚动动画），背景只由背景开关（outai-video-bg 播放/暂停）控制。
+ * 这样面板上的「播放中 / 已暂停」与视频实际状态一致。 */
 export function shouldUseStaticBackground(): boolean {
   if (typeof window === "undefined") return false;
-  // No stored preference means video is ON (same rule as the motion
-  // toggle): only an explicit stored "reduced" forces static.
-  if (document.documentElement.dataset.motion === "reduced") return true;
   // 省流量模式：navigator.connection.saveData（Chrome/Android）。
   const conn = (navigator as unknown as { connection?: { saveData?: boolean } })
     .connection;
