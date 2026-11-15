@@ -3,6 +3,9 @@
 // 与 VideoSceneManager 通过自定义事件通信（outai:bg-next / outai:bg-prev / outai:bg-random /
 // outai:bg-toggle-pause），不直接操作播放器内部状态。
 // 喜欢/收藏状态存在 localStorage（访客）并同步到 Supabase；不强制注册。
+// 背景与动效开关合并在这里：面板里同时有背景暂停（⏸）和动效开关，
+// 页脚不再另设“背景 / 动效”文字按钮。面板打开时整体上移（.bg-controls-open），
+// 不遮住页脚；收起后只剩右下角的 ◐ 小轮子。
 import { useEffect, useState } from "react";
 import {
   getLocalFavorites,
@@ -12,11 +15,25 @@ import {
   type BackgroundAsset,
 } from "@/lib/background-player";
 
+const MOTION_KEY = "outai-motion";
+
+function readMotionOn(): boolean {
+  try {
+    if (typeof document !== "undefined") {
+      return document.documentElement.dataset.motion !== "reduced";
+    }
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
 export default function BackgroundControls({ asset }: { asset: BackgroundAsset | null }) {
   const [open, setOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [likeCount, setLikeCount] = useState<number | null>(null);
+  const [motionOn, setMotionOn] = useState(true);
 
   useEffect(() => {
     if (!asset) return;
@@ -24,14 +41,29 @@ export default function BackgroundControls({ asset }: { asset: BackgroundAsset |
     setFavorited(getLocalFavorites().includes(asset.id));
   }, [asset]);
 
+  useEffect(() => {
+    setMotionOn(readMotionOn());
+  }, [open]);
+
   if (!asset) return null;
 
   const dispatch = (type: string) => {
     window.dispatchEvent(new CustomEvent(type));
   };
 
+  const toggleMotion = () => {
+    const next = !motionOn;
+    setMotionOn(next);
+    try {
+      document.documentElement.dataset.motion = next ? "full" : "reduced";
+      localStorage.setItem(MOTION_KEY, next ? "full" : "reduced");
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
-    <div className="bg-controls" aria-label="背景控制">
+    <div className={`bg-controls${open ? " bg-controls-open" : ""}`} aria-label="背景控制">
       {open ? (
         <div className="bg-controls-panel">
           <div className="bg-controls-info">
@@ -71,6 +103,16 @@ export default function BackgroundControls({ asset }: { asset: BackgroundAsset |
               ★
             </button>
             <button type="button" onClick={() => dispatch("outai:toggle-video-bg")} title="暂停/恢复背景" aria-label="暂停或恢复背景">⏸</button>
+            <button
+              type="button"
+              className="bg-motion-toggle"
+              onClick={toggleMotion}
+              title={motionOn ? "关闭动效" : "开启动效"}
+              aria-label={motionOn ? "关闭动效" : "开启动效"}
+              aria-pressed={motionOn}
+            >
+              动效：{motionOn ? "开" : "关"}
+            </button>
             <button type="button" onClick={() => setOpen(false)} title="收起" aria-label="收起控制面板">✕</button>
           </div>
         </div>
