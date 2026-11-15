@@ -39,7 +39,12 @@
       } else if (localStorage.getItem("outai-boot") === "off") play = false;
       else if (sessionStorage.getItem("outai-boot-shown") === "1") play = false;
       if (document.documentElement.dataset.motion === "reduced") play = false;
-      else if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) play = false;
+      // 注意：这里只认站内动效开关（dataset.motion），不认操作系统的
+      // prefers-reduced-motion。站内开关才是用户明确的选择：用户把动效
+      // 设为“开”，开场就该放。之前这里还有一条 matchMedia 兜底，会在
+      // Windows 开启“减弱动效”时直接不播放，导致电脑上 Edge 和 Chrome
+      // 都没有开场（手机没开系统减弱动效所以能放），2026-11-15 11:20 JST
+      // 用户反馈后已删掉该条——与视频背景的修复（PR #41）是同一个根因。
     } catch (e) {}
     window.__outaiBoot = { play: play };
     // 默认隐藏（CSS display:none）；要播放时同步显示；不播放时保持隐藏。
