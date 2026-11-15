@@ -56,6 +56,8 @@ const jsonLd = {
           document.documentElement.dataset.motion = saved;
         }
       } catch (e) {}
+      // 滚动渐现的开关：JS 可用时才隐藏 [data-reveal]（无 JS 时内容直接可见）。
+      document.documentElement.classList.add("js-reveal");
     </script>
   </head>
   <body>
@@ -329,6 +331,45 @@ const jsonLd = {
         }
         // 视图切换后（Astro view transitions）若 hash 仍在，重新打开。
         document.addEventListener("astro:page-load", maybeOpenFromHash);
+      })();
+    </script>
+    <script is:inline>
+      // 滚动渐现：带 .reveal-group 的区块进入视口时加 .in-view，子元素按 --i 依次蹦出。
+      // 减弱动效（只认站内开关 dataset.motion === "reduced"）时直接全部显示，不等滚动。
+      // 视图切换（astro:page-load）与 bfcache 返回（pageshow）后重新接管新页面的区块。
+      (function () {
+        function setupReveals() {
+          var groups = document.querySelectorAll(".reveal-group");
+          if (!groups.length) return;
+          if (document.documentElement.dataset.motion === "reduced") {
+            groups.forEach(function (g) { g.classList.add("in-view"); });
+            return;
+          }
+          if (!("IntersectionObserver" in window)) {
+            groups.forEach(function (g) { g.classList.add("in-view"); });
+            return;
+          }
+          var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+              if (en.isIntersecting) {
+                en.target.classList.add("in-view");
+                io.unobserve(en.target);
+              }
+            });
+          }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+          groups.forEach(function (g) {
+            if (g.classList.contains("in-view") || g.getAttribute("data-reveal-observed")) return;
+            g.setAttribute("data-reveal-observed", "1");
+            io.observe(g);
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", setupReveals);
+        } else {
+          setupReveals();
+        }
+        document.addEventListener("astro:page-load", setupReveals);
+        window.addEventListener("pageshow", setupReveals);
       })();
     </script>
   </body>
