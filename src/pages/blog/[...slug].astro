@@ -32,11 +32,11 @@ const related = allPosts
 ---
 <MainLayout title={post.data.seoTitle || `${post.data.title} — OUTAI`} description={post.data.seoDescription || post.data.description} type="article" image={post.data.cover}>
   <div class="read-progress" id="read-progress" aria-hidden="true"></div>
-  <header class="page-head">
+  <header class="page-head article-head">
     <div class="eyebrow"><span class="pulse"></span> {post.data.category} / {post.data.pubDate.toLocaleDateString("zh-CN")}{post.data.updatedDate ? ` · 更新于 ${post.data.updatedDate.toLocaleDateString("zh-CN")}` : ""} · 约 {minutes} 分钟</div>
     <h1>{post.data.title}</h1>
     <p>{post.data.description}</p>
-    {(post.data.tags||[]).length>0 && <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">{post.data.tags.map(t=><span class="tag">{t}</span>)}</div>}
+    {(post.data.tags||[]).length>0 && <div class="article-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">{post.data.tags.map(t=><span class="tag">{t}</span>)}</div>}
   </header>
   {post.data.cover && <img class="article-cover" src={post.data.cover} alt={post.data.title} loading="lazy" />}
   {toc.length>0 && <nav class="toc" aria-label="目录">
