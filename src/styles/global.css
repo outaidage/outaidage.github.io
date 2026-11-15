@@ -18,12 +18,18 @@ button,input,textarea,select{font:inherit}
 .icon-link{font-size:25px;color:#aab3c0}
 
 /* ---- 顶栏重排（电脑版，2026-11-15）：Logo 放大贴边、导航字距与当前页下划线、
-   右侧胶囊统一、SYSTEM ONLINE 更淡。只在 min-width:761px 生效，手机版完全不动。 ---- */
+   右侧胶囊统一、SYSTEM ONLINE 更淡。只在 min-width:761px 生效，手机版完全不动。
+   顶栏用 50% - 50vw 的办法跳出 1120px 居中容器，左右各留 24px 贴近视口边缘
+   （窄屏下公式自动归零，不会溢出；body 已有 overflow-x: clip 兜底）。 ---- */
 @media (min-width: 761px) {
-  .topbar { height: 88px; }
-  .topbar .brand { margin-left: -16px; gap: 13px; }
-  .topbar .brand .outai-logo-mark { width: 40px; height: 40px; }
-  .topbar .brand .outai-logo-word { font-size: 18px; letter-spacing: .16em; }
+  .topbar {
+    height: 88px;
+    margin-left: calc(50% - 50vw + 24px);
+    margin-right: calc(50% - 50vw + 24px);
+  }
+  .topbar .brand { gap: 13px; }
+  .topbar .brand .outai-logo-mark { width: 44px; height: 44px; }
+  .topbar .brand .outai-logo-word { font-size: 20px; letter-spacing: .16em; }
   .desktop-nav { gap: 28px; font-size: 14px; color: #a8b0bd; letter-spacing: .02em; }
   .desktop-nav a { position: relative; padding: 8px 0; }
   .desktop-nav a:hover { color: #fff; }
