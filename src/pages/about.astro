@@ -8,7 +8,7 @@ const page = await getPageContent("about");
 const base = import.meta.env.BASE_URL;
 ---
 <MainLayout title="关于 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> ABOUT THIS SPACE</div><h1>{page.title.replace(/\.$/, "")}<span style="color:#61edff">.</span></h1><p>{page.subtitle}</p></header>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> ABOUT THIS SPACE</div><h1>{page.title.replace(/\.$/, "")}</h1><p>{page.subtitle}</p></header>
   <div class="article-body">
     {page.sections.map((s) => (
       <>
