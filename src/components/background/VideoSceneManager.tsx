@@ -161,7 +161,8 @@ export default function VideoSceneManager() {
   // ---- 背景控制面板事件（上一张/下一张/随机） ----
   useEffect(() => {
     const onNext = () => {
-      const next = pickNextBackground(bgAssetsRef.current, bgRotationRef.current || { mode: "manual", interval_minutes: 30, category: null, source_id: null, collection: null, pinned_asset_id: null }, bgAssetRef.current?.id || null, getLocalFavorites());
+      // 手动点“下一张”：忽略固定与锁定（固定/锁定只约束自动轮换）。
+      const next = pickNextBackground(bgAssetsRef.current, bgRotationRef.current || { mode: "manual", interval_minutes: 30, category: null, source_id: null, collection: null, pinned_asset_id: null }, bgAssetRef.current?.id || null, getLocalFavorites(), true);
       if (next) {
         lockCurrentBackground(60);
         bgAssetRef.current = next;
