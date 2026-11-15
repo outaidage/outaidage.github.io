@@ -27,6 +27,19 @@ const labelStyle: React.CSSProperties = { fontSize: 12, color: "#929dab", displa
 
 const DEFAULT_BUTTONS: HeroButton[] = DEFAULT_HERO.buttons.map((b) => ({ ...b }));
 
+// 颜色只认 #rrggbb；其它一律当作未设置（保持默认渐变/暗灰）。
+function validColor(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
+}
+
+function clampNum(raw: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 function toDraft(h: HeroContent): HeroContent & { tagsText: string } {
   return { ...h, buttons: h.buttons.map((b) => ({ ...b })), tags: [...h.tags], tagsText: h.tags.join("\n") };
 }
@@ -47,7 +60,7 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
     setLoading(true);
     const { data, error } = await supabase
       .from("hero_content")
-      .select("eyebrow,title_plain,title_grad,subtitle,buttons,tags,terminal_command,terminal_output")
+      .select("eyebrow,title_plain,title_grad,subtitle,buttons,tags,terminal_command,terminal_output,title_color,subtitle_color,title_scale,text_opacity")
       .eq("id", "default")
       .maybeSingle();
     setLoading(false);
@@ -66,6 +79,10 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
         tags: Array.isArray(row.tags) && row.tags.length ? (row.tags as string[]) : DEFAULT_HERO.tags,
         terminal_command: typeof row.terminal_command === "string" ? row.terminal_command : DEFAULT_HERO.terminal_command,
         terminal_output: typeof row.terminal_output === "string" ? row.terminal_output : DEFAULT_HERO.terminal_output,
+        title_color: validColor(row.title_color),
+        subtitle_color: validColor(row.subtitle_color),
+        title_scale: clampNum(row.title_scale, 0.7, 1.5, DEFAULT_HERO.title_scale),
+        text_opacity: clampNum(row.text_opacity, 0.3, 1, DEFAULT_HERO.text_opacity),
       };
       setSaved(merged);
       setDraft(toDraft(merged));
@@ -106,6 +123,10 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
       tags: tags.length ? tags : DEFAULT_HERO.tags,
       terminal_command: draft.terminal_command,
       terminal_output: draft.terminal_output,
+      title_color: validColor(draft.title_color),
+      subtitle_color: validColor(draft.subtitle_color),
+      title_scale: clampNum(draft.title_scale, 0.7, 1.5, 1),
+      text_opacity: clampNum(draft.text_opacity, 0.3, 1, 1),
     };
     setSaving(true);
     const { error } = await supabase.from("hero_content").upsert(payload);
@@ -190,6 +211,80 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
             value={draft.subtitle}
             onChange={(e) => setField("subtitle", e.target.value)}
           />
+        </div>
+
+        <div>
+          <label style={labelStyle}>文字样式（换背景后字看不清时调这里；留空 = 保持默认样式）</label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>标题颜色（留空 = 白字 + 青紫渐变）</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={draft.title_color ?? "#ffffff"}
+                  onChange={(e) => setField("title_color", e.target.value)}
+                  title="点开选颜色"
+                  style={{ width: 44, height: 34, padding: 2, border: "1px solid #1e293b", borderRadius: 8, background: "#0a0d20", cursor: "pointer", flexShrink: 0 }}
+                />
+                <input
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                  value={draft.title_color ?? ""}
+                  placeholder="#ffffff（留空用渐变）"
+                  onChange={(e) => setField("title_color", e.target.value.trim() === "" ? null : e.target.value)}
+                />
+                <button className="button secondary" type="button" onClick={() => setField("title_color", null)}>
+                  恢复渐变
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>副标题颜色（留空 = 默认暗灰）</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="color"
+                  value={draft.subtitle_color ?? "#c7d0dd"}
+                  onChange={(e) => setField("subtitle_color", e.target.value)}
+                  title="点开选颜色"
+                  style={{ width: 44, height: 34, padding: 2, border: "1px solid #1e293b", borderRadius: 8, background: "#0a0d20", cursor: "pointer", flexShrink: 0 }}
+                />
+                <input
+                  style={{ ...inputStyle, flex: 1, minWidth: 0 }}
+                  value={draft.subtitle_color ?? ""}
+                  placeholder="#c7d0dd（留空用默认）"
+                  onChange={(e) => setField("subtitle_color", e.target.value.trim() === "" ? null : e.target.value)}
+                />
+                <button className="button secondary" type="button" onClick={() => setField("subtitle_color", null)}>
+                  恢复默认
+                </button>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+            <div>
+              <label style={labelStyle}>标题大小：{Math.round((draft.title_scale ?? 1) * 100)}%</label>
+              <input
+                type="range"
+                min={70}
+                max={150}
+                step={5}
+                value={Math.round((draft.title_scale ?? 1) * 100)}
+                onChange={(e) => setField("title_scale", Number(e.target.value) / 100)}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>文字透明度：{Math.round((draft.text_opacity ?? 1) * 100)}%（100% = 全实）</label>
+              <input
+                type="range"
+                min={30}
+                max={100}
+                step={5}
+                value={Math.round((draft.text_opacity ?? 1) * 100)}
+                onChange={(e) => setField("text_opacity", Number(e.target.value) / 100)}
+                style={{ width: "100%" }}
+              />
+            </div>
+          </div>
         </div>
 
         <div>

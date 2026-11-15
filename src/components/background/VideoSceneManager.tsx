@@ -419,6 +419,7 @@ export default function VideoSceneManager() {
   }
 
   return (
+    <>
     <div
       className="video-bg-layer"
       aria-hidden="true"
@@ -477,5 +478,10 @@ export default function VideoSceneManager() {
       {/* 场景遮罩：保证前景文字清晰 */}
       {overlay ? <div className="video-bg-overlay" style={overlay} /> : null}
     </div>
+      {/* 控制轮子必须始终渲染：暂停/静态回退/加载失败时也要能恢复背景。
+          之前它只在“资源激活且未暂停”分支里，点 ⏸ 后整个轮子从 DOM 消失，
+          且暂停状态已存 localStorage，重进页面也回不来，背景再也无法恢复。 */}
+      <BackgroundControls asset={bgAsset} />
+    </>
   );
 }

@@ -15,6 +15,12 @@ export type HeroContent = {
   tags: string[];
   terminal_command: string;
   terminal_output: string;
+  // 文字样式（migration 020）：换背景后字看不清时，后台可调。
+  // title_color 为 null = 保持默认（白字 + 青紫渐变）；subtitle_color 为 null = 保持 --text-dim。
+  title_color: string | null;
+  subtitle_color: string | null;
+  title_scale: number; // 0.7–1.5，默认 1
+  text_opacity: number; // 0.3–1，默认 1（全实）
 };
 
 export const DEFAULT_HERO: HeroContent = {
@@ -30,6 +36,10 @@ export const DEFAULT_HERO: HeroContent = {
   tags: ["AI & TECHNOLOGY", "DIGITAL LIFE", "OPEN SOURCE", "BUILD IN PUBLIC"],
   terminal_command: "outai --about",
   terminal_output: "个人数字空间 — 记录技术、AI、互联网与工具，收藏有价值的链接。",
+  title_color: null,
+  subtitle_color: null,
+  title_scale: 1,
+  text_opacity: 1,
 };
 
 function normalizeButtons(raw: unknown): HeroButton[] {
@@ -52,12 +62,25 @@ function normalizeTags(raw: unknown): string[] {
   return tags.length ? tags : DEFAULT_HERO.tags;
 }
 
+function normalizeColor(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(v)) return null;
+  return v.toLowerCase();
+}
+
+function normalizeNumber(raw: unknown, min: number, max: number, fallback: number): number {
+  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
 export async function getHeroContent(): Promise<HeroContent> {
   try {
     if (!supabase) return DEFAULT_HERO;
     const { data, error } = await supabase
       .from("hero_content")
-      .select("eyebrow,title_plain,title_grad,subtitle,buttons,tags,terminal_command,terminal_output")
+      .select("eyebrow,title_plain,title_grad,subtitle,buttons,tags,terminal_command,terminal_output,title_color,subtitle_color,title_scale,text_opacity")
       .eq("id", "default")
       .maybeSingle();
     if (error || !data) return DEFAULT_HERO;
@@ -74,6 +97,10 @@ export async function getHeroContent(): Promise<HeroContent> {
           : DEFAULT_HERO.terminal_command,
       terminal_output:
         typeof data.terminal_output === "string" ? data.terminal_output : DEFAULT_HERO.terminal_output,
+      title_color: normalizeColor(data.title_color),
+      subtitle_color: normalizeColor(data.subtitle_color),
+      title_scale: normalizeNumber(data.title_scale, 0.7, 1.5, 1),
+      text_opacity: normalizeNumber(data.text_opacity, 0.3, 1, 1),
     };
   } catch {
     return DEFAULT_HERO;
