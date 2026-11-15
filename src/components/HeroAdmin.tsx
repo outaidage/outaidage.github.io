@@ -4,11 +4,12 @@
 // 编辑全部在本地草稿里，点「保存」才写库，点「取消」丢弃草稿；
 // 未保存的改动绝不假装已生效。Supabase 未配置时只读本地默认值并明确
 // 提示不可保存（不伪造保存成功）。
-// 注意：首页是构建时静态生成，保存后需下次部署才生效（每日自动重建，
-// 或手动触发部署）；表单上方会明确提示。
+// 注意：首页是构建时静态生成，保存后自动触发一次部署，约 2 分钟上线；
+// 若自动部署触发失败，改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。
 import { useEffect, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { DEFAULT_HERO, type HeroButton, type HeroContent } from "@/lib/hero-content";
+import { triggerDeploy } from "@/lib/trigger-deploy";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -116,7 +117,13 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
     const next: HeroContent = { ...payload, tags: payload.tags };
     setSaved(next);
     setDraft(toDraft(next));
-    say("ok", "Hero 已保存。首页是静态构建，改动在下次部署后生效（每日自动重建，或手动触发部署）。");
+    // 保存后自动触发一次部署（与文章保存后自动部署一致），约 2 分钟上线。
+    const dep = await triggerDeploy();
+    if (dep.ok) {
+      say("ok", "Hero 已保存，正在重新部署，约 2 分钟后上线。");
+    } else {
+      say("err", `Hero 已保存，但自动部署触发失败：${dep.error}。改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。`);
+    }
   }
 
   function cancel() {
@@ -154,7 +161,7 @@ export default function HeroAdmin({ say }: { say: (kind: "ok" | "err", msg: stri
           </a>
         </div>
         <p style={{ color: "#929dab", fontSize: 12, margin: "8px 0 0", lineHeight: 1.7 }}>
-          改动保存在 Supabase hero_content 表。首页是构建时静态生成，保存后需下次部署才生效（每日自动重建，或手动触发部署）。
+          改动保存在 Supabase hero_content 表。首页是构建时静态生成，保存后自动触发一次部署，约 2 分钟后上线。
           {dirty ? " 当前有未保存的改动。" : ""}
           {loading ? " 加载中…" : ""}
           {loaded ? "" : ""}
