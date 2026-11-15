@@ -1,8 +1,12 @@
 ---
 // /toolbox/ — 在线工具箱（数字宇宙门户）。
 // 网站内的实用小工具，全部在浏览器本地运行，不上传数据。
+// 工具元数据由后台「工具箱」管理（toolbox_tools 表），失败时回落内置默认值。
 import MainLayout from "@/layouts/MainLayout.astro";
 import Toolbox from "@/components/Toolbox";
+import { getToolboxTools } from "@/lib/toolbox-tools";
+
+const tools = await getToolboxTools();
 ---
 
 <MainLayout title="在线工具箱 — OUTAI">
@@ -11,5 +15,5 @@ import Toolbox from "@/components/Toolbox";
     <h1>在线工具箱<span style="color:#61edff">.</span></h1>
     <p>网站内的实用小工具。所有处理都在你的浏览器本地完成，不上传任何数据。</p>
   </header>
-  <Toolbox client:load />
+  <Toolbox client:load tools={tools} />
 </MainLayout>

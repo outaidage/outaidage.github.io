@@ -1,13 +1,35 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
+import { getPageContent } from "@/lib/page-content";
+
+// 联系页内容由后台「页面内容」管理（page_content 表 id='contact'），
+// 失败或缺失时回落内置默认值。
+const page = await getPageContent("contact");
+
+// 备注里若含链接（如“本站源代码：https://…”），把链接部分渲染成可点击文字。
+function noteParts(note: string): { before: string; url: string } {
+  const idx = note.indexOf("http");
+  if (idx === -1) return { before: note, url: "" };
+  return { before: note.slice(0, idx), url: note.slice(idx).trim() };
+}
 ---
 <MainLayout title="联系 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> CONTACT</div><h1>联系我<span style="color:#61edff">.</span></h1><p>有问题、建议，或者只是想打个招呼，都可以写邮件。</p></header>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> CONTACT</div><h1>{page.title.replace(/\.$/, "")}<span style="color:#61edff">.</span></h1><p>{page.subtitle}</p></header>
   <div class="article-body">
-    <h2>邮箱</h2>
-    <p><a href="mailto:outaidage@gmail.com">outaidage@gmail.com</a></p>
-    <h2>GitHub</h2>
-    <p><a href="https://github.com/outaidage">github.com/outaidage</a></p>
-    <p style="color:#929dab;font-size:12px">本站源代码：<a href="https://github.com/outaidage/outaidage.github.io">outaidage/outaidage.github.io</a></p>
+    {page.items.map((it) => {
+      const note = noteParts(it.note ?? "");
+      return (
+        <>
+          <h2>{it.heading ?? ""}</h2>
+          <p><a href={it.href ?? "#"}>{it.label ?? ""}</a></p>
+          {it.note ? (
+            <p style="color:#929dab;font-size:12px">
+              {note.before}
+              {note.url ? <a href={note.url}>{note.url}</a> : null}
+            </p>
+          ) : null}
+        </>
+      );
+    })}
   </div>
 </MainLayout>

@@ -1,11 +1,16 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
+import { getPageContent } from "@/lib/page-content";
+
+// Now 页内容由后台「页面内容」管理（page_content 表 id='now'），
+// 失败或缺失时回落内置默认值。
+const page = await getPageContent("now");
 ---
 <MainLayout title="Now — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> NOW / CURRENTLY</div><h1>最近在做什么<span style="color:#61edff">.</span></h1><p>这是一份持续更新的当前状态记录。</p></header>
+  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> NOW / CURRENTLY</div><h1>{page.title.replace(/\.$/, "")}<span style="color:#61edff">.</span></h1><p>{page.subtitle}</p></header>
   <div class="card-grid">
-    <div class="card"><div class="card-kicker">LEARNING</div><h3>English</h3><p>持续学习英语，提升阅读技术资料与日常交流能力。</p></div>
-    <div class="card"><div class="card-kicker">EXPLORING</div><h3>AI & Automation</h3><p>探索 AI 工具、Agent 与个人自动化工作流。</p></div>
-    <div class="card"><div class="card-kicker">BUILDING</div><h3>OUTAI Website</h3><p>构建自己的文章与书签管理系统。</p></div>
+    {page.items.map((it) => (
+      <div class="card"><div class="card-kicker">{it.kicker ?? ""}</div><h3>{it.title ?? ""}</h3><p>{it.description ?? ""}</p></div>
+    ))}
   </div>
 </MainLayout>

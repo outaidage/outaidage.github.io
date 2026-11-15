@@ -272,6 +272,28 @@ html[data-motion="reduced"] .button:active { transform: none; }
 html[data-motion="reduced"] .hero-char,
 html[data-motion="reduced"] .hero-fade { opacity: 1; animation: none; }
 
+/* ---- 滚动渐现：滑到哪块，哪块的卡片就一个一个蹦出来 ---- */
+/* 原理：带 .reveal-group 的区块进入视口时，JS 给它加 .in-view；子元素
+   [data-reveal] 按 --i（0、1、2…）依次延迟弹出，和 Hero 逐字效果一个思路。
+   只有 JS 给 html 加了 .js-reveal 才隐藏（无 JS 时内容直接可见，不丢失）。
+   减弱动效只认站内开关 html[data-motion="reduced"]（与视频背景 PR #41、
+   开场 PR #42、Hero 同一个原则），不认操作系统设置：直接显示全部。 */
+html.js-reveal .reveal-group [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.2, .9, .3, 1);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+html.js-reveal .reveal-group.in-view [data-reveal] {
+  opacity: 1;
+  transform: translateY(0);
+}
+html[data-motion="reduced"] .reveal-group [data-reveal] {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+
 /* ---- Ticker ---- */
 .ticker {
   display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
