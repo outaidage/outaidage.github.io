@@ -5,11 +5,12 @@
 // 编辑全部在本地草稿里，点「保存」才写库，点「取消」丢弃草稿；
 // 未保存的改动绝不假装已生效。Supabase 未配置时只读本地默认值并明确
 // 提示不可保存（不伪造保存成功）。
-// 注意：这些页是构建时静态生成，保存后需下次部署才生效（每日自动重建，
-// 或手动触发部署）；表单上方会明确提示。
+// 注意：这些页是构建时静态生成，保存后自动触发一次部署，约 2 分钟上线；
+// 若自动部署触发失败，改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。
 import { useEffect, useState } from "react";
 import { supabase, hasSupabaseConfig } from "@/lib/supabase";
 import { DEFAULT_PAGES, type PageContent, type PageItem, type PageSection } from "@/lib/page-content";
+import { triggerDeploy } from "@/lib/trigger-deploy";
 
 type PageId = "about" | "now" | "contact";
 
@@ -116,7 +117,13 @@ export default function PageContentAdmin({ say }: { say: (kind: "ok" | "err", ms
       return;
     }
     setPages((p) => ({ ...p, [pageId]: clonePage(draft) }));
-    say("ok", `${PAGE_LABELS[pageId]}已保存。页面是静态构建，改动在下次部署后生效（每日自动重建，或手动触发部署）。`);
+    // 保存后自动触发一次部署（与文章保存后自动部署一致），约 2 分钟上线。
+    const dep = await triggerDeploy();
+    if (dep.ok) {
+      say("ok", `${PAGE_LABELS[pageId]}已保存，正在重新部署，约 2 分钟后上线。`);
+    } else {
+      say("err", `${PAGE_LABELS[pageId]}已保存，但自动部署触发失败：${dep.error}。改动会随下次定时重建（10:00 / 15:00 / 22:00）上线。`);
+    }
   }
 
   function cancel() {
@@ -154,7 +161,7 @@ export default function PageContentAdmin({ say }: { say: (kind: "ok" | "err", ms
           </a>
         </div>
         <p style={{ color: "#929dab", fontSize: 12, margin: "8px 0 0", lineHeight: 1.7 }}>
-          页面是构建时静态生成，保存后需下次部署才生效（每日自动重建，或手动触发部署）。
+          页面是构建时静态生成，保存后自动触发一次部署，约 2 分钟后上线。
           {dirty ? " 当前有未保存的改动。" : ""}
           {loading ? " 加载中…" : ""}
         </p>
