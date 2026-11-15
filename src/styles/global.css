@@ -12,12 +12,45 @@ button,input,textarea,select{font:inherit}
 .site-shell{width:min(1120px,calc(100% - 48px));margin:0 auto;position:relative;z-index:1}
 .topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1a2038}
 .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.12em;font-size:15px}
-.brand-dot{color:#61edff}
 .desktop-nav{display:flex;gap:34px;color:#9ba4b1;font-size:13px}
 .desktop-nav a:hover,.desktop-nav a.active{color:#61edff}
 .top-actions{display:flex;align-items:center;gap:20px}
 .icon-link{font-size:25px;color:#aab3c0}
-.admin-link{font:11px 'DM Mono',monospace;color:#61edff;border:1px solid #1e3a52;border-radius:999px;padding:9px 13px}
+
+/* ---- 顶栏重排（电脑版，2026-11-15）：Logo 放大贴边、导航字距与当前页下划线、
+   右侧胶囊统一、SYSTEM ONLINE 更淡。只在 min-width:761px 生效，手机版完全不动。 ---- */
+@media (min-width: 761px) {
+  .topbar { height: 88px; }
+  .topbar .brand { margin-left: -16px; gap: 13px; }
+  .topbar .brand .outai-logo-mark { width: 40px; height: 40px; }
+  .topbar .brand .outai-logo-word { font-size: 18px; letter-spacing: .16em; }
+  .desktop-nav { gap: 28px; font-size: 14px; color: #a8b0bd; letter-spacing: .02em; }
+  .desktop-nav a { position: relative; padding: 8px 0; }
+  .desktop-nav a:hover { color: #fff; }
+  .desktop-nav a.active { color: #61edff; }
+  .desktop-nav a.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 2px; border-radius: 2px;
+    background: #61edff;
+    box-shadow: 0 0 8px rgba(97, 237, 255, .6);
+  }
+  .top-actions { gap: 14px; }
+  .topbar .hud-label.dim { display: inline-flex; align-items: center; gap: 6px; opacity: .75; }
+  .topbar .hud-label.dim::before {
+    content: "";
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #61edff;
+    box-shadow: 0 0 8px rgba(97, 237, 255, .8);
+  }
+  .universe-link, .terminal-btn {
+    display: inline-flex; align-items: center;
+    height: 36px; padding: 0 14px;
+  }
+  .icon-link { font-size: 20px; }
+  .icon-link:hover { color: #61edff; }
+}
 .footer{display:flex;justify-content:space-between;gap:20px;padding:32px 0 38px;margin-top:75px;border-top:1px solid #1a2038;color:#717c8b;font:10px 'DM Mono',monospace;letter-spacing:.08em}
 .footer i{color:#61edff;font-style:normal}
 .eyebrow{display:flex;align-items:center;justify-content:center;gap:10px;color:#a9b3c0;font:10px 'DM Mono',monospace;letter-spacing:.16em;text-transform:uppercase}
@@ -70,7 +103,6 @@ button,input,textarea,select{font:inherit}
 .mobile-nav a{padding:12px 4px;font-size:15px;color:#cbd2dc;border-bottom:1px solid #0d1128}
 .mobile-nav a:last-child{border-bottom:0}
 .mobile-nav a.active{color:#61edff}
-.admin-link{display:none}
 }
 @media(prefers-reduced-motion:reduce){.menu-button span{transition:none}}
 .filter-chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 22px}
