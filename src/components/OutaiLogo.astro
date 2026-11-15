@@ -3,7 +3,9 @@
 // A hexagon orbit ring with an inner orbit arc (the "O") and a satellite dot.
 // Energy cyan stroke, subtle glow. Entrance: stroke-draw animation.
 // Hover: glow strengthens and the mark tilts slightly.
-// Props: size (px), withWordmark (show "OUTAI." text next to the mark).
+// Props: size (px), withWordmark (show "OUTAI" text next to the mark).
+// The wordmark has no trailing dot: the user asked 2026-11-15 to remove
+// all trailing periods (hero "Beyond." and the logo's cyan "." after OUTAI).
 interface Props {
   size?: number;
   withWordmark?: boolean;
@@ -17,7 +19,7 @@ const { size = 32, withWordmark = false } = Astro.props;
     <path class="outai-logo-orbit" d="M19.8 27.6 A13 13 0 1 1 44.2 27.6" stroke="#61edff" stroke-width="3" stroke-linecap="round" />
     <circle class="outai-logo-dot" cx="44.2" cy="27.6" r="3.2" fill="#61edff" />
   </svg>
-  {withWordmark && <span class="outai-logo-word">OUTAI<span class="brand-dot">.</span></span>}
+  {withWordmark && <span class="outai-logo-word">OUTAI</span>}
 </span>
 
 <style>
@@ -61,7 +63,6 @@ const { size = 32, withWordmark = false } = Astro.props;
     font-size: 15px;
     color: #eef1f5;
   }
-  .brand-dot { color: #61edff; }
   @media (prefers-reduced-motion: reduce) {
     .outai-logo-hex, .outai-logo-orbit { animation: none; stroke-dashoffset: 0; }
     .outai-logo-dot { animation: none; opacity: 1; }
