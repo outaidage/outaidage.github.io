@@ -646,6 +646,23 @@ html[data-motion="reduced"] .planet-node { transition: none; }
 /* 宇宙全屏模式下，背景控制圆钮会上移到星系面板上方，避免遮住右下角的
    “✕ 退出宇宙”按钮（第 4 轮复验：退出按钮标签被该圆钮盖住一半）。 */
 body.universe-open .bg-controls { bottom: 96px; }
+/* 面板打开时整体上移，面板底边高于页脚（约 85px）和右下角的圆钮，
+   不再遮住页脚里的控制按钮（之前面板底边贴着视口底部，直接盖住页脚）。 */
+.bg-controls-open { bottom: 100px; }
+body.universe-open .bg-controls.bg-controls-open { bottom: 148px; }
+/* 重播开场小轮子：固定在右下角，背景圆钮左侧；与 ◐ 圆钮成对出现。
+   宇宙全屏时跟随圆钮一起上移，避免遮住“✕ 退出宇宙”。 */
+.replay-wheel {
+  position: fixed; right: 64px; bottom: 16px; z-index: 40;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid rgba(97, 237, 255, .35);
+  background: rgba(3, 4, 11, .72); color: #61edff;
+  font-size: 18px; cursor: pointer;
+  display: grid; place-items: center;
+  backdrop-filter: blur(4px);
+}
+.replay-wheel:hover { box-shadow: 0 0 16px rgba(97, 237, 255, .35); }
+body.universe-open .replay-wheel { bottom: 96px; }
 .bg-controls-dot {
   width: 40px; height: 40px; border-radius: 50%;
   border: 1px solid rgba(97, 237, 255, .35);
