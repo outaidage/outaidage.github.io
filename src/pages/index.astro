@@ -1,6 +1,5 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
-import BootIntro from "@/components/BootIntro.astro";
 import { getCollection } from "astro:content";
 import { isVisiblePost } from "@/lib/blog";
 import Subscribe from "@/components/Subscribe";
@@ -9,6 +8,19 @@ import SpaceCore from "@/components/SpaceCore";
 import HomeModules from "@/components/HomeModules";
 import { supabase } from "@/lib/supabase";
 import { getHomeModules } from "@/lib/home-modules";
+import { getHeroContent } from "@/lib/hero-content";
+import HeroText from "@/components/HeroText.astro";
+
+// 首页 Hero（Supabase hero_content 驱动，失败时回退内置默认文案）。
+const hero = await getHeroContent();
+// 逐字动画时序（毫秒）：眉题先蹦，标题跟上，副标题随后，按钮/标签淡入。
+const eyebrowStart = 0;
+const titleStart = 150;
+const titleStep = 55;
+const subStart = titleStart + (hero.title_plain.length + hero.title_grad.length) * titleStep + 100;
+const subStep = 28;
+const actionsDelay = subStart + hero.subtitle.length * subStep + 150;
+const tickerDelay = actionsDelay + 150;
 
 // 最新文章（真实数据；isVisiblePost 排除草稿与未来日期的文章）。
 const posts = (await getCollection("blog", ({data}) => isVisiblePost(data))).sort((a,b) => b.data.pubDate.valueOf()-a.data.pubDate.valueOf()).slice(0,3);
@@ -92,19 +104,19 @@ const planetSatellites: Record<string, { id: string; name: string; description: 
 const lastUpdate = allPosts[0]?.data.pubDate;
 ---
 <MainLayout>
-  <BootIntro />
   <section class="hero-du">
     <div class="hero-ghost" aria-hidden="true">Explore</div>
-    <div class="eyebrow"><span class="pulse"></span> DIGITAL UNIVERSE · EST. 2026</div>
-    <h1>Explore <span class="grad">Beyond.</span></h1>
-    <p>这里是 OUTAI 的数字空间。记录技术、探索 AI、收藏灵感，把想法变成现实。</p>
-    <div class="hero-actions">
-      <a class="button primary" href={`${base}blog/`}>探索文章 ↗</a>
-      <a class="button secondary" href={`${base}collection/`}>打开资源库 ⌁</a>
-      <a class="button secondary" href="#universe">进入宇宙 ☉</a>
+    <div class="eyebrow"><span class="pulse"></span> <HeroText text={hero.eyebrow} start={eyebrowStart} step={25} /></div>
+    <h1><HeroText text={hero.title_plain} start={titleStart} step={titleStep} /><HeroText text={hero.title_grad} start={titleStart + hero.title_plain.length * titleStep} step={titleStep} cls="grad" /></h1>
+    <p><HeroText text={hero.subtitle} start={subStart} step={subStep} /></p>
+    <div class="hero-actions hero-fade" style={`--d:${actionsDelay}ms`}>
+      {hero.buttons.map((b) => {
+        const href = b.href.startsWith("#") || b.href.startsWith("http") ? b.href : `${base}${b.href.replace(/^\//, "")}`;
+        return <a class={`button ${b.style}`} href={href}>{b.label}</a>;
+      })}
     </div>
-    <div class="ticker" aria-hidden="true"><span><b>⌁</b> AI &amp; TECHNOLOGY</span><span><b>⌁</b> DIGITAL LIFE</span><span><b>⌁</b> OPEN SOURCE</span><span><b>⌁</b> BUILD IN PUBLIC</span></div>
-    <Terminal client:load />
+    <div class="ticker hero-fade" style={`--d:${tickerDelay}ms`} aria-hidden="true">{hero.tags.map((t) => <span><b>⌁</b> {t}</span>)}</div>
+    <Terminal client:load command={hero.terminal_command} output={hero.terminal_output} />
   </section>
 
   <section class="core-stage glass-panel" id="core-stage" aria-label="数字宇宙核心">
