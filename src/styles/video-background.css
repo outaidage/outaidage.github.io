@@ -93,3 +93,8 @@ html[data-video-bg="off"] .universe-grid {
     /* 移动端不做额外裁切，object-fit: cover 已处理 */
   }
 }
+
+/* 省流/慢网静态模式：<html class="bg-static">（MainLayout 内联脚本按
+   navigator.connection 判断）时停掉视频与海报图层，只留深空渐变回退。 */
+html.bg-static .video-bg-video,
+html.bg-static .video-bg-poster { display: none !important; }

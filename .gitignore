@@ -5,3 +5,7 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+
+# 构建时生成（scripts/gen-media.mjs），勿提交
+public/og/
+public/icons/

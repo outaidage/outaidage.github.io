@@ -2,11 +2,16 @@
 import MainLayout from "@/layouts/MainLayout.astro";
 import { getCollection, render } from "astro:content";
 import Comments from "@/components/Comments";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 export async function getStaticPaths() {
   const posts = await getCollection("blog", ({data}) => !data.draft);
   return posts.map(post => ({ params: { slug: post.slug }, props: { post } }));
 }
 const { post } = Astro.props;
+// 分享图：优先文章封面；否则用构建时生成的专属 OG 图（scripts/gen-media.mjs
+// 在 prebuild 生成到 public/og/<slug>.png）；文件不存在时回退站点默认图。
+const ogGenerated = existsSync(join(process.cwd(), "public", "og", `${post.slug}.png`)) ? `/og/${post.slug}.png` : undefined;
 const { Content, headings } = await render(post);
 const toc = headings.filter(h => h.depth === 2 || h.depth === 3);
 function readingMinutes(body: string) {
@@ -30,7 +35,7 @@ const related = allPosts
   .slice(0,3)
   .map(x=>x.p);
 ---
-<MainLayout title={post.data.seoTitle || `${post.data.title} — OUTAI`} description={post.data.seoDescription || post.data.description} type="article" image={post.data.cover}>
+<MainLayout title={post.data.seoTitle || `${post.data.title} — OUTAI`} description={post.data.seoDescription || post.data.description} type="article" image={post.data.cover ?? ogGenerated}>
   <div class="read-progress" id="read-progress" aria-hidden="true"></div>
   <header class="page-head article-head">
     <div class="eyebrow"><span class="pulse"></span> {post.data.category} / {post.data.pubDate.toLocaleDateString("zh-CN")}{post.data.updatedDate ? ` · 更新于 ${post.data.updatedDate.toLocaleDateString("zh-CN")}` : ""} · 约 {minutes} 分钟</div>
@@ -51,9 +56,9 @@ const related = allPosts
     {newer ? <a class="prev-next-link next" href={`${import.meta.env.BASE_URL}blog/${newer.slug}/`}><span class="prev-next-label">下一篇</span><span class="prev-next-title">{newer.data.title}</span></a> : <span></span>}
   </nav>}
   {related.length>0 && <section class="section">
-    <div class="section-head"><h2>RELATED / 相关文章</h2><a href={`${import.meta.env.BASE_URL}blog/`}>VIEW ALL ↗</a></div>
+    <div class="section-head" data-ghost="RELATED"><h2>RELATED / 相关文章</h2><a href={`${import.meta.env.BASE_URL}blog/`}>VIEW ALL ↗</a></div>
     <div class="card-grid">
-      {related.map(p=><a class="card" href={`${import.meta.env.BASE_URL}blog/${p.slug}/`}>
+      {related.map(p=><a class="card" data-tilt href={`${import.meta.env.BASE_URL}blog/${p.slug}/`}>
         <div class="card-kicker">{p.data.category} · {p.data.pubDate.toLocaleDateString("zh-CN")}</div>
         <h3>{p.data.title}</h3><p>{p.data.description}</p>
       </a>)}

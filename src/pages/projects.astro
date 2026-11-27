@@ -34,7 +34,7 @@ try {
 ---
 
 <MainLayout title="项目 — OUTAI">
-  <header class="page-head">
+  <header class="page-head" data-ghost="PROJECTS">
     <div class="eyebrow"><span class="pulse"></span> SELECTED WORK</div>
     <h1>项目与实验<span style="color:#61edff">.</span></h1>
     <p>记录自己构建的工具、自动化流程、开源项目与实验。</p>
@@ -44,7 +44,7 @@ try {
   ) : projects.length === 0 ? (
     <div class="card"><p>还没有项目。下一个想法将在这里出现。</p></div>
   ) : (
-    <div class="card-grid">
+    <div class="card-grid bento-grid">
       {projects.map((p, i) => (
         <div class="card" data-tilt>
           <div class="card-kicker">EXPERIMENT / {String(i + 1).padStart(2, "0")}</div>

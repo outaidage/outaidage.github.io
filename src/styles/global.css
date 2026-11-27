@@ -928,3 +928,18 @@ html[data-motion="reduced"] .aurora-layer { display: none; }
 }
 /* Hero 逐字动画的词组包：词内不换行，断行只发生在词与词之间。 */
 .hero-word { display: inline-block; white-space: nowrap; }
+
+/* ================================================================
+   全站统一（2026-11-28）：内页 page-head 杂志幽灵字 + 封面占位底色。
+   ================================================================ */
+.page-head[data-ghost] { position: relative; isolation: isolate; }
+.page-head[data-ghost]::before {
+  content: attr(data-ghost);
+  position: absolute; left: -6px; top: 52%; transform: translateY(-50%);
+  font: 800 clamp(52px, 9vw, 108px) Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .04em; line-height: 1; white-space: nowrap;
+  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .13);
+  pointer-events: none; z-index: -1;
+}
+/* 封面图加载前的深空占位底色（避免空白闪烁） */
+.card-cover, .article-cover { background: #10102b; }

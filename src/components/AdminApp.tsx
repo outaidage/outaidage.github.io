@@ -298,6 +298,12 @@ export default function AdminApp() {
   useEffect(()=>{if(session && tab==="links") loadRecLinks()},[session,tab]);
   useEffect(()=>{if(session && tab==="guestbook"){loadGbEntries();loadComments();}},[session,tab]);
 
+  // 文章列表来自 GitHub（经 Edge Function），提交后 GitHub 的列表接口
+  // 可能短暂返回旧数据（最终一致性）——这正是“保存成功但列表没变、
+  // 要手动刷新”的根源。30 秒内刚保存/删除的文章以本地记录为准合并，
+  // 窗口过后完全以服务器列表为准。
+  const recentArticleSaves = useRef<Map<string, { file: ArticleFile; at: number }>>(new Map());
+  const recentArticleDeletes = useRef<Map<string, number>>(new Map());
   async function loadArticles(){
     setArticlesLoading(true);
     const {data,error} = await callFunction({action:"list"});
@@ -305,7 +311,15 @@ export default function AdminApp() {
     if (error) { say("err",`文章列表加载失败：${error.message}`); return; }
     const files = (data as any)?.files as ArticleFile[] | undefined;
     if (!Array.isArray(files)) { say("err","文章列表返回异常，请检查 Edge Function。"); return; }
-    setArticles(files);
+    const now = Date.now();
+    const merged = files.filter(f => {
+      const delAt = recentArticleDeletes.current.get(f.path);
+      return !(delAt && now - delAt < 30000);
+    });
+    recentArticleSaves.current.forEach(({file, at}, slug) => {
+      if (now - at < 30000 && !merged.some(f => f.slug === slug)) merged.unshift(file);
+    });
+    setArticles(merged);
   }
   useEffect(()=>{if(session && tab==="articles") loadArticles()},[session,tab]);
 
@@ -648,7 +662,20 @@ export default function AdminApp() {
     // 新建文章保存后切到编辑模式，版本历史立即出现，不必再点一次 编辑。
     if (!isEdit) setEditingSlug(slug);
     setArticle({...article, draft});
+    // 保存即刷新：先把本次保存乐观写入列表（不等 GitHub 列表接口），
+    // 再立即 + 6 秒后各向服务器确认一次（合并逻辑见 loadArticles）。
+    const optimistic: ArticleFile = {
+      name: `${slug}.md`,
+      slug,
+      path,
+      sha: articles.find(a => a.slug === slug)?.sha || "",
+      size: content.length,
+    };
+    recentArticleSaves.current.set(slug, { file: optimistic, at: Date.now() });
+    recentArticleDeletes.current.delete(path);
+    setArticles(prev => [optimistic, ...prev.filter(a => a.slug !== slug)]);
     loadArticles();
+    window.setTimeout(() => { loadArticles(); }, 6000);
   }
   // 3.0 P0：把本次保存的完整 Markdown 存为一条版本快照。
   async function saveArticleVersion(slug: string, title: string, content: string) {
@@ -696,7 +723,14 @@ export default function AdminApp() {
     say("ok",`文章已删除${commit ? `（提交 ${commit.slice(0,7)}）` : ""}，部署完成后生效。`);
     await logAudit("article_delete","article",path,commit ? `提交 ${commit.slice(0,7)}` : undefined);
     if (editingSlug && path === `src/content/blog/${editingSlug}.md`) newArticle();
+    // 删除即刷新：先从列表乐观移除，再立即 + 6 秒后向服务器确认
+    // （合并逻辑见 loadArticles，防止 GitHub 旧列表把已删文章“复活”）。
+    recentArticleDeletes.current.set(path, Date.now());
+    const slugFromPath = path.split("/").pop()?.replace(/\.md$/, "") || "";
+    if (slugFromPath) recentArticleSaves.current.delete(slugFromPath);
+    setArticles(prev => prev.filter(a => a.path !== path));
     loadArticles();
+    window.setTimeout(() => { loadArticles(); }, 6000);
   }
   async function runConfirmedDelete(){
     const t = confirmTarget;
