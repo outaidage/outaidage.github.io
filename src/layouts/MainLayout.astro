@@ -63,6 +63,10 @@ const jsonLd = {
     {path === "/" && <BootIntro />}
     <VideoSceneManager client:load />
     <DigitalUniverse />
+    {/* 极光 + 流星层：盖在视频背景之上、内容（z-index 1）之下，纯装饰、
+        不拦截点击。只受站内动效开关控制（减弱时整层隐藏），不影响视频
+        背景本身的播放——与背景开关完全解耦。 */}
+    <div class="aurora-layer" aria-hidden="true"><span class="meteor m1"></span><span class="meteor m2"></span><span class="meteor m3"></span></div>
     <div class="site-shell">
       <header class="topbar">
         <a class="brand" href={import.meta.env.BASE_URL} transition:name="outai-logo">
@@ -258,6 +262,18 @@ const jsonLd = {
       }
       document.addEventListener("astro:page-load", startCountUp);
       startCountUp();
+    </script>
+    <script>
+      // 光标星尘拖尾 + 点击涟漪（仅桌面细指针；触摸/减弱动效不启动）。
+      // 与 tilt/count-up 同一个模式：视图切换后重新初始化，旧实例先清理。
+      import { initCursorFx } from "@/lib/cursor-fx";
+      let cursorFxCleanup: (() => void) | null = null;
+      function startCursorFx() {
+        if (cursorFxCleanup) { cursorFxCleanup(); cursorFxCleanup = null; }
+        cursorFxCleanup = initCursorFx();
+      }
+      document.addEventListener("astro:page-load", startCursorFx);
+      startCursorFx();
     </script>
     <script>
       // Wormhole page transition (DIGITAL UNIVERSE 2.0). GSAP energy burst

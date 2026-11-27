@@ -877,3 +877,46 @@ html[data-motion="reduced"] .section-head h2 { animation: none; }
   /* 错落：偶数位卡片下沉（margin 实现，不碰 transform，避免和 tilt 冲突） */
   .blog-grid .card:not(.post-featured):nth-child(even) { margin-top: 18px; }
 }
+
+/* ================================================================
+   视觉升级第三批（2026-11-27）：极光 + 流星层（光标星尘在
+   cursor-fx.ts，虫洞转场在 wormhole.ts）。
+   本层位于视频背景之上、内容（.site-shell z-index 1）之下，
+   pointer-events:none 永不拦截点击；只受站内动效开关控制，
+   与视频背景的播放完全解耦（关动效不关视频背景的老规矩不变）。
+   ================================================================ */
+.aurora-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.aurora-layer::before, .aurora-layer::after {
+  content: ""; position: absolute; border-radius: 50%;
+  filter: blur(70px); mix-blend-mode: screen;
+}
+.aurora-layer::before {
+  width: 55vw; height: 55vw; left: -12vw; top: -18vw;
+  background: radial-gradient(circle, rgba(97, 237, 255, .13), transparent 65%);
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+.aurora-layer::after {
+  width: 48vw; height: 48vw; right: -10vw; top: 8vh;
+  background: radial-gradient(circle, rgba(166, 138, 255, .12), transparent 65%);
+  animation: aurora-drift 32s ease-in-out infinite alternate-reverse;
+}
+@keyframes aurora-drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(6vw, 4vh, 0) scale(1.15); }
+}
+/* 流星：细长光痕，斜向划过；每颗周期不同，只在周期开头约 9% 的时间可见 */
+.meteor {
+  position: absolute; width: 130px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, rgba(190, 245, 255, .9), transparent);
+  transform: rotate(-32deg); opacity: 0;
+}
+.meteor.m1 { top: 12%; left: 78%; animation: meteor-fly 11s linear infinite 2s; }
+.meteor.m2 { top: 26%; left: 92%; width: 100px; animation: meteor-fly 17s linear infinite 8s; }
+.meteor.m3 { top: 6%; left: 58%; width: 90px; animation: meteor-fly 23s linear infinite 14s; }
+@keyframes meteor-fly {
+  0% { transform: rotate(-32deg) translateX(0); opacity: 0; }
+  2% { opacity: .9; }
+  9% { transform: rotate(-32deg) translateX(-46vw); opacity: 0; }
+  100% { transform: rotate(-32deg) translateX(-46vw); opacity: 0; }
+}
+html[data-motion="reduced"] .aurora-layer { display: none; }
