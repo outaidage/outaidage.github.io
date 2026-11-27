@@ -3,6 +3,11 @@
 // start: 起始延迟（毫秒）；step: 每字间隔（毫秒）；cls: 额外 class（渐变段传 "grad"）。
 // 文字本身就在 HTML 里（SEO、无 JS 也可见）；减弱动效（站内开关）时 CSS
 // 直接显示全部，不做动画。
+// 断行规则：按空格把文字分组，每个词包进 .hero-word（nowrap），词与词
+// 之间留真实空格作为断行点——长英文标题只会从词间断行，不会把一个词
+// 从中间劈开（之前逐字 inline-block + 不换行空格，标题会断成
+// “Onward Until / he Aurora”这种）。超过 14 字的“词”（多为无空格的
+// 长中文串）不打包，保持逐字可断行，避免手机上溢出。
 interface Props {
   text: string;
   start?: number;
@@ -10,6 +15,17 @@ interface Props {
   cls?: string;
 }
 const { text, start = 0, step = 40, cls = "" } = Astro.props;
-const chars = [...text];
+type CharCell = { ch: string; d: number };
+const words: CharCell[][] = [];
+let cur: CharCell[] = [];
+[...text].forEach((c, i) => {
+  if (c === " ") {
+    words.push(cur);
+    cur = [];
+  } else {
+    cur.push({ ch: c, d: start + i * step });
+  }
+});
+words.push(cur);
 ---
-<span class={`hero-chars ${cls}`} aria-label={text}>{chars.map((c, i) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${start + i * step}ms`} aria-hidden="true">{c === " " ? "\u00a0" : c}</span>)}</span>
+<span class={`hero-chars ${cls}`} aria-label={text}>{words.map((word, wi) => (<>{wi > 0 ? " " : ""}{word.length <= 14 ? <span class="hero-word" aria-hidden="true">{word.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`}>{ch}</span>)}</span> : word.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`} aria-hidden="true">{ch}</span>)}</>))}</span>

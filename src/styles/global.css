@@ -794,7 +794,7 @@ html[data-motion="reduced"] .section-head h2 { animation: none; }
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(76px, 23vw, 272px); font-weight: 800;
   letter-spacing: .08em; line-height: .92; text-align: center;
-  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .22);
+  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .38);
   -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 98%);
   mask-image: linear-gradient(to bottom, #000 52%, transparent 98%);
   user-select: none; pointer-events: none;
@@ -848,7 +848,7 @@ html[data-motion="reduced"] .section-head h2 { animation: none; }
   position: absolute; left: -4px; top: 50%; transform: translateY(-54%);
   font: 800 clamp(38px, 6vw, 68px) Inter, ui-sans-serif, system-ui, sans-serif;
   letter-spacing: .05em; line-height: 1; white-space: nowrap;
-  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .10);
+  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .17);
   pointer-events: none; z-index: -1;
 }
 
@@ -888,16 +888,16 @@ html[data-motion="reduced"] .section-head h2 { animation: none; }
 .aurora-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .aurora-layer::before, .aurora-layer::after {
   content: ""; position: absolute; border-radius: 50%;
-  filter: blur(70px); mix-blend-mode: screen;
+  filter: blur(56px); mix-blend-mode: screen;
 }
 .aurora-layer::before {
   width: 55vw; height: 55vw; left: -12vw; top: -18vw;
-  background: radial-gradient(circle, rgba(97, 237, 255, .13), transparent 65%);
+  background: radial-gradient(circle, rgba(97, 237, 255, .20), transparent 65%);
   animation: aurora-drift 26s ease-in-out infinite alternate;
 }
 .aurora-layer::after {
   width: 48vw; height: 48vw; right: -10vw; top: 8vh;
-  background: radial-gradient(circle, rgba(166, 138, 255, .12), transparent 65%);
+  background: radial-gradient(circle, rgba(166, 138, 255, .18), transparent 65%);
   animation: aurora-drift 32s ease-in-out infinite alternate-reverse;
 }
 @keyframes aurora-drift {
@@ -920,3 +920,11 @@ html[data-motion="reduced"] .section-head h2 { animation: none; }
   100% { transform: rotate(-32deg) translateX(-46vw); opacity: 0; }
 }
 html[data-motion="reduced"] .aurora-layer { display: none; }
+
+/* ---- 收尾微调（2026-11-27 实测后）：页脚暗带衬底 + Hero 词组不断行 ---- */
+/* 页脚垫一层向下渐深的暗带：巨型描边字和链接行不再被明亮壁纸冲淡。 */
+.footer {
+  background: linear-gradient(to bottom, transparent, rgba(3, 4, 11, .50) 34%, rgba(3, 4, 11, .68));
+}
+/* Hero 逐字动画的词组包：词内不换行，断行只发生在词与词之间。 */
+.hero-word { display: inline-block; white-space: nowrap; }
