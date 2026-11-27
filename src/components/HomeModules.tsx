@@ -37,16 +37,20 @@ export default function HomeModules({ initial, base }: { initial: HomeModule[]; 
   }
 
   return (
-    <div className="card-grid reveal-group" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))" }}>
+    <div className="module-grid-wrap">
+      <span className="orbit-ring module-orbit-a" aria-hidden="true" />
+      <span className="orbit-ring purple module-orbit-b" aria-hidden="true" />
+      <div className="card-grid reveal-group module-grid">
       {modules.map((m, i) => (
         <a
           key={m.id}
-          className="card"
+          className={`card module-card${m.featured ? " is-featured" : ""}`}
           data-tilt
           data-reveal
           style={{ textDecoration: "none", borderTop: `2px solid ${m.theme_color}`, ["--i" as string]: i } as React.CSSProperties}
           href={`${base.replace(/\/$/, "")}${m.path}`}
         >
+          <span className="module-num" aria-hidden="true">{String(i + 1).padStart(2, "0")}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span
               aria-hidden="true"
@@ -82,6 +86,7 @@ export default function HomeModules({ initial, base }: { initial: HomeModule[]; 
           <span style={{ display: "inline-block", marginTop: 12, fontSize: 12, color: m.theme_color }}>进入 →</span>
         </a>
       ))}
+      </div>
     </div>
   );
 }

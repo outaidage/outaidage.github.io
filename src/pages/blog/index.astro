@@ -19,14 +19,16 @@ function readingMinutes(body: string) {
     {categories.map(c=><button type="button" class="chip" data-cat-filter={c} aria-pressed={c==="全部"}>{c}</button>)}
   </div>
   <div class="section">
-    {posts.length ? <div class="card-grid">
-      {posts.map(post=>{
+    {posts.length ? <div class="card-grid blog-grid">
+      {posts.map((post, idx)=>{
         const searchText = `${post.data.title} ${post.data.description} ${(post.data.tags||[]).join(" ")}`.toLowerCase();
-        return <a class="card" data-tilt data-post-card data-category={post.data.category} data-search={searchText} href={`${import.meta.env.BASE_URL}blog/${post.slug}/`}>
+        return <a class={idx === 0 ? "card post-featured" : "card"} data-tilt data-post-card data-category={post.data.category} data-search={searchText} href={`${import.meta.env.BASE_URL}blog/${post.slug}/`}>
           {post.data.cover && <img class="card-cover" src={post.data.cover} alt="" loading="lazy" />}
-          <div class="card-kicker">{post.data.category} · {post.data.pubDate.toLocaleDateString("zh-CN")} · 约 {readingMinutes(post.body)} 分钟{post.data.featured ? " · 精选" : ""}</div>
-          <h3>{post.data.title}</h3><p>{post.data.description}</p>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px">{(post.data.tags||[]).filter(t=>t && t.trim()).map(t=><span class="tag">{t}</span>)}</div>
+          <div class="card-body">
+            <div class="card-kicker">{post.data.category} · {post.data.pubDate.toLocaleDateString("zh-CN")} · 约 {readingMinutes(post.body)} 分钟{post.data.featured ? " · 精选" : ""}</div>
+            <h3>{post.data.title}</h3><p>{post.data.description}</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px">{(post.data.tags||[]).filter(t=>t && t.trim()).map(t=><span class="tag">{t}</span>)}</div>
+          </div>
         </a>;
       })}
     </div> : <div class="empty-state">暂无文章。</div>}
