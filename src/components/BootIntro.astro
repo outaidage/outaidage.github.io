@@ -14,6 +14,16 @@
 ---
 
 <div id="boot-intro" class="boot-intro" role="dialog" aria-label="OUTAI 启动动画" aria-hidden="true" style="display:none; position:fixed; inset:0; z-index:400; background:#03040b; overflow:hidden; pointer-events:auto;">
+  <!-- 入口层（GATE）：进站先显示封面，点击「进入」才播开场并落入宇宙分区；
+       「直接浏览」则跳过一切。只在开场有资格播放、非重播、且不是带着
+       #universe 进来时出现（由下方内联脚本决定，默认 hidden）。 -->
+  <div class="boot-gate" id="boot-gate" hidden>
+    <div class="gate-word" aria-hidden="true">OUTAI</div>
+    <div class="gate-sub">PERSONAL DIGITAL UNIVERSE</div>
+    <button class="gate-enter" id="gate-enter" type="button"><span class="gate-ring" aria-hidden="true"></span>点击进入</button>
+    <div class="gate-hint">ENTER THE UNIVERSE · 点星球进入分区</div>
+    <button class="gate-browse" id="gate-browse" type="button">直接浏览 →</button>
+  </div>
   <div class="boot-brand" aria-hidden="true">
     <div class="boot-pulse"></div>
     <div class="boot-word">OUTAI</div>
@@ -46,10 +56,43 @@
       // 都没有开场（手机没开系统减弱动效所以能放），2026-11-15 11:20 JST
       // 用户反馈后已删掉该条——与视频背景的修复（PR #41）是同一个根因。
     } catch (e) {}
-    window.__outaiBoot = { play: play };
+    // 入口层（GATE）：有资格播放时先停在封面等点击，不再自动起飞。
+    // 重播（轮子菜单触发）是用户明确要看开场，不经过入口层；
+    // 带着 #universe 进来的是直达宇宙，也跳过入口层。
+    var gate = false;
+    try {
+      gate = play
+        && sessionStorage.getItem("outai-boot-replay") !== "1"
+        && window.location.hash !== "#universe";
+    } catch (e) {}
+    window.__outaiBoot = { play: play, gate: gate };
     // 默认隐藏（CSS display:none）；要播放时同步显示；不播放时保持隐藏。
     // 视图切换回首页时脚本可能不重新执行，默认隐藏能保证遮罩绝不黑屏盖住网站。
     overlay.style.display = play ? "flex" : "none";
+    if (gate) {
+      var gateEl = document.getElementById("boot-gate");
+      if (gateEl) gateEl.hidden = false;
+      var controls = overlay.querySelector(".boot-controls");
+      if (controls) controls.style.display = "none";
+      // 入口层的按钮在内联脚本里就接好（不依赖模块脚本是否加载成功）：
+      // 「进入」→ 记下 hash（开场结束后 MainLayout 会据此打开宇宙分区），
+      // 派发 gate-enter 让开场起飞；「直接浏览」→ 当作已看过，直接收尾。
+      var enterBtn = document.getElementById("gate-enter");
+      if (enterBtn) enterBtn.addEventListener("click", function () {
+        try { history.pushState({}, "", "#universe"); } catch (e) {}
+        window.__outaiGateEnter = true;
+        if (gateEl) gateEl.classList.add("gate-leaving");
+        if (controls) controls.style.display = "";
+        window.dispatchEvent(new CustomEvent("outai:gate-enter"));
+      });
+      var browseBtn = document.getElementById("gate-browse");
+      if (browseBtn) browseBtn.addEventListener("click", function () {
+        try { sessionStorage.setItem("outai-boot-shown", "1"); } catch (e) {}
+        window.__outaiBoot.play = false;
+        overlay.style.display = "none";
+        window.dispatchEvent(new CustomEvent("outai:boot-done"));
+      });
+    }
   })();
 </script>
 <script>
@@ -180,6 +223,10 @@
     // 进入主场景：品牌淡出 + 舞台收回嵌入位置（与镜头进入总览同步）。
     const onEnter = () => {
       if (brand) gsap.to(brand, { opacity: 0, duration: 0.5, ease: "power1.inOut" });
+      // 经入口层进来（hash 已是 #universe）：不收回舞台，直接落入宇宙
+      // 分区模式——镜头进入总览后舞台保持全屏，boot-done 时 MainLayout
+      // 会派发 outai:universe 让星球分区接管。
+      if (window.location.hash === "#universe") return;
       flipToEmbedded(isMobile ? 0.7 : 0.9);
     };
     // 相机到达总览 → 结束开场。
@@ -191,6 +238,9 @@
 
     const skip = () => {
       if (finished) return;
+      // 还停在入口层（没点「进入」就按了 Esc 等）：安静收尾，不起飞、
+      // 不翻转——封面直接让开，落到普通首页。
+      if (gateMode && !started) { finish(); return; }
       window.removeEventListener(BOOT_CORE, onCore);
       window.removeEventListener(BOOT_ENTER, onEnter);
       window.removeEventListener(BOOT_CAMERA_DONE, onCameraDone);
@@ -200,7 +250,8 @@
       // 通知 3D 相机立即贴到总览（不再飞行）
       window.dispatchEvent(new CustomEvent(BOOT_SKIP));
       if (brand) { gsap.killTweensOf(brand); gsap.set(brand, { opacity: 0 }); }
-      flipToEmbedded(0.35);
+      // 经入口层进来时跳过：舞台保持全屏，直接落入宇宙分区。
+      if (window.location.hash !== "#universe") flipToEmbedded(0.35);
       // 快速收尾（不等相机，0.4 秒后结束）
       window.setTimeout(finish, 400);
     };
@@ -212,16 +263,18 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !finished) skip();
     });
-    // 安全兜底：万一飞行/事件卡住，8 秒后强制结束，绝不黑屏卡死。
-    window.setTimeout(() => { if (!finished) skip(); }, 8000);
-
     // 启动：等 3D 场景渲染出第一帧再全屏+起飞（避免全屏后长时间黑屏）。
     // 场景通常在挂载后很快就绪；2.5 秒超时兜底（超时也继续，不卡住）。
     // 等待期间页面是正常首页（非全屏、无黑屏），舞台全屏时 3D 已可见。
+    // 入口层模式下，场景就绪也不自动起飞——等用户点「进入」
+    // （gate-enter）。安全兜底的 8 秒计时从起飞后才开始：封面停留
+    // 本来就是等点击，不是卡死。
     let started = false;
     const start = () => {
       if (started || finished) return;
       started = true;
+      // 安全兜底：起飞之后万一飞行/事件卡住，8 秒后强制结束，绝不黑屏卡死。
+      window.setTimeout(() => { if (!finished) skip(); }, 8000);
       // 起飞前遮罩是不透明深空底（盖住等待期的首页）；起飞时变透明，
       // 3D 飞行透过遮罩可见，舞台全屏后不再是黑屏起手。
       revealScene();
@@ -230,8 +283,13 @@
       window.dispatchEvent(new CustomEvent(BOOT_FLY));
       if (soundOn) playBootSound();
     };
-    window.addEventListener(SCENE_READY, start, { once: true });
-    window.setTimeout(start, 2500);
+    const gateMode = !!(flag as { gate?: boolean }).gate;
+    let gatePassed = !gateMode
+      || !!(window as unknown as { __outaiGateEnter?: boolean }).__outaiGateEnter;
+    const tryStart = () => { if (gatePassed) start(); };
+    window.addEventListener("outai:gate-enter", () => { gatePassed = true; tryStart(); });
+    window.addEventListener(SCENE_READY, tryStart, { once: true });
+    window.setTimeout(tryStart, 2500);
   })();
 </script>
 <style>
@@ -307,6 +365,65 @@
   }
   .boot-controls button:hover { background: rgba(97, 237, 255, 0.16); border-color: rgba(97, 237, 255, 0.6); }
   #boot-skip { border-color: rgba(166, 138, 255, 0.55); color: #e6dcff; }
+  /* ---- 入口层（GATE）封面：大字标 + 流光 + 呼吸光圈按钮 ---- */
+  .boot-gate {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    transition: opacity .45s ease, transform .45s ease, filter .45s ease;
+  }
+  .boot-gate[hidden] { display: none; }
+  /* 点「进入」后封面放大虚化着让开，开场在它身后起飞。 */
+  .boot-gate.gate-leaving { opacity: 0; transform: scale(1.07); filter: blur(8px); pointer-events: none; }
+  .gate-word {
+    font-size: clamp(64px, 16vw, 148px); font-weight: 800; letter-spacing: .16em; line-height: 1;
+    background: linear-gradient(100deg, #dff8ff 5%, #61edff 40%, #a68aff 72%, #7dffce 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+    animation: gate-flow 7s linear infinite;
+    text-shadow: 0 0 46px rgba(97, 237, 255, .35), 0 2px 18px rgba(3, 4, 11, .9);
+  }
+  @keyframes gate-flow { to { background-position: 220% 0; } }
+  .gate-sub {
+    margin-top: 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px; letter-spacing: .42em; color: rgba(214, 240, 255, .82);
+    text-shadow: 0 1px 12px rgba(3, 4, 11, .9);
+  }
+  .gate-enter {
+    position: relative; margin-top: 46px;
+    width: 118px; height: 118px; border-radius: 50%;
+    border: 1px solid rgba(97, 237, 255, .55);
+    background: radial-gradient(circle, rgba(97, 237, 255, .16) 0%, rgba(3, 4, 11, .35) 72%);
+    color: #eafcff; font-size: 15px; letter-spacing: .28em; text-indent: .28em;
+    cursor: pointer;
+    transition: border-color .25s ease, box-shadow .25s ease, background .25s ease;
+  }
+  .gate-enter:hover { border-color: rgba(97, 237, 255, .9); box-shadow: 0 0 34px rgba(97, 237, 255, .35); }
+  .gate-ring {
+    position: absolute; inset: -1px; border-radius: 50%;
+    border: 1px solid rgba(97, 237, 255, .5);
+    animation: gate-ping 2.2s cubic-bezier(0, 0, .2, 1) infinite;
+    pointer-events: none;
+  }
+  @keyframes gate-ping { 0% { transform: scale(1); opacity: .8; } 80%, 100% { transform: scale(1.45); opacity: 0; } }
+  .gate-hint {
+    margin-top: 22px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px; letter-spacing: .24em; color: rgba(214, 240, 255, .5);
+  }
+  .gate-browse {
+    margin-top: 30px; padding: 8px 12px;
+    background: none; border: 0; cursor: pointer;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px; letter-spacing: .2em; color: rgba(214, 240, 255, .75);
+  }
+  .gate-browse:hover { color: #61edff; }
+  @media (max-width: 760px) {
+    .gate-enter { width: 104px; height: 104px; font-size: 14px; margin-top: 38px; }
+    .gate-sub { letter-spacing: .3em; }
+    .gate-hint { letter-spacing: .16em; }
+  }
   @media (max-width: 760px) {
     /* 手机端：按钮不遮挡主体（品牌在画面中央，按钮贴底且半透明）。 */
     .boot-controls { bottom: 20px; gap: 8px; }

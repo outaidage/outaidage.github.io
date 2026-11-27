@@ -147,16 +147,16 @@ const lastUpdate = allPosts[0]?.data.pubDate;
   <section class="section reveal-group">
     <div class="section-head"><h2>SITE DATA / 真实数据</h2></div>
     <div class="stats-row">
-      <div class="stat-cell glass-panel" data-reveal style="--i:0"><div class="stat-num">{allPosts.length}</div><div class="stat-key">Total Articles</div><div class="stat-sub">已发布文章</div></div>
-      <div class="stat-cell glass-panel" data-reveal style="--i:1"><div class="stat-num purple" id="stat-bookmarks-num">{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
-      <div class="stat-cell glass-panel" data-reveal style="--i:2"><div class="stat-num green">{modules.length}</div><div class="stat-key">Modules</div><div class="stat-sub">首页模块</div></div>
+      <div class="stat-cell glass-panel" data-reveal style="--i:0"><div class="stat-num" data-count={allPosts.length}>{allPosts.length}</div><div class="stat-key">Total Articles</div><div class="stat-sub">已发布文章</div></div>
+      <div class="stat-cell glass-panel" data-reveal style="--i:1"><div class="stat-num purple" id="stat-bookmarks-num" data-count={bookmarkCount ?? undefined}>{bookmarkCount ?? "—"}</div><div class="stat-key">Bookmarks</div><div class="stat-sub">公开书签</div></div>
+      <div class="stat-cell glass-panel" data-reveal style="--i:2"><div class="stat-num green" data-count={modules.length}>{modules.length}</div><div class="stat-key">Modules</div><div class="stat-sub">首页模块</div></div>
       <div class="stat-cell glass-panel" data-reveal style="--i:3"><div class="stat-num">{lastUpdate ? lastUpdate.toLocaleDateString("zh-CN") : "—"}</div><div class="stat-key">Last Update</div><div class="stat-sub">最近更新</div></div>
     </div>
   </section>
 
   <section class="section reveal-group">
     <div class="section-head"><h2>01 / LATEST TRANSMISSIONS</h2><a href={`${base}blog/`}>VIEW ALL ↗</a></div>
-    {posts.length ? <div class="card-grid">
+    {posts.length ? <div class="card-grid bento-grid">
       {posts.map((post, i) => <a class="card" data-tilt data-reveal style={`--i:${i}`} href={`${base}blog/${post.slug}/`}>
         <div class="card-kicker">{post.data.category} · {post.data.pubDate.toLocaleDateString("zh-CN")}</div>
         <h3>{post.data.title}</h3><p>{post.data.description}</p>
@@ -166,7 +166,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
 
   <section class="section reveal-group">
     <div class="section-head"><h2>02 / RECENT PROJECTS</h2><a href={`${base}projects/`}>VIEW ALL ↗</a></div>
-    {recentProjects.length ? <div class="card-grid">
+    {recentProjects.length ? <div class="card-grid bento-grid">
       {recentProjects.map((p, i) => <a class="card" data-tilt data-reveal style={`--i:${i}`} href={`${base}projects/`}>
         <div class="card-kicker">PROJECT · {p.status === "in_progress" ? "IN PROGRESS" : p.status === "completed" ? "COMPLETED" : "PLANNED"}</div>
         <h3>{p.name}</h3><p>{p.description}</p>
@@ -181,7 +181,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
 
   <section class="section reveal-group">
     <div class="section-head"><h2>04 / CHANGELOG</h2><a href={`${base}changelog/`}>VIEW ALL ↗</a></div>
-    {changelog.length ? <div class="card-grid">
+    {changelog.length ? <div class="card-grid bento-grid">
       {changelog.map((c, i) => <a class="card" data-tilt data-reveal style={`--i:${i}`} href={`${base}changelog/`}>
         <div class="card-kicker">{c.version} · {new Date(c.published_at).toLocaleDateString("zh-CN")}</div>
         <h3>{c.title}</h3>

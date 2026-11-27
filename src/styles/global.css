@@ -708,3 +708,103 @@ body.universe-open .radial-controls { bottom: 96px; }
 .radial-open .radial-info { opacity: 1; }
 .radial-info-name { font-size: 13px; color: #e6edf3; }
 .radial-info-meta { font-size: 11px; color: #929dab; }
+
+/* ================================================================
+   视觉升级第一批（2026-11-27）：Bento 布局 + 卡片高光/流光描边 +
+   标题流光 + 页脚大字。动效开关只认站内 html[data-motion="reduced"]，
+   与全站其他动效同一个原则（不认操作系统设置）。
+   ================================================================ */
+
+/* ---- 卡片高光跟随 + 流光描边 ----
+   --mx/--my 由 tilt.ts 在指针移动时写入（触摸设备不写、也不触发
+   hover，光斑保持隐藏）；::after 用 conic 渐变做描边流光，角度
+   动画靠 @property，不支持的浏览器退化为静态光晕，不报错。 */
+@property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+.card { position: relative; overflow: hidden; }
+.card::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(97, 237, 255, .13), transparent 65%);
+  opacity: 0; transition: opacity .25s ease; pointer-events: none;
+}
+.card:hover::before { opacity: 1; }
+.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px;
+  background: conic-gradient(from var(--angle), transparent 0%, rgba(97, 237, 255, .55) 12%, transparent 26%, transparent 55%, rgba(166, 138, 255, .45) 68%, transparent 82%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0; transition: opacity .3s ease; pointer-events: none;
+}
+.card:hover::after { opacity: 1; animation: angle-spin 3.5s linear infinite; }
+@keyframes angle-spin { to { --angle: 360deg; } }
+html[data-motion="reduced"] .card::after { animation: none; }
+
+/* ---- Bento 首页网格（桌面）：第一张是 2×2 主卡，其余 2×1 拼图 ---- */
+@media (min-width: 761px) {
+  .bento-grid { grid-template-columns: repeat(4, 1fr); grid-auto-flow: dense; }
+  .bento-grid .card { grid-column: span 2; }
+  .bento-grid .card:first-child {
+    grid-column: span 2; grid-row: span 2;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 28px;
+    background:
+      radial-gradient(420px 220px at 88% 112%, rgba(166, 138, 255, .17), transparent 65%),
+      linear-gradient(145deg, #0d1024, #0a0c1e);
+  }
+  .bento-grid .card:first-child h3 { font-size: 25px; line-height: 1.35; }
+  .bento-grid .card:first-child p { font-size: 13px; }
+  .bento-grid .card:first-child .card-kicker { color: var(--energy-cyan); }
+}
+
+/* ---- 统计卡：静态角光 + 悬停描边提亮（数字滚动在 count-up.ts） ---- */
+.stat-cell { position: relative; overflow: hidden; transition: border-color .25s ease; }
+.stat-cell::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(220px 120px at 12% 0%, rgba(97, 237, 255, .12), transparent 70%);
+  pointer-events: none;
+}
+.stat-cell:hover { border-color: rgba(97, 237, 255, .45); }
+
+/* ---- 标题流光：Hero 渐变字流动 + Section 标题周期性扫光 ---- */
+.hero-du h1:not(.hero-solid) .hero-char.grad {
+  background-image: linear-gradient(92deg, var(--energy-cyan), var(--holo-purple), var(--energy-green), var(--energy-cyan));
+  background-size: 300% 100%;
+  animation: hero-char-in .45s cubic-bezier(.2, .9, .3, 1.4) forwards, grad-flow 7s linear infinite;
+  animation-delay: var(--d, 0ms), 0s;
+}
+@keyframes grad-flow { to { background-position: 300% 0; } }
+html[data-motion="reduced"] .hero-du h1:not(.hero-solid) .hero-char.grad { animation: none; }
+.section-head h2 {
+  background: linear-gradient(100deg, #dbe1e8 42%, #61edff 50%, #a68aff 54%, #dbe1e8 62%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: head-shine 7s ease-in-out infinite;
+}
+@keyframes head-shine {
+  0% { background-position: 120% 0; }
+  38% { background-position: -30% 0; }
+  100% { background-position: -30% 0; }
+}
+html[data-motion="reduced"] .section-head h2 { animation: none; }
+
+/* ---- 页脚：巨型描边字 + 链接行 ---- */
+.footer { display: block; padding: 26px 0 38px; }
+.footer-giant {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(76px, 17.5vw, 200px); font-weight: 800;
+  letter-spacing: .1em; line-height: .92; text-align: center;
+  color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .13);
+  -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 98%);
+  mask-image: linear-gradient(to bottom, #000 52%, transparent 98%);
+  user-select: none; pointer-events: none;
+  margin-bottom: -4px;
+}
+.footer-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.footer-nav { display: flex; gap: 18px; }
+.footer-nav a { color: #9aa5b3; }
+.footer-nav a:hover { color: #61edff; }
+@media (max-width: 760px) {
+  .footer-row { flex-direction: column; text-align: center; }
+  .footer-nav { flex-wrap: wrap; justify-content: center; }
+}

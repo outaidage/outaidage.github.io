@@ -57,7 +57,7 @@ export default function LatestBookmarks({
   }
 
   return (
-    <div className="card-grid">
+    <div className="card-grid bento-grid">
       {items.map((b, i) => (
         <a
           key={b.id}
