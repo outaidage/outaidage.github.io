@@ -3,6 +3,6 @@ import MainLayout from "@/layouts/MainLayout.astro";
 import Guestbook from "@/components/Guestbook";
 ---
 <MainLayout title="留言板 — OUTAI">
-  <header class="page-head"><div class="eyebrow"><span class="pulse"></span> GUESTBOOK</div><h1>留言板<span style="color:#61edff">.</span></h1><p>路过这里，留下一句话。</p></header>
+  <header class="page-head" data-ghost="GUESTBOOK"><div class="eyebrow"><span class="pulse"></span> GUESTBOOK</div><h1>留言板<span style="color:#61edff">.</span></h1><p>路过这里，留下一句话。</p></header>
   <Guestbook client:load />
 </MainLayout>

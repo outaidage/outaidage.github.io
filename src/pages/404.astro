@@ -1,15 +1,36 @@
 ---
 import MainLayout from "@/layouts/MainLayout.astro";
 ---
-<MainLayout title="页面不存在 — OUTAI" description="这个页面不存在。">
-  <section class="hero">
-    <div class="eyebrow"><span class="pulse"></span> 404 / NOT FOUND</div>
-    <h1>这个页面<br/>不<em>存在</em>。</h1>
-    <p>链接可能错了，或者内容已经搬家。可以从首页重新开始，或者去文章和书签里找找。</p>
+<MainLayout title="迷失太空 — OUTAI" description="这个坐标不存在，你的飞船偏离了航线。">
+  <section class="lost">
+    <div class="lost-ghost" aria-hidden="true">404</div>
+    <div class="eyebrow"><span class="pulse"></span> SIGNAL LOST / 信号丢失</div>
+    <h1>飞船偏离<em>航线</em>了。</h1>
+    <p>这个坐标在 OUTAI 宇宙里不存在——链接可能写错了，或者这颗星球已经搬走了。</p>
     <div class="hero-actions">
-      <a class="button primary" href={`${import.meta.env.BASE_URL}`}>回首页 ↗</a>
+      <a class="button primary" href={`${import.meta.env.BASE_URL}`}>返航首页 ↗</a>
+      <a class="button secondary" href={`${import.meta.env.BASE_URL}#universe`}>进入宇宙 ☉</a>
       <a class="button secondary" href={`${import.meta.env.BASE_URL}blog/`}>浏览文章 ↗</a>
-      <a class="button secondary" href={`${import.meta.env.BASE_URL}collection/`}>探索书签 ↗</a>
     </div>
   </section>
+  <style>
+    .lost {
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; padding: 120px 0 100px;
+    }
+    .lost-ghost {
+      position: absolute; left: 50%; top: 46%;
+      transform: translate(-50%, -50%);
+      font: 800 clamp(170px, 34vw, 340px) Inter, ui-sans-serif, system-ui, sans-serif;
+      line-height: 1; letter-spacing: .02em;
+      color: transparent; -webkit-text-stroke: 1px rgba(97, 237, 255, .14);
+      pointer-events: none; user-select: none;
+    }
+    .lost .eyebrow, .lost h1, .lost p, .lost .hero-actions { position: relative; }
+    .lost h1 { font-size: clamp(34px, 5.4vw, 54px); margin: 14px 0 0; }
+    .lost h1 em { color: var(--energy-cyan); font-style: normal; }
+    .lost p { color: var(--text-dim); max-width: 520px; }
+    .lost .hero-actions { justify-content: center; margin-top: 10px; }
+  </style>
 </MainLayout>

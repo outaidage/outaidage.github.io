@@ -46,6 +46,12 @@ const jsonLd = {
     <meta name="twitter:image" content={ogImage} />
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <link rel="icon" type="image/svg+xml" href={`${import.meta.env.BASE_URL}favicon.svg`} />
+    <link rel="alternate" type="application/rss+xml" title="OUTAI RSS" href={`${import.meta.env.BASE_URL}rss.xml`} />
+    <link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.webmanifest`} />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OUTAI" />
+    <link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}icons/apple-touch-icon.png`} />
     <title>{title}</title>
     <ClientRouter />
     <script is:inline>
@@ -57,6 +63,14 @@ const jsonLd = {
       } catch (e) {}
       // 滚动渐现的开关：JS 可用时才隐藏 [data-reveal]（无 JS 时内容直接可见）。
       document.documentElement.classList.add("js-reveal");
+      // 省流/慢网：给 <html> 加 bg-static，CSS 据此停掉视频/图片背景层，
+      // 只留深空渐变——省流量也省电（video-background.css 实现）。
+      try {
+        var conn = navigator.connection;
+        if (conn && (conn.saveData || /(^|-)2g$/.test(conn.effectiveType || ""))) {
+          document.documentElement.classList.add("bg-static");
+        }
+      } catch (e) {}
     </script>
   </head>
   <body>
@@ -274,6 +288,14 @@ const jsonLd = {
       }
       document.addEventListener("astro:page-load", startCursorFx);
       startCursorFx();
+    </script>
+    <script is:inline>
+      // PWA：注册离线缓存（仅 https / localhost；失败静默，不影响使用）。
+      if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        });
+      }
     </script>
     <script>
       // Wormhole page transition (DIGITAL UNIVERSE 2.0). GSAP energy burst

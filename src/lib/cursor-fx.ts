@@ -11,7 +11,10 @@ type Particle = {
 type Ripple = { x: number; y: number; r: number; alpha: number };
 
 const COLORS = ["97,237,255", "166,138,255", "125,255,206"];
-const MAX_PARTICLES = 90;
+// 低配设备（≤4 核）粒子上限减半、撒粉节流放宽，照顾低配机。
+const LOW_SPEC = (navigator.hardwareConcurrency || 8) <= 4;
+const MAX_PARTICLES = LOW_SPEC ? 40 : 90;
+const SPAWN_MS = LOW_SPEC ? 40 : 24;
 
 export function initCursorFx(): () => void {
   if (document.documentElement.dataset.motion === "reduced") return () => {};
@@ -100,7 +103,7 @@ export function initCursorFx(): () => void {
 
   const onMove = (e: PointerEvent) => {
     const now = performance.now();
-    if (now - lastSpawn < 24) return; // 节流：约每 24ms 撒一颗
+    if (now - lastSpawn < SPAWN_MS) return; // 节流：约每 24ms 撒一颗（低配 40ms）
     lastSpawn = now;
     if (particles.length > MAX_PARTICLES) {
       particles.splice(0, particles.length - MAX_PARTICLES);
