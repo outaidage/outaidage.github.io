@@ -89,9 +89,19 @@ const jsonLd = {
       </nav>
       <main data-pagefind-ignore={noindex || undefined}><slot /></main>
       <footer class="footer">
-        <span>© {new Date().getFullYear()} OUTAI</span>
-        <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a href={`${import.meta.env.BASE_URL}bookmarklet/`}>Bookmarklet</a></span>
-        <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
+        <div class="footer-giant" aria-hidden="true">OUTAI</div>
+        <div class="footer-row">
+          <span>© {new Date().getFullYear()} OUTAI</span>
+          <nav class="footer-nav" aria-label="页脚导航">
+            <a href={`${import.meta.env.BASE_URL}blog/`}>文章</a>
+            <a href={`${import.meta.env.BASE_URL}projects/`}>项目</a>
+            <a href={`${import.meta.env.BASE_URL}collection/`}>收藏</a>
+            <a href={`${import.meta.env.BASE_URL}toolbox/`}>工具箱</a>
+            <a href={`${import.meta.env.BASE_URL}about/`}>关于</a>
+          </nav>
+          <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a href={`${import.meta.env.BASE_URL}bookmarklet/`}>Bookmarklet</a></span>
+          <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
+        </div>
       </footer>
     </div>
     <CommandTerminal client:load />
@@ -236,6 +246,18 @@ const jsonLd = {
       }
       document.addEventListener("astro:page-load", startTilt);
       startTilt();
+    </script>
+    <script>
+      // 首页 SITE DATA 数字滚动（[data-count] 元素滚入视口时从 0 数到
+      // 目标值）。与 tilt 同一个模式：视图切换后重新初始化，旧实例先清理。
+      import { initCountUp } from "@/lib/count-up";
+      let countUpCleanup: (() => void) | null = null;
+      function startCountUp() {
+        if (countUpCleanup) { countUpCleanup(); countUpCleanup = null; }
+        countUpCleanup = initCountUp();
+      }
+      document.addEventListener("astro:page-load", startCountUp);
+      startCountUp();
     </script>
     <script>
       // Wormhole page transition (DIGITAL UNIVERSE 2.0). GSAP energy burst

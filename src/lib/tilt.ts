@@ -18,10 +18,16 @@ export function initTilt(): () => void {
       const py = (e.clientY - r.top) / Math.max(r.height, 1) - 0.5;
       el.style.transform = `perspective(900px) rotateX(${(-py * 7).toFixed(2)}deg) rotateY(${(px * 9).toFixed(2)}deg) translateY(-3px)`;
       el.style.borderColor = "rgba(97, 237, 255, 0.45)";
+      // 高光跟随：把指针位置写进 CSS 变量，卡片的 ::before 径向光斑
+      // （global.css .card::before）就跟着指针走。
+      el.style.setProperty("--mx", `${((px + 0.5) * 100).toFixed(1)}%`);
+      el.style.setProperty("--my", `${((py + 0.5) * 100).toFixed(1)}%`);
     };
     const onLeave = () => {
       el.style.transform = "";
       el.style.borderColor = "";
+      el.style.removeProperty("--mx");
+      el.style.removeProperty("--my");
     };
     // Listen to both pointermove and mousemove: some environments dispatch
     // only one of them for synthetic or touch-driven cursors.
