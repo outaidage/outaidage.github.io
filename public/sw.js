@@ -2,8 +2,10 @@
 // 策略：带哈希的静态资源与图片 = 缓存优先（内容不变，放心缓存）；
 // 页面与其它请求 = 网络优先（内容永远新鲜），失败时回退缓存，
 // 离线也能打开最近看过的页面。跨域请求（Supabase / R2 视频等）
-// 一律不碰。改版时把 CACHE 版本号 +1 即可全量刷新。
-const CACHE = "outai-v1";
+// 一律不碰。CACHE 名里的 __BUILD__ 会在构建时被 scripts/stamp-sw.mjs
+// 替换成本次构建的唯一标记，每次部署自动全量刷新旧缓存（v1 时代曾长期
+// 不换名，旧手机可能一直吃老缓存）。
+const CACHE = "outai-__BUILD__";
 const CORE = ["/favicon.svg", "/manifest.webmanifest", "/og.png"];
 
 self.addEventListener("install", (event) => {
