@@ -1,0 +1,85 @@
+---
+// /resources/ — 资源中心：全站资源的目录页。
+// 首页「资源中心」模块一直指向这里，但页面此前不存在（404）。
+// 内容全部来自真实数据：recommended_links（与推荐链接页同一张表）
+// 按分类静态渲染，另加工具箱 / 书签收藏 / 推荐链接三个入口卡。
+import MainLayout from "@/layouts/MainLayout.astro";
+import { supabase } from "@/lib/supabase";
+
+type Link = {
+  id: string;
+  title: string;
+  url: string;
+  description: string | null;
+  category: string | null;
+  sort_order: number;
+};
+
+let links: Link[] = [];
+try {
+  if (supabase) {
+    const { data } = await supabase
+      .from("recommended_links")
+      .select("id,title,url,description,category,sort_order")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (data) links = data as Link[];
+  }
+} catch {}
+
+const groups = new Map<string, Link[]>();
+for (const l of links) {
+  const key = l.category || "未分类";
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key)!.push(l);
+}
+const base = import.meta.env.BASE_URL;
+---
+
+<MainLayout title="资源中心 — OUTAI" description="OUTAI 资源中心：软件、工具、教程与实用资源的目录，含推荐链接与全站资源入口。">
+  <header class="page-head" data-ghost="RESOURCES">
+    <div class="eyebrow"><span class="pulse"></span> RESOURCES</div>
+    <h1>资源中心<span style="color:#61edff">.</span></h1>
+    <p>软件、工具、教程和实用资源的目录。链接由站长维护，点开直接到达。</p>
+  </header>
+
+  <div class="card-grid" style="margin-bottom:28px">
+    <a class="card" href={`${base}toolbox/`}>
+      <div class="card-kicker">TOOLBOX</div>
+      <h3 style="margin:6px 0">在线工具箱</h3>
+      <p style="margin:0;color:#9ba4b1;line-height:1.7">JSON 格式化、Base64、字数统计、JWT 解析、时间戳转换，全部在浏览器本地运行。</p>
+    </a>
+    <a class="card" href={`${base}collection/`}>
+      <div class="card-kicker">BOOKMARKS</div>
+      <h3 style="margin:6px 0">书签收藏</h3>
+      <p style="margin:0;color:#9ba4b1;line-height:1.7">按分类整理的公开书签，可搜索、可筛选。</p>
+    </a>
+    <a class="card" href={`${base}links/`}>
+      <div class="card-kicker">LINKS</div>
+      <h3 style="margin:6px 0">推荐链接</h3>
+      <p style="margin:0;color:#9ba4b1;line-height:1.7">值得分享的网站、工具与资源，动态更新。</p>
+    </a>
+  </div>
+
+  {links.length ? (
+    [...groups.entries()].map(([cat, items]) => (
+      <section class="section" style="padding-top:10px">
+        <div class="section-head"><h2>{cat}</h2><span style="font-size:12px;color:#929dab">{items.length} 个资源</span></div>
+        <div class="card-grid">
+          {items.map((l) => (
+            <a class="card" href={l.url} target="_blank" rel="noopener noreferrer">
+              <h3 style="margin:0 0 6px">{l.title}</h3>
+              {l.description ? <p style="margin:0 0 8px;color:#9ba4b1;line-height:1.7">{l.description}</p> : null}
+              <span style="font-size:12px;color:#61edff;word-break:break-all">{l.url}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ))
+  ) : (
+    <div class="card">
+      <h3 style="margin:0 0 6px">资源正在整理中</h3>
+      <p style="margin:0;color:#9ba4b1;line-height:1.7">先去<a href={`${base}links/`} style="color:#61edff">推荐链接</a>或<a href={`${base}collection/`} style="color:#61edff">书签收藏</a>看看，资源会陆续补齐。</p>
+    </div>
+  )}
+</MainLayout>

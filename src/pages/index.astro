@@ -130,6 +130,15 @@ const lastUpdate = allPosts[0]?.data.pubDate;
   <section class="core-stage glass-panel" id="core-stage" aria-label="数字宇宙核心">
     <SpaceCore client:load planetSatellites={planetSatellites} />
     <div class="core-fallback" id="core-fallback" hidden><span id="core-fallback-text">3D 核心已关闭 · 使用轻量模式</span><button id="core-retry" class="core-retry" type="button" hidden>重试 3D</button></div>
+    <div class="core-lite" id="core-lite" hidden>
+      <div class="core-lite-inner">
+        <div class="core-lite-title">◐ 轻量模式</div>
+        <p class="core-lite-desc">当前设备未启用 3D 渲染，宇宙以轻量方式运行。下面是全部空间入口，点开直接到达。</p>
+        <div class="core-lite-grid">
+          {modules.map((m) => <a class="core-lite-chip" href={`${base.replace(/\/$/, "")}${m.path}`}>{m.icon ? `${m.icon} ` : ""}{m.name}</a>)}
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="core-status glass-panel" aria-label="核心状态">
@@ -140,7 +149,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
   </section>
 
   <section class="section reveal-group">
-    <div class="section-head" data-ghost="NAVIGATION"><h2>NAVIGATION / 空间导航</h2><span style="font-size:12px;color:#929dab">模块由后台管理，增删改排自动生效</span></div>
+    <div class="section-head" data-ghost="NAVIGATION"><h2>NAVIGATION / 空间导航</h2><span style="font-size:12px;color:#929dab">点开任意模块直接到达，或进入宇宙，从行星开始探索</span></div>
     <HomeModules client:load initial={modules} base={base} />
   </section>
 

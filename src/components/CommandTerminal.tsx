@@ -23,7 +23,7 @@ const ROUTES: Record<string, { href: string; label: string }> = {
 const HELP = [
   "commands:",
   "  home / blog / bookmarks / projects / about",
-  "  links / guestbook / search / admin",
+  "  links / guestbook / search",
   "  clear — 清空终端",
   "  help — 显示本帮助",
 ];
