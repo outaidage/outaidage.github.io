@@ -730,9 +730,13 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
   // 也会因 distanceFactor 放大成横贯全屏的横幅；信息面板已显示聚焦行星。
   const orbitsVisible = mode === "universe" || mode === "navigation" || mode === "solar";
   // 标签按相机距离缩放（宽视角下字太小看不清）：UNIVERSE 10 / NAVIGATION 18 / SOLAR 40。
-  const labelDistanceFactor = mode === "solar" ? 40 : mode === "navigation" ? 18 : 10;
-  // UNIVERSE 总览下标签只显示名称（水星/金星标签在太阳附近重叠）。
-  const compactLabels = mode === "universe";
+  // 窄屏（手机）必须大幅调小：SOLAR 的 40 在手机上会把标签放大成横贯
+  // 屏幕的横幅（实测火星标签盖住半个地球），且只显示名称不带功能副标。
+  const narrow = typeof window !== "undefined" && window.innerWidth < 760;
+  const labelDistanceFactor = mode === "solar" ? (narrow ? 15 : 40) : mode === "navigation" ? (narrow ? 10 : 18) : narrow ? 8 : 10;
+  // UNIVERSE 总览下标签只显示名称（水星/金星标签在太阳附近重叠）；
+  // 手机 SOLAR 模式同样只显示名称。
+  const compactLabels = mode === "universe" || (narrow && mode === "solar");
   const focusedPlanet = focus ? (planetMap.get(focus) ?? PLANET_MAP[focus]) : null;
   const focusedSatellites = focus ? (planetSatellites[focus] ?? []) : [];
 

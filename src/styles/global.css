@@ -96,7 +96,12 @@ button,input,textarea,select{font:inherit}
 .article-body a{color:#61edff;text-decoration:underline}
 .article-body pre{overflow:auto;background:#0a0d20;border:1px solid #232c4a;border-radius:9px;padding:18px}
 .article-body code{font-family:'DM Mono',monospace;font-size:.9em}
-@media(max-width:760px){.site-shell{width:min(100% - 32px,1120px)}.desktop-nav{display:none}.hero{padding:76px 0 56px}.card-grid{grid-template-columns:1fr}.category-grid{grid-template-columns:repeat(2,1fr)}.footer{flex-direction:column}.topbar{height:70px}}
+@media(max-width:760px){.site-shell{width:min(100% - 32px,1120px)}.desktop-nav{display:none}.hero{padding:76px 0 56px}.card-grid{grid-template-columns:1fr}.category-grid{grid-template-columns:repeat(2,1fr)}.footer{flex-direction:column}.topbar{height:70px}
+/* 顶栏右侧在手机上只留「进入宇宙」+ 汉堡菜单：SYSTEM ONLINE / TERMINAL /
+   搜索图标全部藏起来（搜索在抽屉菜单里，终端是桌面玩法）。此前五件全挤在
+   349px 的 top-actions 里，把整页撑到 465px 宽——手机上页眉重叠、汉堡和
+   搜索被推出屏幕外，后台标签页也跟着被裁（实测 body scrollWidth 465 > 393）。 */
+.topbar .hud-label{display:none}.topbar .terminal-btn{display:none}.topbar .icon-link{display:none}.top-actions{gap:12px;min-width:0}}
 .menu-button{display:none;background:none;border:1px solid #232c4a;border-radius:8px;width:40px;height:40px;padding:0;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px}
 .menu-button span{display:block;width:18px;height:2px;background:#dce2e9;border-radius:2px;transition:transform .2s,opacity .2s}
 .menu-button.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
@@ -459,8 +464,12 @@ body.universe-open { overflow: hidden; }
   background: rgba(166, 138, 255, .12);
 }
 @media (max-width: 760px) {
-  .galaxy-panel { right: 8px; top: 8px; bottom: auto; padding: 6px 8px; }
+  /* 面板宽度由最宽一行（5 个模式按钮 ≈430px）决定，只锚 right 会向左
+     溢出屏幕（实测左端 UNIVERSE 被切成 VERSE）。改为左右双锚限宽 +
+     行内换行，面板永远完整落在屏幕内。 */
+  .galaxy-panel { left: 8px; right: 8px; top: 8px; bottom: auto; padding: 6px 8px; align-items: stretch; }
   .galaxy-status { display: none; }
+  .galaxy-panel-row { flex-wrap: wrap; justify-content: flex-end; }
   .galaxy-panel-row button { font-size: 9px; padding: 5px 7px; }
 }
 
