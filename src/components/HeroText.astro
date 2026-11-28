@@ -3,11 +3,14 @@
 // start: 起始延迟（毫秒）；step: 每字间隔（毫秒）；cls: 额外 class（渐变段传 "grad"）。
 // 文字本身就在 HTML 里（SEO、无 JS 也可见）；减弱动效（站内开关）时 CSS
 // 直接显示全部，不做动画。
-// 断行规则：按空格把文字分组，每个词包进 .hero-word（nowrap），词与词
-// 之间留真实空格作为断行点——长英文标题只会从词间断行，不会把一个词
-// 从中间劈开（之前逐字 inline-block + 不换行空格，标题会断成
-// “Onward Until / he Aurora”这种）。超过 14 字的“词”（多为无空格的
-// 长中文串）不打包，保持逐字可断行，避免手机上溢出。
+// 断行规则（v3，修复“单词被拆成两行”）：
+// - 拉丁字母/数字串是原子词，包进 .hero-word（nowrap），多长都不从
+//   中间断开（词内的 - ' . 也归入词内）；v2 只按空格分组且 >14 字的
+//   “词”退回逐字可断，长英文词、没空格的中英混排都会被劈开。
+// - 中日韩字与标点逐字成 span，可在字间断行（中文排版惯例）。
+// - 空格（半角 / 全角 / 不换行空格）是断行点，渲染为真实空格。
+// 原子词再宽也不会溢出屏幕：index.astro 的适配脚本会量最宽的词，
+// 超出容器时等比缩小整个标题字号（--hero-fit）。
 interface Props {
   text: string;
   start?: number;
@@ -16,16 +19,28 @@ interface Props {
 }
 const { text, start = 0, step = 40, cls = "" } = Astro.props;
 type CharCell = { ch: string; d: number };
-const words: CharCell[][] = [];
-let cur: CharCell[] = [];
+type Token = { kind: "word" | "char" | "space"; cells: CharCell[] };
+const tokens: Token[] = [];
+let word: CharCell[] = [];
+const flushWord = () => {
+  if (word.length) { tokens.push({ kind: "word", cells: word }); word = []; }
+};
+const isWordChar = (c: string) => /[A-Za-z0-9]/.test(c);
+const isWordJoiner = (c: string) => c === "-" || c === "'" || c === "’" || c === ".";
 [...text].forEach((c, i) => {
-  if (c === " ") {
-    words.push(cur);
-    cur = [];
+  const cell: CharCell = { ch: c, d: start + i * step };
+  if (/\s/.test(c) || c === "　" || c === " ") {
+    flushWord();
+    tokens.push({ kind: "space", cells: [cell] });
+  } else if (isWordChar(c)) {
+    word.push(cell);
+  } else if (isWordJoiner(c) && word.length) {
+    word.push(cell);
   } else {
-    cur.push({ ch: c, d: start + i * step });
+    flushWord();
+    tokens.push({ kind: "char", cells: [cell] });
   }
 });
-words.push(cur);
+flushWord();
 ---
-<span class={`hero-chars ${cls}`} aria-label={text}>{words.map((word, wi) => (<>{wi > 0 ? " " : ""}{word.length <= 14 ? <span class="hero-word" aria-hidden="true">{word.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`}>{ch}</span>)}</span> : word.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`} aria-hidden="true">{ch}</span>)}</>))}</span>
+<span class={`hero-chars ${cls}`} aria-label={text}>{tokens.map((t) => t.kind === "space" ? " " : t.kind === "word" ? <span class="hero-word" aria-hidden="true">{t.cells.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`}>{ch}</span>)}</span> : t.cells.map(({ ch, d }) => <span class={`hero-char${cls ? ` ${cls}` : ""}`} style={`--d:${d}ms`} aria-hidden="true">{ch}</span>))}</span>

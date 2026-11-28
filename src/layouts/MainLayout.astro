@@ -9,8 +9,12 @@ import VideoSceneManager from "@/components/background/VideoSceneManager";
 import { SITE } from "@/lib/site";
 import { getNavModules } from "@/lib/home-modules";
 import BootIntro from "@/components/BootIntro.astro";
+import { getBootBrand } from "@/lib/universe-config";
 // 导航由首页模块驱动（show_in_nav=true 的已发布模块）；失败时回退到 SITE.nav。
 const navItems = (await getNavModules()).map((m) => ({ label: m.name, href: m.path }));
+// 开场品牌文字：后台「3D 宇宙管理」的 boot_brand / boot_subline（构建时读，
+// 以前 BootIntro 写死文案、后台改了不生效）；读不到时用默认值。
+const bootBrand = await getBootBrand();
 const { title = SITE.title, description = SITE.description, type = "website", image, noindex = false } = Astro.props as {
   title?: string; description?: string; type?: "website" | "article"; image?: string; noindex?: boolean;
 };
@@ -74,7 +78,7 @@ const jsonLd = {
     </script>
   </head>
   <body>
-    {path === "/" && <BootIntro />}
+    {path === "/" && <BootIntro brand={bootBrand.brand} subline={bootBrand.subline} />}
     <VideoSceneManager client:load />
     <DigitalUniverse />
     {/* 极光 + 流星层：盖在视频背景之上、内容（z-index 1）之下，纯装饰、
@@ -335,6 +339,11 @@ const jsonLd = {
               pushed = true;
             }
           }
+          // 进入宇宙前先给 SpaceCore 一个重新探测 WebGL 的机会：首次
+          // 探测若被 Safari 首帧抖动误判，轻量模式会锁死整个会话，
+          // 点「进入」也进不去（用户实测）。探测成功后 SpaceCore 会
+          // 挂载 Canvas，下面的 universe 事件它即使在禁用态也能收到。
+          window.dispatchEvent(new Event("outai:retry-3d"));
           // 每次都派发：视图切换会重建 SpaceCore，若只在首次派发，重建后
           // 的 SpaceCore 收不到事件（无退出按钮、模式仍是 UNIVERSE），而
           // CSS 类已在 body/stage 上（全屏已展开）——这正是导航栏入口的 bug。

@@ -271,7 +271,7 @@ html[data-motion="reduced"] .button:active { transform: none; }
   white-space: nowrap;
 }
 .hero-du h1 {
-  font-size: calc(clamp(46px, 7.5vw, 84px) * var(--hero-title-scale, 1));
+  font-size: calc(clamp(46px, 7.5vw, 84px) * var(--hero-title-scale, 1) * var(--hero-fit, 1));
   line-height: 1.04;
   letter-spacing: -.06em;
   margin: 22px 0 18px;
@@ -409,11 +409,22 @@ html[data-motion="reduced"] .reveal-group [data-reveal] {
 body.universe-open { overflow: hidden; }
 .core-stage .core-fallback {
   position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
   color: var(--text-faint);
   font: 11px 'DM Mono', monospace;
   letter-spacing: .16em;
+  /* 徽章层不拦截点击（不挡英雄区按钮）；只有「重试 3D」按钮可点。 */
+  pointer-events: none;
 }
+.core-retry {
+  pointer-events: auto;
+  font: inherit; letter-spacing: .16em;
+  color: var(--energy-cyan);
+  background: rgba(97, 237, 255, .08);
+  border: 1px solid rgba(97, 237, 255, .45);
+  border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+.core-retry[hidden] { display: none; }
 /* The [hidden] attribute must win over the flex display above. */
 .core-stage .core-fallback[hidden] { display: none; }
 

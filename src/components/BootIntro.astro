@@ -11,6 +11,20 @@
 // 支持 prefers-reduced-motion。遮罩默认隐藏（display:none），内联脚本
 // 在解析时同步决定是否播放。视图切换回首页时 ES 模块脚本不会重新执行，
 // 默认隐藏能保证遮罩绝不盖住屏幕黑屏卡死。无 JS 时 <noscript> 直接隐藏。
+interface Props {
+  /** 开场品牌文字（后台「3D 宇宙管理」boot_brand，构建时注入）。 */
+  brand?: string;
+  /** 开场副标（后台 boot_subline，构建时注入）。 */
+  subline?: string;
+}
+const { brand = "OUTAI", subline = "PERSONAL DIGITAL UNIVERSE" } = Astro.props;
+// 品牌/副标按空格分词：含拉丁字母/数字的词包 .nw（nowrap）永不拆词，
+// 中文词与空格保持可断行（与 HeroText v3 同一规则，修复窄屏上
+// “UNIVERSE 掉到第二行 / 词被劈开”）。
+const tokenize = (s: string) =>
+  s.split(/\s+/).filter(Boolean).map((w) => ({ w, nw: /[A-Za-z0-9]/.test(w) }));
+const brandTokens = tokenize(brand);
+const subTokens = tokenize(subline);
 ---
 
 <div id="boot-intro" class="boot-intro" role="dialog" aria-label="OUTAI 启动动画" aria-hidden="true" style="display:none; position:fixed; inset:0; z-index:400; background:#03040b; overflow:hidden; pointer-events:auto;">
@@ -18,16 +32,16 @@
        「直接浏览」则跳过一切。只在开场有资格播放、非重播、且不是带着
        #universe 进来时出现（由下方内联脚本决定，默认 hidden）。 -->
   <div class="boot-gate" id="boot-gate" hidden>
-    <div class="gate-word" aria-hidden="true">OUTAI</div>
-    <div class="gate-sub">PERSONAL DIGITAL UNIVERSE</div>
+    <div class="gate-word" aria-hidden="true">{brandTokens.map((t, i) => (<>{i > 0 ? " " : ""}{t.nw ? <span class="nw">{t.w}</span> : t.w}</>))}</div>
+    <div class="gate-sub">{subTokens.map((t, i) => (<>{i > 0 ? " " : ""}{t.nw ? <span class="nw">{t.w}</span> : t.w}</>))}</div>
     <button class="gate-enter" id="gate-enter" type="button"><span class="gate-ring" aria-hidden="true"></span>点击进入</button>
-    <div class="gate-hint">ENTER THE UNIVERSE · 点星球进入分区</div>
+    <div class="gate-hint"><span class="nw">ENTER</span> <span class="nw">THE</span> <span class="nw">UNIVERSE</span> · 点星球进入分区</div>
     <button class="gate-browse" id="gate-browse" type="button">直接浏览 →</button>
   </div>
   <div class="boot-brand" aria-hidden="true">
     <div class="boot-pulse"></div>
-    <div class="boot-word">OUTAI</div>
-    <div class="boot-sub">PERSONAL DIGITAL UNIVERSE</div>
+    <div class="boot-word">{brandTokens.map((t, i) => (<>{i > 0 ? " " : ""}{t.nw ? <span class="nw">{t.w}</span> : t.w}</>))}</div>
+    <div class="boot-sub">{subTokens.map((t, i) => (<>{i > 0 ? " " : ""}{t.nw ? <span class="nw">{t.w}</span> : t.w}</>))}</div>
   </div>
   <div class="boot-controls">
     <button id="boot-sound" type="button" aria-pressed="false">音效：关</button>
@@ -81,6 +95,10 @@
       if (enterBtn) enterBtn.addEventListener("click", function () {
         try { history.pushState({}, "", "#universe"); } catch (e) {}
         window.__outaiGateEnter = true;
+        // 点「进入」这一刻就让 SpaceCore 重新探测 WebGL（不等开场播完
+        // 后 MainLayout 打开宇宙时才测）：开场飞行期间探测完成，落入
+        // 宇宙时 Canvas 已就绪，不会出现全屏空场。
+        window.dispatchEvent(new Event("outai:retry-3d"));
         if (gateEl) gateEl.classList.add("gate-leaving");
         if (controls) controls.style.display = "";
         window.dispatchEvent(new CustomEvent("outai:gate-enter"));
@@ -390,6 +408,8 @@
     font-size: 11px; letter-spacing: .42em; color: rgba(214, 240, 255, .82);
     text-shadow: 0 1px 12px rgba(3, 4, 11, .9);
   }
+  /* 英文词原子保护：词内永不断行（断行只发生在词与词之间）。 */
+  .boot-intro .nw { white-space: nowrap; }
   .gate-enter {
     position: relative; margin-top: 46px;
     width: 118px; height: 118px; border-radius: 50%;

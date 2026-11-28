@@ -4,6 +4,7 @@ import VideoSceneAdmin from "@/components/VideoSceneAdmin";
 import ArticleVersionHistory, { type ArticleVersion } from "@/components/ArticleVersionHistory";
 import ArticlePreview from "@/components/ArticlePreview";
 import HomeModuleAdmin from "@/components/HomeModuleAdmin";
+import NavAdmin from "@/components/NavAdmin";
 import BackgroundStudio from "@/components/BackgroundStudio";
 import UniverseAdmin from "@/components/UniverseAdmin";
 import HeroAdmin from "@/components/HeroAdmin";
@@ -94,7 +95,7 @@ export default function AdminApp() {
   const [message,setMessage] = useState("");
   const [msgKind,setMsgKind] = useState<"ok"|"err">("ok");
   const [items,setItems] = useState<Bookmark[]>([]);
-  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media"|"modules"|"background"|"universe"|"hero"|"projects"|"changelog"|"pages"|"toolbox">("bookmarks");
+  const [tab,setTab] = useState<"bookmarks"|"articles"|"data"|"links"|"guestbook"|"media"|"modules"|"nav"|"background"|"universe"|"hero"|"projects"|"changelog"|"pages"|"toolbox">("bookmarks");
   const [form,setForm] = useState<BookmarkForm>(emptyBookmarkForm());
   const [editingBookmarkId,setEditingBookmarkId] = useState<string|null>(null);
   const [selected,setSelected] = useState<string[]>([]);
@@ -988,6 +989,7 @@ export default function AdminApp() {
     <div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:20}}>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <button className={`button ${tab==="modules"?"primary":"secondary"}`} onClick={()=>setTab("modules")}>首页模块</button>
+        <button className={`button ${tab==="nav"?"primary":"secondary"}`} onClick={()=>setTab("nav")}>导航管理</button>
         <button className={`button ${tab==="hero"?"primary":"secondary"}`} onClick={()=>setTab("hero")}>首页 Hero</button>
         <button className={`button ${tab==="projects"?"primary":"secondary"}`} onClick={()=>setTab("projects")}>项目管理</button>
         <button className={`button ${tab==="changelog"?"primary":"secondary"}`} onClick={()=>setTab("changelog")}>更新日志</button>
@@ -1004,7 +1006,7 @@ export default function AdminApp() {
       </div>
       <button className="button secondary" onClick={logout}>退出登录</button>
     </div>
-    {tab==="modules" ? <HomeModuleAdmin say={say} /> : tab==="hero" ? <HeroAdmin say={say} /> : tab==="projects" ? <ProjectsAdmin say={say} /> : tab==="changelog" ? <ChangelogAdmin say={say} /> : tab==="pages" ? <PageContentAdmin say={say} /> : tab==="toolbox" ? <ToolboxAdmin say={say} /> : tab==="universe" ? <UniverseAdmin say={say} /> : tab==="bookmarks" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
+    {tab==="modules" ? <HomeModuleAdmin say={say} /> : tab==="nav" ? <NavAdmin say={say} /> : tab==="hero" ? <HeroAdmin say={say} /> : tab==="projects" ? <ProjectsAdmin say={say} /> : tab==="changelog" ? <ChangelogAdmin say={say} /> : tab==="pages" ? <PageContentAdmin say={say} /> : tab==="toolbox" ? <ToolboxAdmin say={say} /> : tab==="universe" ? <UniverseAdmin say={say} /> : tab==="bookmarks" ? <div className="card-grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))"}}>
       <form className="card" onSubmit={saveBookmark} style={{display:"grid",gap:10}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <h3>{editingBookmarkId ? "编辑书签" : "添加书签"}</h3>

@@ -665,25 +665,65 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
     return window.innerWidth < 760 || (navigator.hardwareConcurrency ?? 8) <= 4;
   }, []);
 
+  // WebGL 探测：three r187 只支持 WebGL2。旧实现挂载时在同一张画布上
+  // 一次性探测 webgl2→webgl：Safari 上首帧 GPU 进程未就绪、或画布被第
+  // 一种上下文模式占用，都会误判不可用，并把轻量模式锁死整个会话——
+  // 点「进入」也进不了太阳系（用户在桌面 Safari 实测）。改为：每次用
+  // 全新画布探测、探测后立即释放上下文、失败自动重试 3 次；仍失败才
+  // 进轻量模式，且点「进入宇宙」或徽章上的「重试 3D」会重新探测。
+  const enabledRef = useRef(true);
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
+  const probeWebGL2 = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: false });
+      if (!gl) return false;
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      return true;
+    } catch { return false; }
+  };
+  const tryEnableWebGL = async (attempts: number): Promise<boolean> => {
+    for (let i = 0; i < attempts; i++) {
+      if (probeWebGL2()) { setEnabled(true); setReason(null); return true; }
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 350 * (i + 1)));
+    }
+    setEnabled(false); setReason("webgl"); return false;
+  };
   useEffect(() => {
     const reduced = document.documentElement.dataset.motion === "reduced";
     if (reduced) { setEnabled(false); setReason("motion"); return; }
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
-    if (!gl) { setEnabled(false); setReason("webgl"); return; }
-    setEnabled(true); setReason(null);
+    void tryEnableWebGL(3);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const retry = () => { if (!enabledRef.current) void tryEnableWebGL(3); };
+    window.addEventListener("outai:retry-3d", retry);
+    return () => window.removeEventListener("outai:retry-3d", retry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const el = document.getElementById("core-fallback");
     if (!el) return;
+    const text = document.getElementById("core-fallback-text");
+    const retryBtn = document.getElementById("core-retry") as HTMLButtonElement | null;
     if (!enabled) {
       el.hidden = false;
-      el.textContent = reason === "motion" ? "3D 核心已关闭 · 动效已关，页脚可开启" : "WEBGL UNAVAILABLE · 使用轻量模式";
+      if (text) text.textContent = reason === "motion" ? "3D 核心已关闭 · 动效已关，页脚可开启" : "WEBGL UNAVAILABLE · 使用轻量模式";
+      if (retryBtn) retryBtn.hidden = reason !== "webgl";
     } else {
       el.hidden = true;
+      if (retryBtn) retryBtn.hidden = true;
     }
   }, [enabled, reason]);
+  // 轻量模式徽章上的「重试 3D」按钮（标记在 index.astro）→ 重新探测。
+  useEffect(() => {
+    const btn = document.getElementById("core-retry");
+    if (!btn) return;
+    const onClick = () => window.dispatchEvent(new Event("outai:retry-3d"));
+    btn.addEventListener("click", onClick);
+    return () => btn.removeEventListener("click", onClick);
+  }, []);
 
   const labelsVisible = (mode === "universe" || mode === "navigation" || mode === "solar") && focus === null;
   // 聚焦时隐藏全部标签：相机靠近被聚焦行星时，附近行星的 Html 标签

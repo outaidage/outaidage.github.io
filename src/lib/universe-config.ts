@@ -129,3 +129,35 @@ export async function loadUniverseConfig(): Promise<UniverseConfig> {
 export function planetById(planets: PlanetDef[], id: PlanetId): PlanetDef | undefined {
   return planets.find((p) => p.id === id);
 }
+
+let bootBrandCache: Promise<{ brand: string; subline: string }> | null = null;
+/**
+ * 构建时取开场品牌文字（后台「3D 宇宙管理」的 boot_brand / boot_subline）。
+ * 这两个字段以前只存不用——BootIntro 把文案写死了，后台改了不生效。
+ * 现在由 MainLayout 在构建时取一次（模块级缓存，整个构建只查一次），
+ * 作为 props 传给 BootIntro；读不到时回落默认值。
+ */
+export function getBootBrand(): Promise<{ brand: string; subline: string }> {
+  if (!bootBrandCache) {
+    bootBrandCache = (async () => {
+      const fallback = { brand: DEFAULT_SETTINGS.bootBrand, subline: DEFAULT_SETTINGS.bootSubline };
+      try {
+        if (!supabase) return fallback;
+        const { data, error } = await supabase
+          .from("universe_settings")
+          .select("boot_brand,boot_subline")
+          .eq("id", "default")
+          .maybeSingle();
+        if (error || !data) return fallback;
+        const row = data as { boot_brand?: string | null; boot_subline?: string | null };
+        return {
+          brand: row.boot_brand?.trim() || fallback.brand,
+          subline: row.boot_subline?.trim() || fallback.subline,
+        };
+      } catch {
+        return fallback;
+      }
+    })();
+  }
+  return bootBrandCache;
+}

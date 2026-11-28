@@ -129,7 +129,7 @@ const lastUpdate = allPosts[0]?.data.pubDate;
 
   <section class="core-stage glass-panel" id="core-stage" aria-label="数字宇宙核心">
     <SpaceCore client:load planetSatellites={planetSatellites} />
-    <div class="core-fallback" id="core-fallback" hidden>3D 核心已关闭 · 使用轻量模式</div>
+    <div class="core-fallback" id="core-fallback" hidden><span id="core-fallback-text">3D 核心已关闭 · 使用轻量模式</span><button id="core-retry" class="core-retry" type="button" hidden>重试 3D</button></div>
   </section>
 
   <section class="core-status glass-panel" aria-label="核心状态">
@@ -189,4 +189,30 @@ const lastUpdate = allPosts[0]?.data.pubDate;
     </div> : <div class="empty-state">还没有更新记录。<br/>在后台 → 更新日志管理中添加。</div>}
   </section>
   <Subscribe client:load />
+  <script>
+    // 标题自动适配：HeroText 保证英文单词永不拆行，但最宽的单词若仍
+    // 超过标题容器宽（长词 + 大字号缩放 + 窄屏），这里等比缩小整个
+    // 标题（--hero-fit，下限 0.5），既不拆词也不溢出。字体加载完成、
+    // 窗口尺寸变化、视图切换回首页时各重测一次。
+    function fitHeroTitle() {
+      const h1 = document.querySelector(".hero-du h1");
+      if (!h1) return;
+      h1.style.setProperty("--hero-fit", "1");
+      const cw = h1.clientWidth;
+      if (!cw) return;
+      let ratio = 1;
+      h1.querySelectorAll(".hero-word").forEach((w) => {
+        const ww = w.offsetWidth;
+        if (ww > 0) ratio = Math.min(ratio, cw / ww);
+      });
+      if (ratio < 1) h1.style.setProperty("--hero-fit", Math.max(ratio, 0.5).toFixed(3));
+    }
+    let fitTimer = 0;
+    const fitSoon = () => { window.clearTimeout(fitTimer); fitTimer = window.setTimeout(fitHeroTitle, 120); };
+    fitHeroTitle();
+    window.addEventListener("load", fitHeroTitle);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitHeroTitle);
+    window.addEventListener("resize", fitSoon);
+    document.addEventListener("astro:page-load", fitSoon);
+  </script>
 </MainLayout>
