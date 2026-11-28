@@ -121,7 +121,7 @@ const jsonLd = {
             <a href={`${import.meta.env.BASE_URL}toolbox/`}>工具箱</a>
             <a href={`${import.meta.env.BASE_URL}about/`}>关于</a>
           </nav>
-          <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a href={`${import.meta.env.BASE_URL}bookmarklet/`}>Bookmarklet</a></span>
+          <span><a href={`${import.meta.env.BASE_URL}colophon/`}>Colophon</a> <i>·</i> <a id="footer-bookmarklet" href={`${import.meta.env.BASE_URL}bookmarklet/`} hidden>Bookmarklet</a></span>
           <span>BUILT WITH ASTRO <i>·</i> EXPLORE / COLLECT / BUILD</span>
         </div>
       </footer>
@@ -232,6 +232,8 @@ const jsonLd = {
             }
             var m = document.getElementById("admin-link-mobile");
             if (m) m.hidden = !show;
+            var bk = document.getElementById("footer-bookmarklet");
+            if (bk) bk.hidden = !show;
           } catch (err) {}
         }
         syncAdminLinks();
@@ -432,6 +434,39 @@ const jsonLd = {
         }
         document.addEventListener("astro:page-load", setupReveals);
         window.addEventListener("pageshow", setupReveals);
+      })();
+    </script>
+    <script is:inline>
+      // Cloudflare Email Obfuscation 会把页面里的邮箱改写成带 data-cfemail
+      // 的占位元素，靠它自己的脚本解码；视图切换后那支脚本不重跑，邮箱
+      // 就会停在字面文本 [email protected]。这里自己解码兜底：cfemail
+      // 首字节是密钥，其余字节逐个与它异或即原文。幂等，可重复运行。
+      (function () {
+        function decodeCf() {
+          var nodes = document.querySelectorAll("[data-cfemail]");
+          nodes.forEach(function (el) {
+            try {
+              var hex = el.getAttribute("data-cfemail") || "";
+              if (hex.length < 4) return;
+              var key = parseInt(hex.slice(0, 2), 16);
+              var out = "";
+              for (var i = 2; i < hex.length; i += 2) {
+                out += String.fromCharCode(parseInt(hex.slice(i, i + 2), 16) ^ key);
+              }
+              if (!out || out.indexOf("@") < 0) return;
+              el.textContent = out;
+              if (el.tagName === "A") el.setAttribute("href", "mailto:" + out);
+              el.removeAttribute("data-cfemail");
+            } catch (err) {}
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", decodeCf);
+        } else {
+          decodeCf();
+        }
+        document.addEventListener("astro:page-load", decodeCf);
+        document.addEventListener("astro:after-swap", decodeCf);
       })();
     </script>
   </body>

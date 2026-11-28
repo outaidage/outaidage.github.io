@@ -41,7 +41,25 @@ const related = allPosts
     <div class="eyebrow"><span class="pulse"></span> {post.data.category} / {post.data.pubDate.toLocaleDateString("zh-CN")}{post.data.updatedDate ? ` · 更新于 ${post.data.updatedDate.toLocaleDateString("zh-CN")}` : ""} · 约 {minutes} 分钟</div>
     <h1>{post.data.title}</h1>
     <p>{post.data.description}</p>
-    {(post.data.tags||[]).length>0 && <div class="article-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px">{post.data.tags.map(t=><span class="tag">{t}</span>)}</div>}
+    <div class="article-tags" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:16px;align-items:center">
+      {(post.data.tags||[]).map(t=><span class="tag">{t}</span>)}
+      <button class="tag" id="copy-link-btn" type="button" style="cursor:pointer;background:none;font:inherit">复制链接 ⧉</button>
+    </div>
+    <script is:inline>
+      (function () {
+        var btn = document.getElementById("copy-link-btn");
+        if (!btn) return;
+        btn.addEventListener("click", function () {
+          var done = function () {
+            btn.textContent = "已复制 ✓";
+            setTimeout(function () { btn.textContent = "复制链接 ⧉"; }, 1600);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(window.location.href).then(done).catch(done);
+          } else { done(); }
+        });
+      })();
+    </script>
   </header>
   {post.data.cover && <img class="article-cover" src={post.data.cover} alt={post.data.title} loading="lazy" />}
   {toc.length>0 && <nav class="toc" aria-label="目录">

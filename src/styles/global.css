@@ -10,7 +10,7 @@ body{margin:0;min-width:320px;background:#03040b;color:#eef1f5;overflow-x:hidden
 a{color:inherit;text-decoration:none}
 button,input,textarea,select{font:inherit}
 .site-shell{width:min(1120px,calc(100% - 48px));margin:0 auto;position:relative;z-index:1}
-.topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1a2038}
+.topbar{height:82px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1a2038;background:linear-gradient(180deg,rgba(3,4,11,.55),rgba(3,4,11,0))}
 .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.12em;font-size:15px}
 .desktop-nav{display:flex;gap:34px;color:#9ba4b1;font-size:13px}
 .desktop-nav a:hover,.desktop-nav a.active{color:#61edff}
@@ -89,7 +89,7 @@ button,input,textarea,select{font:inherit}
 .page-head p{color:#9ba4b1;line-height:1.8;max-width:650px}
 .toolbar{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0}
 .field{background:#0a0d20;border:1px solid #232c4a;border-radius:7px;color:#eef1f5;padding:11px 13px;min-width:220px}
-.tag{display:inline-block;border:1px solid #1e3a52;border-radius:999px;padding:5px 9px;color:#61edff;font:10px 'DM Mono',monospace}
+.tag{display:inline-block;width:fit-content;border:1px solid #1e3a52;border-radius:999px;padding:5px 9px;color:#61edff;font:10px 'DM Mono',monospace}
 .empty-state{border:1px dashed #343e4b;border-radius:12px;padding:35px;color:#9ba4b1;text-align:center;line-height:1.8}
 .article-body{max-width:760px;color:#cbd2dc;line-height:1.95;font-size:15px}
 .article-body h2,.article-body h3{color:#f2f5f8;margin-top:2em}
@@ -432,6 +432,42 @@ body.universe-open { overflow: hidden; }
 .core-retry[hidden] { display: none; }
 /* The [hidden] attribute must win over the flex display above. */
 .core-stage .core-fallback[hidden] { display: none; }
+/* 轻量模式时徽章退到右上角（状态 + 重试按钮），舞台主体让给入口面板。 */
+.core-stage .core-fallback.with-lite { align-items: flex-start; justify-content: flex-end; padding: 10px 12px; z-index: 3; }
+
+/* ---- 轻量模式入口面板（无 WebGL / 动效关时填充舞台，不再是空黑框） ---- */
+.core-stage .core-lite {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 18px 18px; overflow-y: auto;
+  background:
+    radial-gradient(1.5px 1.5px at 18% 26%, rgba(238, 241, 245, .85) 50%, transparent 52%),
+    radial-gradient(1px 1px at 72% 18%, rgba(238, 241, 245, .6) 50%, transparent 52%),
+    radial-gradient(1px 1px at 86% 58%, rgba(125, 255, 206, .7) 50%, transparent 52%),
+    radial-gradient(1.5px 1.5px at 34% 74%, rgba(166, 138, 255, .65) 50%, transparent 52%),
+    radial-gradient(1px 1px at 55% 42%, rgba(238, 241, 245, .5) 50%, transparent 52%),
+    radial-gradient(ellipse 85% 60% at 50% 0%, rgba(97, 237, 255, .09), transparent 60%),
+    linear-gradient(180deg, rgba(7, 10, 26, .55), rgba(3, 4, 11, .88));
+}
+.core-stage .core-lite[hidden] { display: none; }
+.core-lite-inner { text-align: center; max-width: 600px; margin: auto; }
+.core-lite-title { font-size: 15px; letter-spacing: .22em; color: var(--energy-cyan); margin-bottom: 8px; }
+.core-lite-desc { margin: 0 0 16px; font-size: 12.5px; line-height: 1.7; color: var(--text-dim); }
+.core-lite-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.core-lite-chip {
+  border: 1px solid rgba(97, 237, 255, .3); border-radius: 999px;
+  padding: 7px 14px; font-size: 12.5px; color: var(--text);
+  background: rgba(13, 16, 36, .66); transition: border-color .2s ease, background .2s ease;
+}
+.core-lite-chip:hover { border-color: rgba(97, 237, 255, .7); background: rgba(97, 237, 255, .1); }
+
+/* ---- 工具箱复制反馈 Toast ---- */
+.tool-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  z-index: 320; padding: 9px 18px; border-radius: 999px;
+  background: rgba(13, 16, 36, .92); border: 1px solid rgba(97, 237, 255, .45);
+  color: var(--text); font-size: 13px; box-shadow: 0 10px 32px rgba(0, 0, 0, .45);
+}
 
 /* ---- Galaxy Explorer 模式面板（SpaceCore 右下角） ---- */
 .galaxy-panel {

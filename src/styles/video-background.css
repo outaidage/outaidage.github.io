@@ -26,6 +26,12 @@
   /* 轻微的电影级暗角由遮罩层处理，这里只保证视频本身铺满 */
 }
 
+/* 亮色背景（用户置顶的亮色插画等）会把前景浅色文字吞掉：统一把背景
+   媒体压暗到 70%，全站文字对比度恢复。星空画布在图层之外，不受影响；
+   深空类视频本来就很暗，压暗后观感基本不变。 */
+.video-bg-layer video,
+.video-bg-layer img { filter: brightness(.7) saturate(1.05); }
+
 /* 静态回退：深空渐变（无视频 / 减动效 / 加载失败时显示） */
 .video-bg-fallback {
   position: absolute;

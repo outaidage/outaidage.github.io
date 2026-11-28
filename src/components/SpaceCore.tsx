@@ -582,10 +582,39 @@ function CameraRig({ mode, focus, resetKey, earthPosRef, planetPositions, planet
   return null;
 }
 
+// 首帧探测（模块级，缓存首次结果）：enabled 的初始值就要由它决定。
+// 若等挂载后的 effect 才探测，第一帧已用 enabled=true 挂上 Canvas，
+// 在完全没有 WebGL 的环境里 three 创建上下文会同步抛错、整棵组件树
+// 被卸载，轻量徽章和入口面板永远没机会显示（实测无 WebGL 的浏览器
+// 里两者都不出现）。缓存只影响首帧决定；挂载后的重试仍用组件内的
+// 新探测，可从瞬时失败恢复。服务端渲染无 document，返回 true 与
+// 历史行为一致；无 WebGL 的客户端首帧与 SSR 不一致时 React 会走
+// 客户端重渲染恢复，仍远好于直接崩溃。
+let firstProbeCache: boolean | null = null;
+function probeWebGL2First(): boolean {
+  if (firstProbeCache !== null) return firstProbeCache;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2", { failIfMajorPerformanceCaveat: false });
+    if (!gl) { firstProbeCache = false; return false; }
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    firstProbeCache = true;
+    return true;
+  } catch { firstProbeCache = false; return false; }
+}
+
 // ---------- 主组件 ----------
 export default function SpaceCore({ planetSatellites }: { planetSatellites: Record<string, Satellite[]> }) {
-  const [enabled, setEnabled] = useState(true);
-  const [reason, setReason] = useState<"motion" | "webgl" | null>(null);
+  const [enabled, setEnabled] = useState<boolean>(() => {
+    if (typeof document === "undefined") return true;
+    if (document.documentElement.dataset.motion === "reduced") return false;
+    return probeWebGL2First();
+  });
+  const [reason, setReason] = useState<"motion" | "webgl" | null>(() => {
+    if (typeof document === "undefined") return null;
+    if (document.documentElement.dataset.motion === "reduced") return "motion";
+    return probeWebGL2First() ? null : "webgl";
+  });
   const [mode, setMode] = useState<Mode>("universe");
   const [focus, setFocus] = useState<PlanetId | null>(null);
   const [resetKey, setResetKey] = useState(0);
@@ -707,12 +736,17 @@ export default function SpaceCore({ planetSatellites }: { planetSatellites: Reco
     if (!el) return;
     const text = document.getElementById("core-fallback-text");
     const retryBtn = document.getElementById("core-retry") as HTMLButtonElement | null;
+    const lite = document.getElementById("core-lite");
     if (!enabled) {
       el.hidden = false;
+      el.classList.add("with-lite");
+      if (lite) lite.hidden = false;
       if (text) text.textContent = reason === "motion" ? "3D 核心已关闭 · 动效已关，页脚可开启" : "WEBGL UNAVAILABLE · 使用轻量模式";
       if (retryBtn) retryBtn.hidden = reason !== "webgl";
     } else {
       el.hidden = true;
+      el.classList.remove("with-lite");
+      if (lite) lite.hidden = true;
       if (retryBtn) retryBtn.hidden = true;
     }
   }, [enabled, reason]);
