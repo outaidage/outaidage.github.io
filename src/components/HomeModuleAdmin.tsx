@@ -3,8 +3,9 @@
 // 首页显示 / 导航显示 / 启用 / 状态（草稿/发布/下线）/ 预览 / 恢复默认。
 // 模块只定义首页入口与跳转，不管理模块里的内容（文章、书签等各有自己的管理）。
 // 删除模块不会删除模块指向页面的内容。
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { triggerDeploy } from "@/lib/trigger-deploy";
 import { DEFAULT_MODULES, type HomeModule } from "@/lib/home-modules";
 
 type ModuleForm = {
@@ -75,6 +76,23 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
   // 应用内确认弹窗（不用 window.confirm：自动化浏览器会直接 dismiss 原生确认框，
   // 且与文章/书签删除的弹窗体验一致）。
   const [confirm, setConfirm] = useState<{ kind: "delete" | "restore"; id?: string; name?: string; message: string } | null>(null);
+
+  // 首页模块与顶部导航都是构建时渲染的：只存数据库不重新部署，前台
+  // 看起来就像没改（以前保存后要等每天 3 次定时重建才生效）。所有
+  // 变更成功后防抖 2.5 秒触发一次自动部署（连续操作只发最后一次；
+  // 部署侧有并发取消，快速连改也只跑最后一个）。
+  const deployTimer = useRef<number | null>(null);
+  const scheduleDeploy = () => {
+    if (deployTimer.current) window.clearTimeout(deployTimer.current);
+    deployTimer.current = window.setTimeout(async () => {
+      const dep = await triggerDeploy();
+      if (dep.ok) {
+        say("ok", "改动已保存并触发重新部署，约 2 分钟后生效。");
+      } else {
+        say("err", `改动已保存，但自动部署触发失败：${dep.error}。会随下次定时重建（10:00 / 15:00 / 22:00）生效。`);
+      }
+    }, 2500);
+  };
 
   async function load() {
     if (!supabase) return;
@@ -158,6 +176,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     say("ok", editingId ? `模块“${form.name}”已更新。` : `模块“${form.name}”已添加。`);
     startNew();
     load();
+    scheduleDeploy();
   }
 
   async function remove(id: string, name: string) {
@@ -169,6 +188,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     }
     say("ok", `模块“${name}”已删除。`);
     load();
+    scheduleDeploy();
   }
 
   async function duplicate(m: HomeModule) {
@@ -189,6 +209,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     }
     say("ok", `已复制为“${m.name}（副本）”（草稿状态）。`);
     load();
+    scheduleDeploy();
   }
 
   async function move(id: string, dir: -1 | 1) {
@@ -203,6 +224,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
       return;
     }
     load();
+    scheduleDeploy();
   }
 
   async function toggle(id: string, field: "show_on_home" | "show_in_nav" | "enabled", value: boolean) {
@@ -213,6 +235,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
       return;
     }
     load();
+    scheduleDeploy();
   }
 
   async function setStatus(id: string, status: ModuleForm["status"]) {
@@ -224,6 +247,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     }
     say("ok", `模块状态已改为「${STATUS_LABEL[status]}」。`);
     load();
+    scheduleDeploy();
   }
 
   async function restoreDefaults() {
@@ -260,6 +284,7 @@ export default function HomeModuleAdmin({ say }: { say: (kind: "ok" | "err", msg
     }
     say("ok", "已恢复 10 个默认模块。");
     load();
+    scheduleDeploy();
   }
 
   const preview = previewId ? modules.find((m) => m.id === previewId) : null;
